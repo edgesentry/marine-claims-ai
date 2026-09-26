@@ -1,0 +1,12 @@
+# Pymarkdown configuration for marine-claims-AI docs.
+# Keep structural checks; skip line-length / blank-line noise on existing long prose.
+
+plugins:
+  md013:
+    enabled: false
+  md022:
+    enabled: false
+  md032:
+    enabled: false
+  md033:
+    enabled: false

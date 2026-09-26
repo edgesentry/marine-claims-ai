@@ -6,17 +6,17 @@ dynamically extracts casualty parameters, performs semantic causality mapping an
 concurrent repair (便乗修理) screening, and outputs structured analytics and survey reports.
 """
 
-import os
-import sys
-import re
-import json
 import argparse
+import json
+import os
+import re
 import subprocess
-from datetime import datetime
 
-DEFAULT_SPEC_PDF = "/Users/yoheionishi/work/marine-claims-AI/_inputs/poc_datasets/sample_drydock_repair_specification.pdf"
-DEFAULT_CASUALTY_PDF = "/Users/yoheionishi/work/marine-claims-AI/_inputs/poc_datasets/jtsb_cargo_collision_report.pdf"
-DEFAULT_OUTPUT_DIR = "/Users/yoheionishi/work/marine-claims-AI/_inputs/poc_datasets"
+_REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+_DEFAULT_DATASET_DIR = os.path.join(_REPO_ROOT, "_inputs", "poc_datasets")
+DEFAULT_SPEC_PDF = os.path.join(_DEFAULT_DATASET_DIR, "sample_drydock_repair_specification.pdf")
+DEFAULT_CASUALTY_PDF = os.path.join(_DEFAULT_DATASET_DIR, "jtsb_cargo_collision_report.pdf")
+DEFAULT_OUTPUT_DIR = _DEFAULT_DATASET_DIR
 
 def extract_casualty_profile(casualty_pdf_path):
     """Dynamically extracts vessel identity, incident type, and physical damage zones from casualty report."""
@@ -90,7 +90,7 @@ def extract_repair_items(spec_pdf_path):
     """Dynamically parses arbitrary drydock repair specification PDF into structured line items."""
     cmd = ["pdftotext", spec_pdf_path, "-"]
     res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, check=True)
-    lines = [l.strip() for l in res.stdout.split("\n") if l.strip()]
+    lines = [line.strip() for line in res.stdout.split("\n") if line.strip()]
 
     items = []
     current_category = "【甲板部】"
@@ -178,7 +178,6 @@ def evaluate_claims_dynamically(items, casualty_profile):
     total_excluded = 0
 
     has_hull_damage = any(z in damaged_zones for z in ["外板", "球状船首", "タンク"])
-    has_deck_damage = any(z in damaged_zones for z in ["甲板", "居住区"])
     has_propulsion_damage = any(z in damaged_zones for z in ["推進器", "舵"])
     has_machinery_damage = any(z in damaged_zones for z in ["機関室"])
 
@@ -301,7 +300,7 @@ def main():
     items = extract_repair_items(args.spec)
     print(f"      Extracted {len(items)} repair items.")
 
-    print(f"[3/3] Running dynamic casualty cross-check & concurrent repair screening...")
+    print("[3/3] Running dynamic casualty cross-check & concurrent repair screening...")
     analyzed, summary = evaluate_claims_dynamically(items, casualty_profile)
 
     os.makedirs(args.output_dir, exist_ok=True)

@@ -5,13 +5,15 @@ Evaluates AI performance across maritime-insurance domains using
 configuration-driven rules and public ground truth datasets.
 """
 
-import os
-import json
 import argparse
+import json
+import os
+import sys
 from datetime import datetime
 
-DEFAULT_CONFIG_PATH = os.path.join(os.path.dirname(__file__), "..", "config", "benchmark_rules.json")
-DEFAULT_DATASET_DIR = "/Users/yoheionishi/work/marine-claims-AI/_inputs/poc_datasets"
+_REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+DEFAULT_CONFIG_PATH = os.path.join(_REPO_ROOT, "config", "benchmark_rules.json")
+DEFAULT_DATASET_DIR = os.path.join(_REPO_ROOT, "_inputs", "poc_datasets")
 
 def evaluate_field1_jmat(cases, cfg):
     """

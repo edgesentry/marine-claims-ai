@@ -1,0 +1,70 @@
+name: Security Lint
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  leak-check:
+    name: Zero-Dataset leak check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Fetch base branch for PR diffs
+        if: github.event_name == 'pull_request'
+        run: git fetch --no-tags --depth=1 origin "${{ github.base_ref }}"
+
+      - name: Run Zero-Dataset leak check
+        run: python3 scripts/ci/check_zero_dataset_leak.py
+
+  lint-python:
+    name: Ruff
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install ruff
+        run: pip install ruff
+
+      - name: Ruff check
+        run: ruff check scripts
+
+  lint-markdown:
+    name: Markdown
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install pymarkdown
+        run: pip install pymarkdownlnt
+
+      - name: Scan tracked Markdown
+        shell: bash
+        run: |
+          md_files=($(git ls-files '*.md'))
+          if [ ${#md_files[@]} -eq 0 ]; then
+            echo "No tracked Markdown files."
+            exit 0
+          fi
+          pymarkdown --config .pymarkdown.yaml scan "${md_files[@]}"
