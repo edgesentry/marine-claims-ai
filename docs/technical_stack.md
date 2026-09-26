@@ -123,12 +123,12 @@ ranks. Treat deltas as diagnostic, not as a release gate.
 
 ### E. Civil precedents (fault ratios + yen)
 
-Two tracked catalogs (metadata only; PDFs stay in `_inputs/`):
+Two tracked catalogs (metadata only; document binaries stay in gitignored `_inputs/`):
 
 - `config/civil_precedent_catalog.json` — **real** `court_pdf` / `published_holding` with concrete document URLs (Field 4 realism eval).
 - `config/civil_synthetic_benchmarks.json` — **synthetic_benchmark** rows for unit / regression tests only.
 
-Do not mix lanes: synthetic patterns must not be labeled `published_holding`. Coverage: `uv run python scripts/civil_coverage.py --catalog`.
+Field 4 fetch writes raw files under `_inputs/poc_datasets/civil_pdfs/` and `civil_html/` (response body unchanged) plus JSON sidecars with `local_path`. Do not mix lanes: synthetic patterns must not be labeled `published_holding`. Coverage: `uv run python scripts/civil_coverage.py --catalog`.
 
 ### C. Cost-Effective Off-Machine Storage (Laptop Disaster Recovery)
 

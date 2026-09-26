@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
-from marine_claims_ai.ingest.download import download_url
+from marine_claims_ai.ingest.download import download_url, polite_sleep
 from marine_claims_ai.ingest.jtsb import apply_limit
 from marine_claims_ai.ingest.pdf_text import pdf_to_text
 from marine_claims_ai.paths import REPO_ROOT
@@ -99,7 +99,12 @@ def _first_yen_near(text: str, label_pat: str) -> int | None:
     return None
 
 
-def enrich_from_text(record: dict[str, Any], text: str) -> dict[str, Any]:
+def enrich_from_text(
+    record: dict[str, Any],
+    text: str,
+    *,
+    excerpt_tag: str = "pdf_excerpt",
+) -> dict[str, Any]:
     """Pull fault ratios and yen figures from judgment / saiketsu text."""
     if not text:
         return record
@@ -147,36 +152,93 @@ def enrich_from_text(record: dict[str, Any], text: str) -> dict[str, Any]:
     compact = re.sub(r"\s+", " ", text)[:3500]
     if compact:
         base_facts = out.get("input_facts") or ""
-        if "[pdf_excerpt]" not in base_facts:
-            out["input_facts"] = f"{base_facts}\n[pdf_excerpt] {compact}".strip()
+        marker = f"[{excerpt_tag}]"
+        if marker not in base_facts and "[pdf_excerpt]" not in base_facts and "[html_excerpt]" not in base_facts:
+            out["input_facts"] = f"{base_facts}\n{marker} {compact}".strip()
     return out
 
 
 _enrich_from_pdf_text = enrich_from_text
 
 
+def decode_document_bytes(raw: bytes) -> str:
+    for enc in ("utf-8", "shift_jis", "cp932", "euc-jp"):
+        try:
+            return raw.decode(enc)
+        except UnicodeDecodeError:
+            continue
+    return raw.decode("utf-8", errors="ignore")
+
+
+def html_to_plain(raw_html: str) -> str:
+    """Tag strip for enrichment only; on-disk HTML stays untouched raw bytes."""
+    plain = re.sub(r"<[^>]+>", " ", raw_html)
+    return re.sub(r"\s+", " ", plain)
+
+
+def local_cache_name(case_id: Any, url: str, pdf_name: str | None = None) -> tuple[str, str]:
+    """
+    Return (subdir, filename) under the dataset dir for a concrete document URL.
+    PDFs → civil_pdfs/; HTML and other pages → civil_html/ (raw response body).
+    """
+    if pdf_name:
+        return "civil_pdfs", str(pdf_name)
+    parsed = urlparse(str(url))
+    base = os.path.basename(parsed.path) or f"case_{case_id}.html"
+    lower = base.lower()
+    if lower.endswith(".pdf"):
+        subdir = "civil_pdfs"
+    else:
+        subdir = "civil_html"
+        if not lower.endswith((".htm", ".html")):
+            base = f"case_{case_id}.html"
+    # Prefix case_id to avoid basename collisions across decades.
+    cid = int(case_id) if str(case_id).isdigit() else case_id
+    prefix = f"{int(cid):02d}_"
+    if not str(base).startswith(prefix) and not str(base).startswith(f"{cid}_"):
+        base = f"{prefix}{base}"
+    return subdir, base
+
+
 def _materialize_seeds(
     seeds: list[dict[str, Any]],
     output_dir: str,
     force: bool,
-    pdf_dir: str,
+    *,
+    download_documents: bool = True,
 ) -> list[dict[str, Any]]:
     cases: list[dict[str, Any]] = []
     for seed in seeds:
         record = {k: v for k, v in seed.items() if k != "pdf_name"}
         pdf_name = seed.get("pdf_name")
-        url = seed.get("url")
-        if pdf_name and url and str(url).endswith(".pdf"):
-            pdf_path = os.path.join(pdf_dir, str(pdf_name))
-            ok = download_url(str(url), pdf_path, force=force, timeout=45)
+        url = str(seed.get("url") or "")
+        case_id = seed.get("case_id")
+
+        if download_documents and url and has_concrete_document_url(url):
+            subdir, fname = local_cache_name(
+                case_id, url, str(pdf_name) if pdf_name else None
+            )
+            dest_dir = os.path.join(output_dir, subdir)
+            os.makedirs(dest_dir, exist_ok=True)
+            dest_path = os.path.join(dest_dir, fname)
+            ok = download_url(url, dest_path, force=force, timeout=45)
+            polite_sleep(0.25)
+            record["local_path"] = f"{subdir}/{fname}"
             if ok:
-                text = pdf_to_text(pdf_path)
-                record = enrich_from_text(record, text)
-                print(f"  [{seed.get('case_id'):02d}] enriched from {pdf_name} ({len(text):,} chars)")
+                if fname.lower().endswith(".pdf"):
+                    text = pdf_to_text(dest_path)
+                    record = enrich_from_text(record, text, excerpt_tag="pdf_excerpt")
+                    print(f"  [{case_id:02d}] PDF cached+enriched {fname} ({len(text):,} chars)")
+                else:
+                    # Keep raw bytes on disk; enrich from a decoded plain-text view only.
+                    raw = Path(dest_path).read_bytes()
+                    plain = html_to_plain(decode_document_bytes(raw))
+                    record = enrich_from_text(record, plain, excerpt_tag="html_excerpt")
+                    print(f"  [{case_id:02d}] HTML cached raw {fname} ({len(raw):,} bytes)")
             else:
-                print(f"  [{seed.get('case_id'):02d}] seed metadata only (download failed)")
+                print(f"  [{case_id:02d}] download failed; seed metadata only")
         else:
-            print(f"  [{seed.get('case_id'):02d}] {seed.get('source_type')} / holding summary")
+            print(f"  [{case_id:02d}] {seed.get('source_type')} / no concrete document URL")
         cases.append(record)
     return cases
 
@@ -190,13 +252,11 @@ def fetch_field4_civil_courts(
 ) -> list[dict[str, Any]]:
     """
     Materialize REAL civil precedents (and optionally write synthetic regression file separately).
-    Real → benchmark_court_civil_cases.json
-    Synthetic → benchmark_court_civil_synthetic.json
+    Real → benchmark_court_civil_cases.json + civil_pdfs/ + civil_html/ (raw)
+    Synthetic → benchmark_court_civil_synthetic.json (metadata only; no portal downloads)
     """
     dest_json = os.path.join(output_dir, CIVIL_JSON)
     syn_json = os.path.join(output_dir, SYNTHETIC_JSON)
-    pdf_dir = os.path.join(output_dir, "civil_pdfs")
-    os.makedirs(pdf_dir, exist_ok=True)
     os.makedirs(output_dir, exist_ok=True)
 
     if os.path.exists(dest_json) and os.path.getsize(dest_json) > 0 and not force:
@@ -206,7 +266,7 @@ def fetch_field4_civil_courts(
     else:
         seeds = apply_limit(load_catalog(catalog_path), limit)
         print(f"[Field 4/real] Building from civil_precedent_catalog.json ({len(seeds)} seeds)...")
-        cases = _materialize_seeds(seeds, output_dir, force, pdf_dir)
+        cases = _materialize_seeds(seeds, output_dir, force, download_documents=True)
         with open(dest_json, "w", encoding="utf-8") as f:
             json.dump(cases, f, ensure_ascii=False, indent=2)
         stats = catalog_stats(cases)
@@ -222,7 +282,8 @@ def fetch_field4_civil_courts(
         else:
             syn_seeds = apply_limit(load_synthetic_catalog(), limit)
             print(f"[Field 4/synthetic] Writing regression benchmarks ({len(syn_seeds)} seeds)...")
-            syn_cases = _materialize_seeds(syn_seeds, output_dir, force, pdf_dir)
+            # Do not download portal stubs; metadata only.
+            syn_cases = _materialize_seeds(syn_seeds, output_dir, force, download_documents=False)
             with open(syn_json, "w", encoding="utf-8") as f:
                 json.dump(syn_cases, f, ensure_ascii=False, indent=2)
             print(f"[Field 4/synthetic] [OK] Saved {len(syn_cases)} cases -> {syn_json}")

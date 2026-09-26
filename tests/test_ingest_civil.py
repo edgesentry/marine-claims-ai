@@ -1,13 +1,18 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 from marine_claims_ai.ingest.civil import (
     REAL_DOD_FAULT_RATIO,
     REAL_DOD_YEN,
+    _materialize_seeds,
     catalog_stats,
     enrich_from_text,
     has_concrete_document_url,
+    html_to_plain,
     load_catalog,
     load_synthetic_catalog,
+    local_cache_name,
     real_dod_status,
 )
 from marine_claims_ai.ingest.public_datasets import CIVIL_COURT_SEEDS
@@ -68,3 +73,49 @@ def test_enrich_main_cause_fallback():
     seed = {"fault_ratio": None, "input_facts": "x"}
     out = enrich_from_text(seed, "本件はAが主因でありBが一因をなす。")
     assert out["fault_ratio"] == "70:30"
+
+
+def test_local_cache_name_routes_pdf_and_html():
+    assert local_cache_name(1, "https://example.com/a.pdf", "civil_1.pdf") == (
+        "civil_pdfs",
+        "civil_1.pdf",
+    )
+    assert local_cache_name(
+        5, "https://www.courts.go.jp/app/files/hanrei_jp/123/012345_hanrei.htm"
+    ) == ("civil_html", "05_012345_hanrei.htm")
+    assert local_cache_name(9, "https://www.yuhikaku.co.jp/article/detail/12345") == (
+        "civil_html",
+        "09_case_9.html",
+    )
+
+
+def test_html_to_plain_keeps_text():
+    assert "過失割合" in html_to_plain("<p>過失割合 60:40</p>")
+
+
+def test_materialize_saves_raw_html(tmp_path, monkeypatch):
+    html_bytes = b"<html><body>\x89\xdb\xae\x84\x8a\x84\x8d\x87 60:40</body></html>"  # mojibake ok; raw preserved
+
+    def fake_download(url, dest_path, force=False, timeout=30):
+        Path(dest_path).parent.mkdir(parents=True, exist_ok=True)
+        Path(dest_path).write_bytes(html_bytes)
+        return True
+
+    monkeypatch.setattr("marine_claims_ai.ingest.civil.download_url", fake_download)
+    monkeypatch.setattr("marine_claims_ai.ingest.civil.polite_sleep", lambda _s: None)
+
+    seeds = [
+        {
+            "case_id": 7,
+            "source_type": "published_holding",
+            "url": "https://www.courts.go.jp/app/files/hanrei_jp/001/000001_hanrei.htm",
+            "input_facts": "seed",
+            "fault_ratio": "60:40",
+        }
+    ]
+    out = _materialize_seeds(seeds, str(tmp_path), force=True, download_documents=True)
+    cached = tmp_path / "civil_html" / "07_000001_hanrei.htm"
+    assert cached.is_file()
+    assert cached.read_bytes() == html_bytes
+    assert out[0]["local_path"] == "civil_html/07_000001_hanrei.htm"
+    assert "[html_excerpt]" in out[0]["input_facts"]
