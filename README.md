@@ -58,6 +58,7 @@ MarineClaims AI provides a fully open and reproducible foundation for marine cla
 marine-claims-AI/
 ├── AGENTS.md                               # AI agent guidelines & zero-data security rules
 ├── README.md                               # Project overview and public capabilities
+├── pyproject.toml / uv.lock                # uv-managed dependencies (duckdb, fastembed, …)
 ├── .github/workflows/security-lint.yml     # Zero-Dataset leak check, ruff, markdown CI
 ├── config/
 │   └── benchmark_rules.json                # Decoupled rules, keywords, and triage thresholds
@@ -65,39 +66,56 @@ marine-claims-AI/
 │   └── iterative_knowledge_loop_specification.md  # 5-phase continuous improvement loop spec
 └── scripts/
     ├── ci/check_zero_dataset_leak.py       # Tracked-data / path / secret leak scanner
-    ├── fetch_public_datasets.py            # Idempotent public data ingestion pipeline
+    ├── fetch_public_datasets.py            # Idempotent public data ingestion (Fields 1–4)
+    ├── init_duckdb_vector.py               # Build local DuckDB + embeddings (gitignored DB)
+    ├── hybrid_search.py                    # SQL filter + cosine similarity search CLI
     ├── verify_3fields_benchmarks.py        # Multi-field benchmark evaluation runner
     └── prototype_experiment.py             # End-to-end PDF parsing and claims adjustment pipeline
 ```
 
-*(Note: Downloaded PDFs, scraped HTMLs, and extracted benchmark JSONs are cached locally under `_inputs/` or `datasets/` and are strictly excluded from version control via `.gitignore`. CI enforces this Zero-Dataset policy on every PR and push to `main`.)*
+*(Note: Downloaded PDFs, scraped HTMLs, extracted benchmark JSONs, and `_inputs/marine_claims.duckdb` are local caches only — never committed. CI enforces this Zero-Dataset policy on every PR and push to `main`.)*
 
 ---
 
 ## Quick Start
 
+### 0. Install dependencies (uv)
+
+```bash
+uv sync
+```
+
 ### 1. Ingest Public Datasets
 
-Fetches missing ground truth datasets from official public portals:
+Fetches missing ground truth datasets (JMAT, PSC, repair packages, civil-court seeds):
 
 ```bash
-python3 scripts/fetch_public_datasets.py
+uv run python scripts/fetch_public_datasets.py
 ```
 
-### 2. Run Multi-Field Benchmark Evaluation
+### 2. Build Local Hybrid Search DB
 
-Executes scientific accuracy verification across 60 ground truth cases:
+Embeds cached JSON into a local DuckDB file (written under `_inputs/`, not committed):
 
 ```bash
-python3 scripts/verify_3fields_benchmarks.py --config config/benchmark_rules.json
+uv run python scripts/init_duckdb_vector.py --force
+uv run python scripts/hybrid_search.py --query "外板高圧洗浄" --domain repair --top-k 5
 ```
 
-### 3. Run Claims Adjustment Pipeline
+### 3. Run Multi-Field Benchmark Evaluation
+
+Executes scientific accuracy verification across public ground truth cases:
+
+```bash
+uv run python scripts/verify_3fields_benchmarks.py --config config/benchmark_rules.json
+```
+
+### 4. Run Claims Adjustment Pipeline
 
 Analyzes a drydock specification PDF against a casualty report PDF:
 
 ```bash
-python3 scripts/prototype_experiment.py \
+uv run python scripts/prototype_experiment.py \
   --spec _inputs/poc_datasets/sample_drydock_repair_specification.pdf \
   --casualty _inputs/poc_datasets/jtsb_cargo_collision_report.pdf
 ```
