@@ -1,0 +1,22 @@
+# macOS
+.DS_Store
+
+# Local input & dataset directories (Raw PDFs, HTMLs, and extracted JSONs)
+_inputs/
+datasets/
+data/
+downloads/
+
+# Intermediate and generated data artifacts
+*.pdf
+*.csv
+*.tsv
+*.duckdb
+*.sqlite3
+results/
+reports/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
