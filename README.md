@@ -56,48 +56,72 @@ MarineClaims AI provides a fully open and reproducible foundation for marine cla
 
 ```text
 marine-claims-AI/
-├── AGENTS.md                               # AI agent guidelines & zero-data security rules
-├── README.md                               # Project overview and public capabilities
-├── .github/workflows/security-lint.yml     # Zero-Dataset leak check, ruff, markdown CI
+├── AGENTS.md
+├── README.md
+├── pyproject.toml / uv.lock          # installable package + uv deps
+├── src/marine_claims_ai/             # publishable core library
+│   ├── ingest/                       # public dataset fetchers
+│   ├── index/                        # LanceDB build + hybrid search
+│   ├── analytics/                    # DuckDB apportionment
+│   ├── ontology/                     # NetworkX compartment graph
+│   ├── appraisal/                    # claims pipeline
+│   ├── benchmarks/                   # scientific evaluators
+│   └── ci/                           # Zero-Dataset leak scanner
+├── scripts/                          # thin CLI entrypoints only
+│   ├── ci/check_zero_dataset_leak.py
+│   ├── fetch_public_datasets.py
+│   ├── init_duckdb_vector.py
+│   ├── hybrid_search.py
+│   ├── apportion_analytics.py
+│   ├── validate_compartment_path.py
+│   ├── verify_3fields_benchmarks.py
+│   └── prototype_experiment.py
 ├── config/
-│   └── benchmark_rules.json                # Decoupled rules, keywords, and triage thresholds
-├── docs/
-│   └── iterative_knowledge_loop_specification.md  # 5-phase continuous improvement loop spec
-└── scripts/
-    ├── ci/check_zero_dataset_leak.py       # Tracked-data / path / secret leak scanner
-    ├── fetch_public_datasets.py            # Idempotent public data ingestion pipeline
-    ├── verify_3fields_benchmarks.py        # Multi-field benchmark evaluation runner
-    └── prototype_experiment.py             # End-to-end PDF parsing and claims adjustment pipeline
+└── docs/
 ```
 
-*(Note: Downloaded PDFs, scraped HTMLs, and extracted benchmark JSONs are cached locally under `_inputs/` or `datasets/` and are strictly excluded from version control via `.gitignore`. CI enforces this Zero-Dataset policy on every PR and push to `main`.)*
+*(Note: `_inputs/`, `.lancedb/`, and `*.duckdb` are local caches only — never committed. CI enforces Zero-Dataset policy on every PR and push to `main`.)*
+
+Core logic lives under `src/marine_claims_ai/` so the project can be installed and later published as a Python package (`uv sync` / `pip install -e .`). `scripts/` only wraps `main()` entrypoints.
 
 ---
 
 ## Quick Start
 
+### 0. Install dependencies (uv)
+
+```bash
+uv sync
+uv run pytest -q
+```
+
 ### 1. Ingest Public Datasets
 
-Fetches missing ground truth datasets from official public portals:
+Fetches missing ground truth datasets (JMAT, PSC, repair packages, civil-court seeds):
 
 ```bash
-python3 scripts/fetch_public_datasets.py
+uv run python scripts/fetch_public_datasets.py
 ```
 
-### 2. Run Multi-Field Benchmark Evaluation
-
-Executes scientific accuracy verification across 60 ground truth cases:
+### 2. Rebuild Local Indexes (Polars → LanceDB + DuckDB)
 
 ```bash
-python3 scripts/verify_3fields_benchmarks.py --config config/benchmark_rules.json
+uv run python scripts/init_duckdb_vector.py --force
+uv run python scripts/hybrid_search.py --query "外板高圧洗浄" --domain repair --top-k 5
+uv run python scripts/apportion_analytics.py
+uv run python scripts/validate_compartment_path.py --damage-zone 球状船首 --repair-zone 機関室
 ```
 
-### 3. Run Claims Adjustment Pipeline
-
-Analyzes a drydock specification PDF against a casualty report PDF:
+### 3. Run Multi-Field Benchmark Evaluation
 
 ```bash
-python3 scripts/prototype_experiment.py \
+uv run python scripts/verify_3fields_benchmarks.py --config config/benchmark_rules.json
+```
+
+### 4. Run Claims Adjustment Pipeline
+
+```bash
+uv run python scripts/prototype_experiment.py \
   --spec _inputs/poc_datasets/sample_drydock_repair_specification.pdf \
   --casualty _inputs/poc_datasets/jtsb_cargo_collision_report.pdf
 ```
@@ -106,6 +130,7 @@ python3 scripts/prototype_experiment.py \
 
 ## Documentation
 
+- [Technical Stack Architecture](docs/technical_stack.md)
 - [Iterative Knowledge Loop Specification](docs/iterative_knowledge_loop_specification.md)
 - [Benchmark Methodology and Architecture](_inputs/poc_datasets/benchmark_methodology_and_architecture.md)
 - [Benchmark Validation Report](_inputs/poc_datasets/3fields_benchmark_validation_report.md)

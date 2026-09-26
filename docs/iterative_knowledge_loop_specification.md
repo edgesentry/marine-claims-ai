@@ -33,9 +33,9 @@ flowchart TD
     end
 
     subgraph P4["Phase 4: Multi-Tier Verification Gates"]
-        V1["① Extraction Accuracy (F1 >= 90%)"]
-        V2["② Engineering Validity (Violations = 0.0%)"]
-        V3["③ Judicial Consistency (MAPE <= 5.0%)"]
+        V1["Gate 1: Extraction Accuracy (F1 >= 90%)"]
+        V2["Gate 2: Engineering Validity (Violations = 0.0%)"]
+        V3["Gate 3: Judicial Consistency (MAPE <= 5.0%)"]
     end
 
     subgraph P5["Phase 5: Rules Engine & Vector DB Update"]
@@ -102,9 +102,9 @@ Before deploying updated knowledge to production, the pipeline must pass three i
 
 | Verification Tier | Focus Area | Methodology | Target KPI |
 | :--- | :--- | :--- | :--- |
-| **① Extraction Correctness** | Triplet mining precision and recall | Evaluated against 100 human-annotated ground truth pairs | **F1-Score >= 90.0%**<br>(Precision >= 92%, Recall >= 88%) |
-| **② Engineering Soundness** | Structural integrity of causal graph | Automated validation against Ship Structural Hierarchy constraints | **Violation Rate = 0.0%**<br>(Zero invalid cross-compartment edges) |
-| **③ Practical & Legal Validity** | End-to-end adjustment monetary accuracy | Benchmarked against civil court approved damage amounts | **MAPE <= 5.0%**<br>(Fault Attribution Accuracy >= 80.0%) |
+| **Tier 1: Extraction Correctness** | Triplet mining precision and recall | Evaluated against 100 human-annotated ground truth pairs | **F1-Score >= 90.0%**<br>(Precision >= 92%, Recall >= 88%) |
+| **Tier 2: Engineering Soundness** | Structural integrity of causal graph | Automated validation against Ship Structural Hierarchy constraints | **Violation Rate = 0.0%**<br>(Zero invalid cross-compartment edges) |
+| **Tier 3: Practical & Legal Validity** | End-to-end adjustment monetary accuracy | Benchmarked against civil court approved damage amounts | **MAPE <= 5.0%**<br>(Fault Attribution Accuracy >= 80.0%) |
 
 #### Independent Marine Surveyor Blind Audit
 

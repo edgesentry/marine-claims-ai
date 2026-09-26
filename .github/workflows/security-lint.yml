@@ -24,7 +24,7 @@ jobs:
         run: git fetch --no-tags --depth=1 origin "${{ github.base_ref }}"
 
       - name: Run Zero-Dataset leak check
-        run: python3 scripts/ci/check_zero_dataset_leak.py
+        run: PYTHONPATH=src python3 scripts/ci/check_zero_dataset_leak.py
 
   lint-python:
     name: Ruff
@@ -42,7 +42,23 @@ jobs:
         run: pip install ruff
 
       - name: Ruff check
-        run: ruff check scripts
+        run: ruff check src scripts tests
+
+  unit-tests:
+    name: Unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Sync project with dev deps
+        run: uv sync --group dev
+
+      - name: Run pytest
+        run: uv run pytest -q
 
   lint-markdown:
     name: Markdown

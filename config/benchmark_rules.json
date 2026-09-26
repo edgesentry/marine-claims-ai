@@ -1,6 +1,6 @@
 {
   "field1_collision_fault": {
-    "display_name": "① 船舶衝突・海難の過失・避航義務違反判定",
+    "display_name": "Field 1: 船舶衝突・海難の過失・避航義務違反判定",
     "metric_name": "法的過失要因の一致率 (Accuracy)",
     "fallback_category": "運航管理上の過失",
     "fact_detection_rules": [
@@ -39,14 +39,14 @@
     }
   },
   "field2_psc_risk": {
-    "display_name": "② 船舶の安全欠陥・堪航性による引受免責リスク予測",
+    "display_name": "Field 2: 船舶の安全欠陥・堪航性による引受免責リスク予測",
     "metric_name": "リスク格付け一致率 (Risk Tier Accuracy)",
     "detention_rate_threshold_pct": 2.0,
     "low_risk_label": "WHITE (Low Risk)",
     "high_risk_label": "GREY/BLACK (High Risk)"
   },
   "field3_repair_cost": {
-    "display_name": "③ 船舶修繕工事の適正価格・落札金額ベンチマーク",
+    "display_name": "Field 3: 船舶修繕工事の適正価格・落札金額ベンチマーク",
     "metric_name": "積算価格推定精度 (100 - MAPE)",
     "concurrent_repair_trade_codes": ["ENG", "VALVE"],
     "concurrent_classification_label": "便乗修理 (定期検査固有)",
