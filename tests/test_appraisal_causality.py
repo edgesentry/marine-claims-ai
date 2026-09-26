@@ -7,7 +7,6 @@ from marine_claims_ai.ontology.compartments import (
     validate_claims_causality,
 )
 
-
 BOW_CASUALTY = {
     "vessel_name": "テスト船",
     "incident_type": "衝突",

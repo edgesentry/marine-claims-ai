@@ -12,11 +12,11 @@ import os
 import re
 import subprocess
 
+from marine_claims_ai.appraisal.report import render_preliminary_survey_report
 from marine_claims_ai.ontology.compartments import (
     any_damage_allows_repair,
     infer_repair_zone,
 )
-from marine_claims_ai.appraisal.report import render_preliminary_survey_report
 from marine_claims_ai.paths import DEFAULT_DATASET_DIR
 
 DEFAULT_SPEC_PDF = str(DEFAULT_DATASET_DIR / "sample_drydock_repair_specification.pdf")
