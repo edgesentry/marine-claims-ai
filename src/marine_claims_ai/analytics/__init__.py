@@ -1,0 +1,1 @@
+"""DuckDB financial apportionment analytics."""

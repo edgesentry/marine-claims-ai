@@ -19,7 +19,7 @@ Any autonomous or semi-autonomous AI agent operating in this codebase MUST stric
 ### B. Zero-Dataset Git Policy (Do Not Commit Raw or Extracted Data)
 - **NEVER** commit raw external documents (PDFs, HTML files), private spreadsheets (CSV, TSV), or extracted benchmark JSON files to this Git repository.
 - All evaluation data must be generated or fetched on-demand into gitignored local cache directories (`_inputs/`, `datasets/`).
-- Only source code (`scripts/`), configuration schemas (`config/benchmark_rules.json`), and architectural documentation (`docs/`) are tracked in version control.
+- Only source code (`src/marine_claims_ai/`, thin `scripts/` entrypoints), configuration schemas (`config/benchmark_rules.json`), and architectural documentation (`docs/`) are tracked in version control.
 
 ### C. Architectural Boundaries
 - Keep all domain logic generalized and standard-compliant (e.g., standard COLREGS rules, classification society survey intervals, physical compartment ontologies).
