@@ -111,7 +111,7 @@ def evaluate_claims_dynamically(items, casualty_profile, scorer=None):
         approved_amount = 0
         repair_zone = None
         causality = None
-        red_flag = npl_scorer.score_description(desc)
+        red_flag = npl_scorer.score_description(desc, category=cat)
 
         # Rule 1: Common Drydocking charges (入出渠・滞渠) — apportionment, not zone-gated
         if "入出渠" in desc or "滞渠" in desc:

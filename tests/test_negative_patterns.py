@@ -16,6 +16,8 @@ from marine_claims_ai.appraisal.negative_patterns import (
     cosine_similarity,
     format_citation,
     load_library,
+    normalize_category,
+    pattern_passes_gates,
     score_line_items,
 )
 from marine_claims_ai.appraisal.pipeline import evaluate_claims_dynamically
@@ -46,7 +48,8 @@ class StubScorer:
             "recommended_action": ACTION_APPROVED,
         }
 
-    def score_description(self, description: str) -> dict:
+    def score_description(self, description: str, category: str | None = None) -> dict:
+        del category  # Stub ignores category; real scorer applies gates.
         for needle, payload in self.by_substring.items():
             if needle in description:
                 return dict(payload)
@@ -243,6 +246,189 @@ def test_pipeline_npl_does_not_override_valid_hull_causality():
     assert analyzed[0]["status"] == "COVERED"
     assert analyzed[0]["recommended_action"] == ACTION_APPORTIONED
     assert analyzed[0]["red_flag_similarity"] == pytest.approx(0.70)
+
+
+def test_normalize_category_strips_brackets():
+    assert normalize_category("【船体部】") == "船体部"
+    assert normalize_category("機関部") == "機関部"
+    assert normalize_category("  ") is None
+    assert normalize_category(None) is None
+
+
+def test_pattern_passes_gates_anchor_and_category():
+    pattern = {
+        "category": "弁部",
+        "anchor_tokens": ["キングストン", "排出弁"],
+    }
+    assert pattern_passes_gates(pattern, "船底キングストン弁開放") is True
+    assert pattern_passes_gates(pattern, "船体外板高圧清水洗浄") is False
+    assert pattern_passes_gates(pattern, "船底キングストン弁開放", category="【弁部】") is True
+    assert pattern_passes_gates(pattern, "船底キングストン弁開放", category="【船体部】") is False
+
+
+def test_score_rejects_midband_hull_false_positives_without_anchors(tmp_path: Path):
+    """Casualty hull / bow work must not Apportion against VALVE/HULL-04 without anchors."""
+    lib = {
+        "thresholds": {"disallow_min": 0.80, "apportion_min": 0.50},
+        "patterns": [
+            {
+                "id": "npl-valve-01",
+                "trade_code": "VALVE-01",
+                "category": "弁部",
+                "text": "船底・船側キングストン弁及び非常排出弁開放摺合せ",
+                "anchor_tokens": ["キングストン", "排出弁"],
+                "source": "test",
+            },
+            {
+                "id": "npl-hull-04",
+                "trade_code": "HULL-04",
+                "category": "船体部",
+                "text": "船底防食亜鉛板 (ジンクアノード) 新替取付",
+                "anchor_tokens": ["亜鉛", "ジンク", "アノード"],
+                "source": "test",
+            },
+            {
+                "id": "npl-pump-01",
+                "trade_code": "PUMP-01",
+                "category": "補機部",
+                "text": "主海水冷却ポンプ・バラストポンプ分解点検",
+                "anchor_tokens": ["海水冷却ポンプ", "バラストポンプ"],
+                "source": "test",
+            },
+        ],
+    }
+    lib_path = tmp_path / "npl.json"
+    lib_path.write_text(json.dumps(lib, ensure_ascii=False), encoding="utf-8")
+
+    # Force high cosine between hull/bow queries and VALVE/HULL-04/PUMP texts.
+    def fake_embed(texts: list[str]) -> list[list[float]]:
+        out = []
+        for t in texts:
+            if "キングストン" in t or "外板" in t or "海水冷却" in t:
+                out.append([1.0, 0.0, 0.0])
+            elif "亜鉛" in t or "ジンク" in t or "球状船首" in t:
+                out.append([0.0, 1.0, 0.0])
+            else:
+                out.append([0.0, 0.0, 1.0])
+        return out
+
+    scorer = NegativePatternScorer(library_path=lib_path, embed_fn=fake_embed)
+    wash = scorer.score_description(
+        "船体外板・船側外板高圧清水洗浄",
+        category="【船体部】",
+    )
+    bow = scorer.score_description(
+        "球状船首曲損部切替新替",
+        category="【船体部】",
+    )
+    assert wash["recommended_action"] == ACTION_APPROVED
+    assert wash["matched_trade_code"] is None
+    assert wash["red_flag_similarity"] == pytest.approx(0.0)
+    assert bow["recommended_action"] == ACTION_APPROVED
+    assert bow["matched_trade_code"] is None
+    assert bow["red_flag_similarity"] == pytest.approx(0.0)
+
+
+def test_score_true_positives_with_anchors_remain_disallowed(tmp_path: Path):
+    lib = {
+        "thresholds": {"disallow_min": 0.80, "apportion_min": 0.50},
+        "patterns": [
+            {
+                "id": "npl-eng-01",
+                "trade_code": "ENG-01",
+                "category": "機関部",
+                "text": "主機関シリンダヘッド及びピストン抜出開放点検",
+                "anchor_tokens": ["ピストン", "シリンダヘッド"],
+                "source": "test",
+            },
+            {
+                "id": "npl-valve-01",
+                "trade_code": "VALVE-01",
+                "category": "弁部",
+                "text": "船底・船側キングストン弁及び非常排出弁開放摺合せ",
+                "anchor_tokens": ["キングストン", "排出弁"],
+                "source": "test",
+            },
+            {
+                "id": "npl-safe-01",
+                "trade_code": "SAFE-01",
+                "category": "法定部",
+                "text": "JG (日本政府) 定期検査・中間検査立会及び安全設備点検整備",
+                "anchor_tokens": ["JG", "定期検査", "中間検査", "安全設備"],
+                "source": "test",
+            },
+            {
+                "id": "npl-hull-04",
+                "trade_code": "HULL-04",
+                "category": "船体部",
+                "text": "船底防食亜鉛板 (ジンクアノード) 新替取付",
+                "anchor_tokens": ["亜鉛", "ジンク", "アノード"],
+                "source": "test",
+            },
+        ],
+    }
+    lib_path = tmp_path / "npl.json"
+    lib_path.write_text(json.dumps(lib, ensure_ascii=False), encoding="utf-8")
+
+    def fake_embed(texts: list[str]) -> list[list[float]]:
+        out = []
+        for t in texts:
+            if "ピストン" in t or "シリンダヘッド" in t:
+                out.append([1.0, 0.0, 0.0, 0.0])
+            elif "キングストン" in t or "排出弁" in t:
+                out.append([0.0, 1.0, 0.0, 0.0])
+            elif "JG" in t or "定期検査" in t or "安全設備" in t:
+                out.append([0.0, 0.0, 1.0, 0.0])
+            elif "亜鉛" in t or "ジンク" in t or "アノード" in t:
+                out.append([0.0, 0.0, 0.0, 1.0])
+            else:
+                out.append([0.25, 0.25, 0.25, 0.25])
+        return out
+
+    scorer = NegativePatternScorer(library_path=lib_path, embed_fn=fake_embed)
+    cases = [
+        ("主機関シリンダヘッド及びピストン抜出開放点検", "【機関部】", "ENG-01"),
+        ("船底・船側キングストン弁及び非常排出弁開放摺合せ", "【弁部】", "VALVE-01"),
+        ("JG 定期検査立会及び安全設備点検", "【法定部】", "SAFE-01"),
+        ("船底防食亜鉛板（ジンクアノード）新替", "【船体部】", "HULL-04"),
+    ]
+    for desc, cat, code in cases:
+        result = scorer.score_description(desc, category=cat)
+        assert result["matched_trade_code"] == code
+        assert result["recommended_action"] == ACTION_DISALLOWED
+        assert result["red_flag_similarity"] == pytest.approx(1.0)
+
+
+def test_fastembed_casualty_hull_not_apportioned():
+    """Live embed: hull wash / bow insert must stay Approved; ENG/VALVE/SAFE stay hot."""
+    try:
+        scorer = NegativePatternScorer(library_path=DEFAULT_NEGATIVE_PATTERN_PATH)
+    except Exception as exc:  # pragma: no cover - environment dependent
+        pytest.skip(f"FastEmbed unavailable: {exc}")
+
+    wash = scorer.score_description(
+        "船体外板・船側外板高圧清水洗浄",
+        category="【船体部】",
+    )
+    bow = scorer.score_description(
+        "球状船首曲損部切替新替",
+        category="【船体部】",
+    )
+    assert wash["recommended_action"] == ACTION_APPROVED
+    assert wash["red_flag_similarity"] < scorer.apportion_min or wash["matched_trade_code"] is None
+    assert bow["recommended_action"] == ACTION_APPROVED
+    assert bow["red_flag_similarity"] < scorer.apportion_min or bow["matched_trade_code"] is None
+
+    positives = [
+        ("主機関シリンダヘッド及びピストン抜出開放点検", "【機関部】", "ENG-01"),
+        ("船底・船側キングストン弁及び非常排出弁開放摺合せ", "【弁部】", "VALVE-01"),
+        ("JG (日本政府) 定期検査・中間検査立会及び安全設備点検整備", "【法定部】", "SAFE-01"),
+    ]
+    for desc, cat, code in positives:
+        result = scorer.score_description(desc, category=cat)
+        assert result["matched_trade_code"] == code
+        assert result["recommended_action"] == ACTION_DISALLOWED
+        assert result["red_flag_similarity"] >= scorer.disallow_min
 
 
 def test_fastembed_piston_matches_eng01():
