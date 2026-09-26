@@ -32,3 +32,13 @@ def test_parse_jtsb_list_page_extracts_report_rows():
     assert rows[0]["title"].startswith("押船第八新生丸")
     assert "rep-acci" in rows[0]["url"]
     assert "衝突" in rows[0]["accident_type"]
+
+
+def test_strip_ignores_script_noise():
+    html = (
+        "<script>var x='</tr><td>fake</td>';</script>"
+        + SAMPLE_TR
+        + "<script type='text/javascript'>\nalert(1)\n</script >"
+    )
+    rows = parse_jtsb_list_page(html)
+    assert len(rows) == 1

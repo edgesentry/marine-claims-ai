@@ -27,9 +27,30 @@ def apply_limit(items: list[Any], limit: int) -> list[Any]:
     return list(items)[:limit]
 
 
+def _strip_script_blocks(html: str) -> str:
+    """Remove <script>...</script> blocks without fragile end-tag regexes."""
+    out: list[str] = []
+    lower = html.lower()
+    i = 0
+    while True:
+        start = lower.find("<script", i)
+        if start < 0:
+            out.append(html[i:])
+            break
+        out.append(html[i:start])
+        end = lower.find("</script", start)
+        if end < 0:
+            break
+        gt = html.find(">", end)
+        if gt < 0:
+            break
+        i = gt + 1
+    return "".join(out)
+
+
 def parse_jtsb_list_page(html: str) -> list[dict[str, str]]:
     """Extract collision (and related) report rows + PDF URLs from a list page."""
-    clean = re.sub(r"<script\b[^>]*>.*?</script\s*>", "", html, flags=re.S | re.I)
+    clean = _strip_script_blocks(html)
     rows: list[dict[str, str]] = []
     seen: set[str] = set()
 
