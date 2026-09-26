@@ -1,0 +1,56 @@
+{
+  "field1_collision_fault": {
+    "display_name": "① 船舶衝突・海難の過失・避航義務違反判定",
+    "metric_name": "法的過失要因の一致率 (Accuracy)",
+    "fallback_category": "運航管理上の過失",
+    "fact_detection_rules": [
+      {
+        "category": "見張り・動静監視不十分",
+        "fact_keywords": ["見張り", "動静", "気付かず", "当直", "レーダー"]
+      },
+      {
+        "category": "避航・衝突回避動作不適切",
+        "fact_keywords": ["横切", "左方", "進路を避", "避航", "右転", "汽笛"]
+      },
+      {
+        "category": "針路選定・操船不適切",
+        "fact_keywords": ["針路", "操船", "浅瀬", "変針", "水深", "暗礁"]
+      },
+      {
+        "category": "気象・荒天対策不備",
+        "fact_keywords": ["台風", "荒天", "波浪", "気象", "大波", "うねり"]
+      },
+      {
+        "category": "復原性・積載配慮不十分",
+        "fact_keywords": ["復原性", "横揺れ", "傾斜", "積載", "二重底"]
+      },
+      {
+        "category": "設備保守管理・点検不十分",
+        "fact_keywords": ["保守", "点検", "整備", "弁", "ポンプ", "漏えい"]
+      }
+    ],
+    "ground_truth_matches": {
+      "見張り・動静監視不十分": ["見張り", "動静", "監視", "警戒", "不十分"],
+      "避航・衝突回避動作不適切": ["避航", "避け", "進路", "動作", "信号"],
+      "針路選定・操船不適切": ["針路", "選定", "操船", "水深", "航行"],
+      "気象・荒天対策不備": ["台風", "気象", "波浪", "大波", "荒天", "解析"],
+      "復原性・積載配慮不十分": ["復原性", "積載", "配慮", "二重底", "排水"],
+      "設備保守管理・点検不十分": ["保守", "管理", "整備", "点検", "不十分"]
+    }
+  },
+  "field2_psc_risk": {
+    "display_name": "② 船舶の安全欠陥・堪航性による引受免責リスク予測",
+    "metric_name": "リスク格付け一致率 (Risk Tier Accuracy)",
+    "detention_rate_threshold_pct": 2.0,
+    "low_risk_label": "WHITE (Low Risk)",
+    "high_risk_label": "GREY/BLACK (High Risk)"
+  },
+  "field3_repair_cost": {
+    "display_name": "③ 船舶修繕工事の適正価格・落札金額ベンチマーク",
+    "metric_name": "積算価格推定精度 (100 - MAPE)",
+    "concurrent_repair_trade_codes": ["ENG", "VALVE"],
+    "concurrent_classification_label": "便乗修理 (定期検査固有)",
+    "covered_classification_label": "事故復旧 / 按分",
+    "yard_tolerance_factor": 1.03
+  }
+}
