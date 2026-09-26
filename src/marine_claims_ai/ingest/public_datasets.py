@@ -22,6 +22,7 @@ import urllib.parse
 
 from marine_claims_ai.ingest.civil import (
     CIVIL_JSON,
+    SYNTHETIC_JSON,
     fetch_field4_civil_courts,
     load_catalog,
 )
@@ -261,6 +262,7 @@ def main() -> None:
         PSC_JSON,
         REPAIR_JSON,
         CIVIL_JSON,
+        SYNTHETIC_JSON,
         "benchmark_jtsb_collision_cases.json",
         "parismou_flag_detention_list.pdf",
         "fukuoka_ship_bid_result.pdf",

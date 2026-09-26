@@ -1,23 +1,31 @@
 from __future__ import annotations
 
 from marine_claims_ai.ingest.civil import (
+    REAL_DOD_FAULT_RATIO,
+    REAL_DOD_YEN,
     catalog_stats,
     enrich_from_text,
+    has_concrete_document_url,
     load_catalog,
+    load_synthetic_catalog,
+    real_dod_status,
 )
 from marine_claims_ai.ingest.public_datasets import CIVIL_COURT_SEEDS
 
 
-def test_civil_catalog_meets_dod_thresholds():
-    seeds = load_catalog()
-    stats = catalog_stats(seeds)
-    assert stats["non_synthetic_with_fault_ratio"] >= 30
-    assert stats["non_synthetic_with_yen"] >= 15
-    assert stats["synthetic"] <= 10
-    assert all("case_id" in s and "fault_ratio" in s for s in seeds)
-    assert any(s.get("source_type") == "court_pdf" for s in seeds)
-    assert any(s.get("source_type") == "published_holding" for s in seeds)
-    assert len(CIVIL_COURT_SEEDS) == len(seeds)
+def test_real_and_synthetic_catalogs_are_separated():
+    real = load_catalog()
+    syn = load_synthetic_catalog()
+    assert len(CIVIL_COURT_SEEDS) == len(real)
+    assert all(s.get("source_type") != "synthetic_benchmark" for s in real)
+    assert all(s.get("source_type") == "synthetic_benchmark" for s in syn)
+    assert all(has_concrete_document_url(str(s.get("url") or "")) for s in real)
+    stats = catalog_stats(real)
+    dod = real_dod_status(stats)
+    assert stats["non_synthetic_with_fault_ratio"] >= REAL_DOD_FAULT_RATIO
+    assert stats["non_synthetic_with_yen"] >= REAL_DOD_YEN
+    assert dod["fault_ratio"] and dod["yen"] and dod["concrete_url"]
+    assert catalog_stats(syn)["synthetic"] == len(syn)
 
 
 def test_enrich_from_pdf_text_extracts_ratio_and_amounts():

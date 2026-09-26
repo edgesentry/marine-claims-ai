@@ -1,4 +1,4 @@
-"""Field 4: civil / published-holding maritime precedents (fault ratios + yen)."""
+"""Field 4: real civil precedents vs synthetic regression benchmarks (kept separate)."""
 
 from __future__ import annotations
 
@@ -7,6 +7,7 @@ import os
 import re
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlparse
 
 from marine_claims_ai.ingest.download import download_url
 from marine_claims_ai.ingest.jtsb import apply_limit
@@ -14,17 +15,43 @@ from marine_claims_ai.ingest.pdf_text import pdf_to_text
 from marine_claims_ai.paths import REPO_ROOT
 
 CIVIL_JSON = "benchmark_court_civil_cases.json"
+SYNTHETIC_JSON = "benchmark_court_civil_synthetic.json"
 DEFAULT_CATALOG = REPO_ROOT / "config" / "civil_precedent_catalog.json"
+DEFAULT_SYNTHETIC_CATALOG = REPO_ROOT / "config" / "civil_synthetic_benchmarks.json"
 NON_SYNTHETIC = frozenset({"court_pdf", "published_holding"})
+
+# Honest floors after separating portal stubs / models from real lane.
+REAL_DOD_FAULT_RATIO = 30
+REAL_DOD_YEN = 4
+
+
+def has_concrete_document_url(url: str) -> bool:
+    if not url:
+        return False
+    parsed = urlparse(url)
+    if parsed.netloc == "www.courts.go.jp" and parsed.path in ("", "/"):
+        return False
+    return True
 
 
 def load_catalog(path: str | Path | None = None) -> list[dict[str, Any]]:
+    """Load REAL precedent catalog only."""
     catalog_path = Path(path) if path else DEFAULT_CATALOG
     with open(catalog_path, encoding="utf-8") as f:
         data = json.load(f)
     seeds = data.get("seeds") if isinstance(data, dict) else data
     if not isinstance(seeds, list):
         raise ValueError(f"Invalid civil catalog at {catalog_path}")
+    return seeds
+
+
+def load_synthetic_catalog(path: str | Path | None = None) -> list[dict[str, Any]]:
+    catalog_path = Path(path) if path else DEFAULT_SYNTHETIC_CATALOG
+    with open(catalog_path, encoding="utf-8") as f:
+        data = json.load(f)
+    seeds = data.get("seeds") if isinstance(data, dict) else data
+    if not isinstance(seeds, list):
+        raise ValueError(f"Invalid synthetic catalog at {catalog_path}")
     return seeds
 
 
@@ -40,13 +67,24 @@ def catalog_stats(seeds: list[dict[str, Any]]) -> dict[str, int]:
     for s in seeds:
         key = str(s.get("source_type") or "unknown")
         by_type[key] = by_type.get(key, 0) + 1
+    concrete = sum(1 for s in non_syn if has_concrete_document_url(str(s.get("url") or "")))
     return {
         "total": len(seeds),
         "non_synthetic": len(non_syn),
         "non_synthetic_with_fault_ratio": len(with_fr),
         "non_synthetic_with_yen": len(with_yen),
+        "non_synthetic_with_concrete_url": concrete,
         "synthetic": by_type.get("synthetic_benchmark", 0),
         **{f"type_{k}": v for k, v in sorted(by_type.items())},
+    }
+
+
+def real_dod_status(stats: dict[str, int]) -> dict[str, bool]:
+    return {
+        "fault_ratio": stats["non_synthetic_with_fault_ratio"] >= REAL_DOD_FAULT_RATIO,
+        "yen": stats["non_synthetic_with_yen"] >= REAL_DOD_YEN,
+        "concrete_url": stats.get("non_synthetic_with_concrete_url", 0)
+        >= stats.get("non_synthetic", 0),
     }
 
 
@@ -62,10 +100,7 @@ def _first_yen_near(text: str, label_pat: str) -> int | None:
 
 
 def enrich_from_text(record: dict[str, Any], text: str) -> dict[str, Any]:
-    """
-    Pull fault ratios and yen figures from judgment / saiketsu text.
-    Never overwrite non-null seed ratio/amount with weaker guesses.
-    """
+    """Pull fault ratios and yen figures from judgment / saiketsu text."""
     if not text:
         return record
     out = dict(record)
@@ -102,13 +137,9 @@ def enrich_from_text(record: dict[str, Any], text: str) -> dict[str, Any]:
         if disallowed is not None:
             out["disallowed_jpy"] = disallowed
 
-    if (
-        out.get("awarded_damages_jpy") is None
-        and out.get("claimed_repair_jpy") is None
-    ):
+    if out.get("awarded_damages_jpy") is None and out.get("claimed_repair_jpy") is None:
         amounts = [
-            _parse_yen_token(x)
-            for x in re.findall(r"([0-9]{1,3}(?:,[0-9]{3})+)円", text)
+            _parse_yen_token(x) for x in re.findall(r"([0-9]{1,3}(?:,[0-9]{3})+)円", text)
         ]
         if amounts:
             out["awarded_damages_jpy"] = max(amounts)
@@ -118,32 +149,18 @@ def enrich_from_text(record: dict[str, Any], text: str) -> dict[str, Any]:
         base_facts = out.get("input_facts") or ""
         if "[pdf_excerpt]" not in base_facts:
             out["input_facts"] = f"{base_facts}\n[pdf_excerpt] {compact}".strip()
-
     return out
 
 
-# Back-compat alias used by existing unit tests
 _enrich_from_pdf_text = enrich_from_text
 
 
-def fetch_field4_civil_courts(
+def _materialize_seeds(
+    seeds: list[dict[str, Any]],
     output_dir: str,
-    force: bool = False,
-    limit: int = 0,
-    catalog_path: str | Path | None = None,
+    force: bool,
+    pdf_dir: str,
 ) -> list[dict[str, Any]]:
-    """Build enriched civil JSON from the tracked precedent catalog."""
-    dest_json = os.path.join(output_dir, CIVIL_JSON)
-    if os.path.exists(dest_json) and os.path.getsize(dest_json) > 0 and not force:
-        print(f"[Field 4] [SKIP] Civil court dataset already exists: {os.path.basename(dest_json)}")
-        with open(dest_json, encoding="utf-8") as f:
-            return json.load(f)
-
-    seeds = apply_limit(load_catalog(catalog_path), limit)
-    print(f"[Field 4] Building civil precedents from catalog ({len(seeds)} seeds)...")
-    pdf_dir = os.path.join(output_dir, "civil_pdfs")
-    os.makedirs(pdf_dir, exist_ok=True)
-
     cases: list[dict[str, Any]] = []
     for seed in seeds:
         record = {k: v for k, v in seed.items() if k != "pdf_name"}
@@ -161,18 +178,55 @@ def fetch_field4_civil_courts(
         else:
             print(f"  [{seed.get('case_id'):02d}] {seed.get('source_type')} / holding summary")
         cases.append(record)
+    return cases
 
+
+def fetch_field4_civil_courts(
+    output_dir: str,
+    force: bool = False,
+    limit: int = 0,
+    catalog_path: str | Path | None = None,
+    include_synthetic: bool = True,
+) -> list[dict[str, Any]]:
+    """
+    Materialize REAL civil precedents (and optionally write synthetic regression file separately).
+    Real → benchmark_court_civil_cases.json
+    Synthetic → benchmark_court_civil_synthetic.json
+    """
+    dest_json = os.path.join(output_dir, CIVIL_JSON)
+    syn_json = os.path.join(output_dir, SYNTHETIC_JSON)
+    pdf_dir = os.path.join(output_dir, "civil_pdfs")
+    os.makedirs(pdf_dir, exist_ok=True)
     os.makedirs(output_dir, exist_ok=True)
-    with open(dest_json, "w", encoding="utf-8") as f:
-        json.dump(cases, f, ensure_ascii=False, indent=2)
 
-    stats = catalog_stats(cases)
-    print(f"[Field 4] [OK] Saved {len(cases)} cases -> {dest_json}")
-    print(
-        f"[Field 4] coverage non_synthetic={stats['non_synthetic']} "
-        f"with_fault_ratio={stats['non_synthetic_with_fault_ratio']} "
-        f"with_yen={stats['non_synthetic_with_yen']}"
-    )
+    if os.path.exists(dest_json) and os.path.getsize(dest_json) > 0 and not force:
+        print(f"[Field 4] [SKIP] Real civil dataset already exists: {os.path.basename(dest_json)}")
+        with open(dest_json, encoding="utf-8") as f:
+            cases = json.load(f)
+    else:
+        seeds = apply_limit(load_catalog(catalog_path), limit)
+        print(f"[Field 4/real] Building from civil_precedent_catalog.json ({len(seeds)} seeds)...")
+        cases = _materialize_seeds(seeds, output_dir, force, pdf_dir)
+        with open(dest_json, "w", encoding="utf-8") as f:
+            json.dump(cases, f, ensure_ascii=False, indent=2)
+        stats = catalog_stats(cases)
+        print(f"[Field 4/real] [OK] Saved {len(cases)} cases -> {dest_json}")
+        print(
+            f"[Field 4/real] fault_ratio={stats['non_synthetic_with_fault_ratio']} "
+            f"yen={stats['non_synthetic_with_yen']} concrete_url={stats['non_synthetic_with_concrete_url']}"
+        )
+
+    if include_synthetic:
+        if os.path.exists(syn_json) and os.path.getsize(syn_json) > 0 and not force:
+            print(f"[Field 4/synthetic] [SKIP] {os.path.basename(syn_json)}")
+        else:
+            syn_seeds = apply_limit(load_synthetic_catalog(), limit)
+            print(f"[Field 4/synthetic] Writing regression benchmarks ({len(syn_seeds)} seeds)...")
+            syn_cases = _materialize_seeds(syn_seeds, output_dir, force, pdf_dir)
+            with open(syn_json, "w", encoding="utf-8") as f:
+                json.dump(syn_cases, f, ensure_ascii=False, indent=2)
+            print(f"[Field 4/synthetic] [OK] Saved {len(syn_cases)} cases -> {syn_json}")
+
     return cases
 
 

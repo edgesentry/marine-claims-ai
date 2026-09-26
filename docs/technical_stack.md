@@ -123,12 +123,12 @@ ranks. Treat deltas as diagnostic, not as a release gate.
 
 ### E. Civil precedents (fault ratios + yen)
 
-Tracked catalog: `config/civil_precedent_catalog.json` (metadata only).
+Two tracked catalogs (metadata only; PDFs stay in `_inputs/`):
 
-- Sources: courts.go.jp judgment PDFs; MLIT JMAT public major-case pages / saiketsu PDFs; published case commentaries.
-- PDFs are fetched on demand into `_inputs/poc_datasets/civil_pdfs/` and never committed.
-- `source_type` discriminates `court_pdf` / `published_holding` / `synthetic_benchmark`.
-- Coverage: `uv run python scripts/civil_coverage.py` (targets: ≥30 non-synthetic with fault_ratio; ≥15 with claimed/awarded yen).
+- `config/civil_precedent_catalog.json` — **real** `court_pdf` / `published_holding` with concrete document URLs (Field 4 realism eval).
+- `config/civil_synthetic_benchmarks.json` — **synthetic_benchmark** rows for unit / regression tests only.
+
+Do not mix lanes: synthetic patterns must not be labeled `published_holding`. Coverage: `uv run python scripts/civil_coverage.py --catalog`.
 
 ### C. Cost-Effective Off-Machine Storage (Laptop Disaster Recovery)
 

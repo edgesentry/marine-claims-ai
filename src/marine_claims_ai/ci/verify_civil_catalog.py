@@ -309,8 +309,8 @@ def main() -> int:
     parser.add_argument(
         "--fail-on-skip-ratio",
         type=float,
-        default=0.5,
-        help="Fail if skipped generic URLs exceed this fraction (default 0.5)",
+        default=0.05,
+        help="Fail if skipped generic URLs exceed this fraction (real catalog should be ~0)",
     )
     args = parser.parse_args()
 

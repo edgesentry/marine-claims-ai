@@ -110,11 +110,15 @@ uv run python scripts/fetch_public_datasets.py --field jtsb --limit 200 --force
 uv run python scripts/fetch_public_datasets.py --field 4 --force
 ```
 
-Civil precedents are curated in `config/civil_precedent_catalog.json` (courts.go.jp PDFs, JMAT public holdings, published summaries). Check Field 4 DoD coverage:
+Civil precedents are split into two tracked catalogs:
+
+- `config/civil_precedent_catalog.json` — **real** documents only (concrete PDF/HTML URLs) for apportionment / leakage eval
+- `config/civil_synthetic_benchmarks.json` — **synthetic** regression patterns (not evidence of real-world accuracy)
 
 ```bash
 uv run python scripts/civil_coverage.py --catalog
-uv run python scripts/civil_coverage.py
+uv run python scripts/civil_coverage.py --lane real
+uv run python scripts/civil_coverage.py --lane synthetic
 ```
 
 Catalog document links (concrete PDF/HTML only) can be checked in CI / locally:

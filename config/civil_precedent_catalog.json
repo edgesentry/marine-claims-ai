@@ -1,7 +1,8 @@
 {
-  "version": 1,
-  "description": "Curated public civil / published-holding maritime collision precedents for Field 4. PDFs fetched on demand; not stored in git.",
-  "attribution": "courts.go.jp judgment PDFs; MLIT JMAT public major-case pages and saiketsu PDFs; published case commentaries. Redistributable on fetch only.",
+  "version": 2,
+  "description": "REAL public civil / published-holding precedents only (concrete document URLs). Used for Field 4 realism eval (fault + yen).",
+  "attribution": "courts.go.jp judgment PDFs; MLIT JMAT public pages/saiketsu; published commentaries with article URLs. No portal stubs.",
+  "purpose": "apportionment_leakage_eval",
   "seeds": [
     {
       "title": "機船建昌・有漁丸衝突 損害賠償（責任制限）",
@@ -133,198 +134,6 @@
     },
     {
       "case_id": 9,
-      "title": "旅客船はまなす岸壁衝突（JTSB公開調査に基づく民事按分モデル）",
-      "court": "札幌地方裁判所",
-      "date": "published-pattern-from-jtsb",
-      "url": "https://jtsb.mlit.go.jp/ship/rep-acci/2009/keibi2009-1-1_2008hd0012.pdf",
-      "pdf_name": null,
-      "input_facts": "係留地において旅客船が岸壁に衝突した公開調査事案を損害賠償の過失按分モデルとして構造化。",
-      "holding": "操船側責任を重く見るパターン。岸壁・船体損傷を認容。",
-      "fault_ratio": "90:10",
-      "claimed_repair_jpy": 55000000,
-      "disallowed_jpy": 5000000,
-      "awarded_damages_jpy": 45000000,
-      "source_type": "published_holding",
-      "holding_kind": "civil_published_summary"
-    },
-    {
-      "case_id": 10,
-      "title": "港内追い越し衝突 COLREGS協力動作（公開判旨パターン）",
-      "court": "門司地方裁判所",
-      "date": "published-civil-pattern",
-      "url": "https://www.courts.go.jp/",
-      "pdf_name": null,
-      "input_facts": "狭水道で追い越し中に接触。追い越し船の合図と被追い越し船の協力動作が争点となった公開判旨類型。",
-      "holding": "公開判旨類型に基づき追い越し船55・被追い越し船45。",
-      "fault_ratio": "55:45",
-      "claimed_repair_jpy": 24000000,
-      "disallowed_jpy": 6000000,
-      "awarded_damages_jpy": 9900000,
-      "source_type": "published_holding",
-      "holding_kind": "civil_published_summary"
-    },
-    {
-      "case_id": 11,
-      "title": "霧中衝突 レーダー過失の公開損害賠償類型",
-      "court": "横浜地方裁判所",
-      "date": "published-civil-pattern",
-      "url": "https://www.courts.go.jp/",
-      "pdf_name": null,
-      "input_facts": "濃霧下の漁船・貨物船衝突。霧中信号とレーダー監視が争点の公開損害賠償類型。",
-      "holding": "公開類型として過失70:30。船体・漁具損害を按分。",
-      "fault_ratio": "70:30",
-      "claimed_repair_jpy": 45000000,
-      "disallowed_jpy": 8500000,
-      "awarded_damages_jpy": 25500000,
-      "source_type": "published_holding",
-      "holding_kind": "civil_published_summary"
-    },
-    {
-      "case_id": 12,
-      "title": "錨泊船への衝突・入渠費按分の公開類型",
-      "court": "神戸地方裁判所",
-      "date": "published-civil-pattern",
-      "url": "https://www.courts.go.jp/",
-      "pdf_name": null,
-      "input_facts": "錨泊中貨物船への衝突。外板損傷と入渠中の定期検査工事の競合が争点。",
-      "holding": "衝突起因工事認容・定期検査否認・入渠費折半の公開類型。",
-      "fault_ratio": "90:10",
-      "claimed_repair_jpy": 98000000,
-      "disallowed_jpy": 22000000,
-      "awarded_damages_jpy": 68400000,
-      "source_type": "published_holding",
-      "holding_kind": "civil_published_summary"
-    },
-    {
-      "case_id": 13,
-      "title": "タグボート曳航中岸壁接触の公開損害賠償類型",
-      "court": "大阪地方裁判所",
-      "date": "published-civil-pattern",
-      "url": "https://www.courts.go.jp/",
-      "pdf_name": null,
-      "input_facts": "港内曳航中の岸壁接触。局部修理と全面塗装の請求範囲が争点。",
-      "holding": "局部修理認容・全面塗装否認。過失85:15。",
-      "fault_ratio": "85:15",
-      "claimed_repair_jpy": 32000000,
-      "disallowed_jpy": 11000000,
-      "awarded_damages_jpy": 17850000,
-      "source_type": "published_holding",
-      "holding_kind": "civil_published_summary"
-    },
-    {
-      "case_id": 14,
-      "title": "夜間航路横断衝突の公開損害賠償類型",
-      "court": "広島地方裁判所",
-      "date": "published-civil-pattern",
-      "url": "https://www.courts.go.jp/",
-      "pdf_name": null,
-      "input_facts": "夜間、航路横断漁船と航路内貨物船の衝突。警告信号・協力動作が争点。",
-      "holding": "漁船主因・貨物船一因の55:45類型。",
-      "fault_ratio": "55:45",
-      "claimed_repair_jpy": 61000000,
-      "disallowed_jpy": 5000000,
-      "awarded_damages_jpy": 30800000,
-      "source_type": "published_holding",
-      "holding_kind": "civil_published_summary"
-    },
-    {
-      "case_id": 15,
-      "title": "漂流船衝突の公開損害賠償類型",
-      "court": "福岡地方裁判所",
-      "date": "published-civil-pattern",
-      "url": "https://www.courts.go.jp/",
-      "pdf_name": null,
-      "input_facts": "機関故障漂流船への衝突。表示灯不備と見張りが争点。",
-      "holding": "航行船60・漂流船40。無関係な機関換装は否認。",
-      "fault_ratio": "60:40",
-      "claimed_repair_jpy": 28000000,
-      "disallowed_jpy": 9500000,
-      "awarded_damages_jpy": 11100000,
-      "source_type": "published_holding",
-      "holding_kind": "civil_published_summary"
-    },
-    {
-      "case_id": 16,
-      "title": "桟橋接触・施設管理者責任の公開類型",
-      "court": "名古屋地方裁判所",
-      "date": "published-civil-pattern",
-      "url": "https://www.courts.go.jp/",
-      "pdf_name": null,
-      "input_facts": "強風着岸で桟橋接触。防舷材不足と操船過誤。",
-      "holding": "操船70・施設30の公開類型。",
-      "fault_ratio": "70:30",
-      "claimed_repair_jpy": 15000000,
-      "disallowed_jpy": 2000000,
-      "awarded_damages_jpy": 9100000,
-      "source_type": "published_holding",
-      "holding_kind": "civil_published_summary"
-    },
-    {
-      "case_id": 17,
-      "title": "運河内接触と便乗修理否認の公開類型",
-      "court": "東京地方裁判所",
-      "date": "published-civil-pattern",
-      "url": "https://www.courts.go.jp/",
-      "pdf_name": null,
-      "input_facts": "運河内すれ違い接触。外板損傷に便乗して機関開放等が請求された類型。",
-      "holding": "外板のみ認容、機関・弁は否認。過失50:50。",
-      "fault_ratio": "50:50",
-      "claimed_repair_jpy": 54000000,
-      "disallowed_jpy": 21000000,
-      "awarded_damages_jpy": 16500000,
-      "source_type": "published_holding",
-      "holding_kind": "civil_published_summary"
-    },
-    {
-      "case_id": 18,
-      "title": "走錨衝突の公開損害賠償類型",
-      "court": "神戸地方裁判所",
-      "date": "published-civil-pattern",
-      "url": "https://www.courts.go.jp/",
-      "pdf_name": null,
-      "input_facts": "台風接近時の走錨衝突。錨泊監視義務が争点。",
-      "holding": "走錨船75・被衝突船25。",
-      "fault_ratio": "75:25",
-      "claimed_repair_jpy": 88000000,
-      "disallowed_jpy": 12000000,
-      "awarded_damages_jpy": 57000000,
-      "source_type": "published_holding",
-      "holding_kind": "civil_published_summary"
-    },
-    {
-      "case_id": 19,
-      "title": "コンテナ船フェンダー損傷の公開類型",
-      "court": "横浜地方裁判所",
-      "date": "published-civil-pattern",
-      "url": "https://www.courts.go.jp/",
-      "pdf_name": null,
-      "input_facts": "強風着岸でフェンダー・岸壁損傷。パイロット助言と設備保守が争点。",
-      "holding": "操船65・港湾35。ハッチカバー更新は否認。",
-      "fault_ratio": "65:35",
-      "claimed_repair_jpy": 42000000,
-      "disallowed_jpy": 9000000,
-      "awarded_damages_jpy": 21450000,
-      "source_type": "published_holding",
-      "holding_kind": "civil_published_summary"
-    },
-    {
-      "case_id": 20,
-      "title": "漁船無灯火衝突の公開類型",
-      "court": "仙台地方裁判所",
-      "date": "published-civil-pattern",
-      "url": "https://www.courts.go.jp/",
-      "pdf_name": null,
-      "input_facts": "夜間操業漁船同士。無灯火と見張り不十分。",
-      "holding": "無灯火60・見張り不十分40。",
-      "fault_ratio": "60:40",
-      "claimed_repair_jpy": 18000000,
-      "disallowed_jpy": 2500000,
-      "awarded_damages_jpy": 9300000,
-      "source_type": "published_holding",
-      "holding_kind": "civil_published_summary"
-    },
-    {
-      "case_id": 21,
       "title": "漁船第一安洋丸沈没事件",
       "court": "海難審判所（公開重大海難）",
       "date": "jmat-major-public",
@@ -340,7 +149,7 @@
       "holding_kind": "jmat_major"
     },
     {
-      "case_id": 22,
+      "case_id": 10,
       "title": "漁船第五龍寶丸転覆事件",
       "court": "海難審判所（公開重大海難）",
       "date": "jmat-major-public",
@@ -356,7 +165,7 @@
       "holding_kind": "jmat_major"
     },
     {
-      "case_id": 23,
+      "case_id": 11,
       "title": "ケミカルタンカーニュー葛城乗組員死傷事件",
       "court": "海難審判所（公開重大海難）",
       "date": "jmat-major-public",
@@ -372,7 +181,7 @@
       "holding_kind": "jmat_major"
     },
     {
-      "case_id": 24,
+      "case_id": 12,
       "title": "自動車運搬船フアルヨーロッパ乗揚事件",
       "court": "海難審判所（公開重大海難）",
       "date": "jmat-major-public",
@@ -388,7 +197,7 @@
       "holding_kind": "jmat_major"
     },
     {
-      "case_id": 25,
+      "case_id": 13,
       "title": "漁船第十八光洋丸貨物船フンア　ジュピター衝突事件",
       "court": "海難審判所（公開重大海難）",
       "date": "jmat-major-public",
@@ -404,7 +213,7 @@
       "holding_kind": "jmat_major"
     },
     {
-      "case_id": 26,
+      "case_id": 14,
       "title": "ヨットファルコン沈没事件",
       "court": "海難審判所（公開重大海難）",
       "date": "jmat-major-public",
@@ -420,7 +229,7 @@
       "holding_kind": "jmat_major"
     },
     {
-      "case_id": 27,
+      "case_id": 15,
       "title": "貨物船ジャイアント　ステップ乗揚事件",
       "court": "海難審判所（公開重大海難）",
       "date": "jmat-major-public",
@@ -436,7 +245,7 @@
       "holding_kind": "jmat_major"
     },
     {
-      "case_id": 28,
+      "case_id": 16,
       "title": "漁船第七千代丸乗揚事件",
       "court": "海難審判所（公開重大海難）",
       "date": "jmat-major-public",
@@ -452,7 +261,7 @@
       "holding_kind": "jmat_major"
     },
     {
-      "case_id": 29,
+      "case_id": 17,
       "title": "遊漁船第3明好丸転覆事件",
       "court": "海難審判所（公開重大海難）",
       "date": "jmat-major-public",
@@ -468,7 +277,7 @@
       "holding_kind": "jmat_major"
     },
     {
-      "case_id": 30,
+      "case_id": 18,
       "title": "貨物船ジャグドゥート爆発事件",
       "court": "海難審判所（公開重大海難）",
       "date": "jmat-major-public",
@@ -484,7 +293,7 @@
       "holding_kind": "jmat_major"
     },
     {
-      "case_id": 31,
+      "case_id": 19,
       "title": "瀬渡船甲丸転覆事件",
       "court": "海難審判所（公開重大海難）",
       "date": "jmat-major-public",
@@ -500,7 +309,7 @@
       "holding_kind": "jmat_major"
     },
     {
-      "case_id": 32,
+      "case_id": 20,
       "title": "漁船第七蛭子丸転覆事件",
       "court": "海難審判所（公開重大海難）",
       "date": "jmat-major-public",
@@ -516,7 +325,7 @@
       "holding_kind": "jmat_major"
     },
     {
-      "case_id": 33,
+      "case_id": 21,
       "title": "漁船第二十五五郎竹丸転覆事件",
       "court": "海難審判所（公開重大海難）",
       "date": "jmat-major-public",
@@ -532,7 +341,7 @@
       "holding_kind": "jmat_major"
     },
     {
-      "case_id": 34,
+      "case_id": 22,
       "title": "油送船ダイヤモンドグレース乗揚事件",
       "court": "海難審判所（公開重大海難）",
       "date": "jmat-major-public",
@@ -548,7 +357,7 @@
       "holding_kind": "jmat_major"
     },
     {
-      "case_id": 35,
+      "case_id": 23,
       "title": "漁船第五十二惣寶丸遭難事件",
       "court": "海難審判所（公開重大海難）",
       "date": "jmat-major-public",
@@ -564,7 +373,7 @@
       "holding_kind": "jmat_major"
     },
     {
-      "case_id": 36,
+      "case_id": 24,
       "title": "瀬渡船開洋丸転覆事件",
       "court": "海難審判所（公開重大海難）",
       "date": "jmat-major-public",
@@ -580,7 +389,7 @@
       "holding_kind": "jmat_major"
     },
     {
-      "case_id": 37,
+      "case_id": 25,
       "title": "漁船第七十一日東丸沈没事件",
       "court": "海難審判所（公開重大海難）",
       "date": "jmat-major-public",
@@ -596,7 +405,7 @@
       "holding_kind": "jmat_major"
     },
     {
-      "case_id": 38,
+      "case_id": 26,
       "title": "潜水艇支援調査船へりおす遭難事件",
       "court": "海難審判所（公開重大海難）",
       "date": "jmat-major-public",
@@ -612,7 +421,7 @@
       "holding_kind": "jmat_major"
     },
     {
-      "case_id": 39,
+      "case_id": 27,
       "title": "貨物船尾道丸遭難事件",
       "court": "海難審判所（公開重大海難）",
       "date": "jmat-major-public",
@@ -628,7 +437,7 @@
       "holding_kind": "jmat_major"
     },
     {
-      "case_id": 40,
+      "case_id": 28,
       "title": "漁船第二十八あけぼの丸転覆事件",
       "court": "海難審判所（公開重大海難）",
       "date": "jmat-major-public",
@@ -644,7 +453,7 @@
       "holding_kind": "jmat_major"
     },
     {
-      "case_id": 41,
+      "case_id": 29,
       "title": "油送船ヘイムバード桟橋衝突事件",
       "court": "海難審判所（公開重大海難）",
       "date": "jmat-major-public",
@@ -660,7 +469,7 @@
       "holding_kind": "jmat_major"
     },
     {
-      "case_id": 42,
+      "case_id": 30,
       "title": "油送船海藏丸火災事件",
       "court": "海難審判所（公開重大海難）",
       "date": "jmat-major-public",
@@ -676,7 +485,7 @@
       "holding_kind": "jmat_major"
     },
     {
-      "case_id": 43,
+      "case_id": 31,
       "title": "マリアナ海域漁船集団遭難事件",
       "court": "海難審判所（公開重大海難）",
       "date": "jmat-major-public",
@@ -692,7 +501,7 @@
       "holding_kind": "jmat_major"
     },
     {
-      "case_id": 44,
+      "case_id": 32,
       "title": "貨物船ぼりばあ丸遭難事件",
       "court": "海難審判所（公開重大海難）",
       "date": "jmat-major-public",
@@ -708,7 +517,7 @@
       "holding_kind": "jmat_major"
     },
     {
-      "case_id": 45,
+      "case_id": 33,
       "title": "貨物船かりふおるにあ丸遭難事件",
       "court": "海難審判所（公開重大海難）",
       "date": "jmat-major-public",
@@ -724,7 +533,7 @@
       "holding_kind": "jmat_major"
     },
     {
-      "case_id": 46,
+      "case_id": 34,
       "title": "旅客船第五北川丸沈没事件",
       "court": "海難審判所（公開重大海難）",
       "date": "jmat-major-public",
@@ -740,7 +549,7 @@
       "holding_kind": "jmat_major"
     },
     {
-      "case_id": 47,
+      "case_id": 35,
       "title": "旅客船南海丸遭難事件",
       "court": "海難審判所（公開重大海難）",
       "date": "jmat-major-public",
@@ -756,7 +565,7 @@
       "holding_kind": "jmat_major"
     },
     {
-      "case_id": 48,
+      "case_id": 36,
       "title": "旅客船内郷丸遭難事件",
       "court": "海難審判所（公開重大海難）",
       "date": "jmat-major-public",
@@ -770,134 +579,6 @@
       "awarded_damages_jpy": null,
       "source_type": "published_holding",
       "holding_kind": "jmat_major"
-    },
-    {
-      "case_id": 49,
-      "title": "霧中レーダー過失 合成ベンチ（便乗修理除外）",
-      "court": "横浜地方裁判所",
-      "date": "synthetic-public-pattern",
-      "url": "https://www.courts.go.jp/",
-      "pdf_name": null,
-      "input_facts": "濃霧下衝突。機関開放整備費が請求に混入した合成ベンチ。",
-      "holding": "過失70:30。便乗的機関開放は除外。",
-      "fault_ratio": "70:30",
-      "claimed_repair_jpy": 45000000,
-      "disallowed_jpy": 8500000,
-      "awarded_damages_jpy": 25500000,
-      "source_type": "synthetic_benchmark",
-      "holding_kind": "synthetic"
-    },
-    {
-      "case_id": 50,
-      "title": "錨泊衝突・ドック按分 合成ベンチ",
-      "court": "神戸地方裁判所",
-      "date": "synthetic-public-pattern",
-      "url": "https://www.courts.go.jp/",
-      "pdf_name": null,
-      "input_facts": "錨泊衝突と定期検査工事の競合。",
-      "holding": "外板認容・定期検査否認・入渠50/50。",
-      "fault_ratio": "90:10",
-      "claimed_repair_jpy": 98000000,
-      "disallowed_jpy": 22000000,
-      "awarded_damages_jpy": 68400000,
-      "source_type": "synthetic_benchmark",
-      "holding_kind": "synthetic"
-    },
-    {
-      "case_id": 51,
-      "title": "運河接触・ENG便乗 合成ベンチ",
-      "court": "東京地方裁判所",
-      "date": "synthetic-public-pattern",
-      "url": "https://www.courts.go.jp/",
-      "pdf_name": null,
-      "input_facts": "運河接触にピストン抜出し請求が混在。",
-      "holding": "外板のみ認容。ENG/VALVE否認。",
-      "fault_ratio": "50:50",
-      "claimed_repair_jpy": 54000000,
-      "disallowed_jpy": 21000000,
-      "awarded_damages_jpy": 16500000,
-      "source_type": "synthetic_benchmark",
-      "holding_kind": "synthetic"
-    },
-    {
-      "case_id": 52,
-      "title": "シーチェスト閉塞と衝突損害 合成ベンチ",
-      "court": "東京地方裁判所",
-      "date": "synthetic-public-pattern",
-      "url": "https://www.courts.go.jp/",
-      "pdf_name": null,
-      "input_facts": "シーチェスト閉塞減速中の衝突。主機開放請求混在。",
-      "holding": "外板認容、主機・弁は因果関係なし否認。",
-      "fault_ratio": "50:50",
-      "claimed_repair_jpy": 72000000,
-      "disallowed_jpy": 31000000,
-      "awarded_damages_jpy": 20500000,
-      "source_type": "synthetic_benchmark",
-      "holding_kind": "synthetic"
-    },
-    {
-      "case_id": 53,
-      "title": "タグ曳航索切断衝突 合成ベンチ",
-      "court": "神戸地方裁判所",
-      "date": "synthetic-public-pattern",
-      "url": "https://www.courts.go.jp/",
-      "pdf_name": null,
-      "input_facts": "曳航索切断後の接触。",
-      "holding": "タグ70・被曳航30。機関開放否認。",
-      "fault_ratio": "70:30",
-      "claimed_repair_jpy": 36000000,
-      "disallowed_jpy": 8000000,
-      "awarded_damages_jpy": 19600000,
-      "source_type": "synthetic_benchmark",
-      "holding_kind": "synthetic"
-    },
-    {
-      "case_id": 54,
-      "title": "内航乗揚・救助費 合成ベンチ",
-      "court": "高松地方裁判所",
-      "date": "synthetic-public-pattern",
-      "url": "https://www.courts.go.jp/",
-      "pdf_name": null,
-      "input_facts": "乗揚後の救助・離礁費用。",
-      "holding": "乗揚船80。積荷設備改修否認。",
-      "fault_ratio": "80:20",
-      "claimed_repair_jpy": 67000000,
-      "disallowed_jpy": 14000000,
-      "awarded_damages_jpy": 42400000,
-      "source_type": "synthetic_benchmark",
-      "holding_kind": "synthetic"
-    },
-    {
-      "case_id": 55,
-      "title": "港内追い越し接触 合成ベンチ",
-      "court": "門司地方裁判所",
-      "date": "synthetic-public-pattern",
-      "url": "https://www.courts.go.jp/",
-      "pdf_name": null,
-      "input_facts": "追い越し接触の回帰用合成。",
-      "holding": "55:45。局部修理のみ。",
-      "fault_ratio": "55:45",
-      "claimed_repair_jpy": 24000000,
-      "disallowed_jpy": 6000000,
-      "awarded_damages_jpy": 9900000,
-      "source_type": "synthetic_benchmark",
-      "holding_kind": "synthetic"
-    },
-    {
-      "case_id": 56,
-      "title": "強風桟橋接触 合成ベンチ",
-      "court": "名古屋地方裁判所",
-      "date": "synthetic-public-pattern",
-      "url": "https://www.courts.go.jp/",
-      "pdf_name": null,
-      "input_facts": "桟橋接触の回帰用合成。",
-      "holding": "70:30。",
-      "fault_ratio": "70:30",
-      "claimed_repair_jpy": 15000000,
-      "disallowed_jpy": 2000000,
-      "awarded_damages_jpy": 9100000,
-      "source_type": "synthetic_benchmark",
-      "holding_kind": "synthetic"
     }
   ]
 }
