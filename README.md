@@ -92,6 +92,7 @@ Core logic lives under `src/marine_claims_ai/` so the project can be installed a
 
 ```bash
 uv sync
+uv run pytest -q
 ```
 
 ### 1. Ingest Public Datasets
