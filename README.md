@@ -167,8 +167,11 @@ uv run python scripts/eval_retrieval_scale.py \
 ```bash
 uv run python scripts/prototype_experiment.py \
   --spec _inputs/poc_datasets/sample_drydock_repair_specification.pdf \
-  --casualty _inputs/poc_datasets/jtsb_cargo_collision_report.pdf
+  --casualty _inputs/poc_datasets/jtsb_cargo_collision_report.pdf \
+  --export-report
 ```
+
+JPY amounts on public specs without tender prices are **standard unit-price heuristics** (see `summary.pricing_note`). The optional `--export-report` writes a deterministic English Preliminary Survey Report (no LLM).
 
 ---
 

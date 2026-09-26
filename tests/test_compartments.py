@@ -44,3 +44,11 @@ def test_graph_includes_isolated_machinery_node():
     g = build_compartment_graph()
     assert "machinery" in g.nodes
     assert g.degree("machinery") == 0
+
+
+def test_claims_causality_rejects_multi_hop_bow_to_propulsion():
+    from marine_claims_ai.ontology.compartments import validate_claims_causality
+
+    result = validate_claims_causality("球状船首", "推進器", max_hops=1)
+    assert result["valid"] is False
+    assert result["reason"] == "beyond_casualty_propagation_limit"
