@@ -78,11 +78,14 @@ In alignment with our **Zero-Dataset Git Policy**, binary database files (`*.duc
 - Any developer or CI runner can reconstruct the entire local database state from scratch at any time:
 
   ```bash
-  # 1. Re-fetch public datasets into local cache
-  uv run python scripts/fetch_public_datasets.py
+  # 1. Re-fetch public datasets into local cache (JMAT full index + JTSB ≤200 by default)
+  uv run python scripts/fetch_public_datasets.py --force
 
   # 2. Re-index local DuckDB & LanceDB tables
   uv run python scripts/init_duckdb_vector.py --force
+
+  # 3. Optional: measure retrieval hit@k on a fixed query set
+  uv run python scripts/eval_retrieval_scale.py
   ```
 
 - Because no proprietary state is held in the open-core repo, rebuild scripts eliminate the need for storing multi-gigabyte binary database dumps in Git.
@@ -104,6 +107,19 @@ For local developers wishing to freeze or preserve a specific experimental datab
   ```
 
 Snapshots must remain in local gitignored folders and must never be committed to Git.
+
+### D. Corpus Scale & Retrieval Accuracy
+
+Public corpora are intentionally fetched on demand (Zero-Dataset policy). To test whether hybrid retrieval improves with volume:
+
+1. Fetch a thin slice (`--limit 20`) and rebuild LanceDB; run `eval_retrieval_scale.py` → save as baseline.
+2. Re-fetch at DoD scale (JMAT full major index; JTSB ≥200 collision reports; civil ≥20 seeds) and rebuild with `--force`.
+3. Re-run evaluation with `--baseline` to report hit@5 / hit@10 deltas.
+
+Corpus scale experiments (local only): thin caches used for before/after hit@k
+comparisons may show that **more rows do not automatically raise hit@k** when the
+query set already saturates on a small corpus, or when added domains dilute RRF
+ranks. Treat deltas as diagnostic, not as a release gate.
 
 ### C. Cost-Effective Off-Machine Storage (Laptop Disaster Recovery)
 

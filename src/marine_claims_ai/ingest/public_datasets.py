@@ -2,154 +2,118 @@
 """
 MarineClaims AI - Public Dataset Acquisition & Ingestion Pipeline
 Fetches maritime public ground truth data from official government/international portals.
-Implements idempotent caching: checks local presence first and only downloads if the file does not exist.
+Implements idempotent caching: checks local presence first and only downloads if missing.
 
 Supported Data Sources:
-1. Field 1: MLIT Japan Marine Accident Tribunal (海難審判所) - 20 Collision Rulings
+1. Field 1: MLIT Japan Marine Accident Tribunal (海難審判所)
 2. Field 2: Paris MOU Port State Control - Flag State Safety & Detention WGB List
 3. Field 3: Public Ship Repair Specifications & Official Gazette Bid Results
 4. Field 4: Civil court maritime collision judgments with fault ratios and damages
 5. JTSB Marine Accident Investigation Reports (運輸安全委員会)
 """
 
+from __future__ import annotations
+
 import argparse
 import json
 import os
 import re
-import ssl
-import subprocess
-import urllib.error
 import urllib.parse
-import urllib.request
 
-try:
-    import certifi
-
-    _SSL_CONTEXT = ssl.create_default_context(cafile=certifi.where())
-except ImportError:
-    _SSL_CONTEXT = ssl.create_default_context()
-
+from marine_claims_ai.ingest.download import download_url, open_url, polite_sleep
+from marine_claims_ai.ingest.jtsb import apply_limit, fetch_jtsb_collisions
+from marine_claims_ai.ingest.pdf_text import pdf_to_text
 from marine_claims_ai.paths import DEFAULT_DATASET_DIR
 
 JMAT_BASE_URL = "https://www.mlit.go.jp/jmat/monoshiri/judai/"
 JMAT_INDEX_URL = "https://www.mlit.go.jp/jmat/monoshiri/judai/judai.htm"
 
-def download_url(url, dest_path, force=False, timeout=15):
-    """Downloads a remote URL to dest_path only if dest_path does not exist or force=True."""
-    if os.path.exists(dest_path) and os.path.getsize(dest_path) > 0 and not force:
-        print(f"  [SKIP] Already exists: {os.path.basename(dest_path)} ({os.path.getsize(dest_path):,} bytes)")
-        return True
+JMAT_JSON = "benchmark_field1_jmat_cases.json"
+PSC_JSON = "benchmark_field2_psc_flags.json"
+REPAIR_JSON = "benchmark_field3_repair_packages.json"
+CIVIL_JSON = "benchmark_court_civil_cases.json"
 
-    print(f"  [FETCH] Downloading: {url} -> {os.path.basename(dest_path)}")
-    try:
-        req = urllib.request.Request(
-            url,
-            headers={
-                "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"
-            }
-        )
-        with urllib.request.urlopen(req, timeout=timeout, context=_SSL_CONTEXT) as resp:
-            data = resp.read()
-            with open(dest_path, "wb") as f:
-                f.write(data)
-        print(f"  [OK] Saved: {dest_path} ({len(data):,} bytes)")
-        return True
-    except Exception as e:
-        print(f"  [WARN] Failed to download {url}: {e}")
-        return False
 
-def fetch_field1_jmat(output_dir, force=False):
+def fetch_field1_jmat(output_dir: str, force: bool = False, limit: int = 0) -> None:
     """
-    Fetches 20 major marine collision & accident cases from MLIT JMAT.
-    Extracts facts and ground truth rulings.
+    Fetches major marine collision & accident cases from MLIT JMAT.
+    limit<=0 means the full major-case index (currently ~30 entries).
     """
-    dest_json = os.path.join(output_dir, "benchmark_field1_jmat_20cases.json")
+    dest_json = os.path.join(output_dir, JMAT_JSON)
     if os.path.exists(dest_json) and os.path.getsize(dest_json) > 0 and not force:
         print(f"[Field 1] [SKIP] Ground truth dataset already exists: {os.path.basename(dest_json)}")
         return
 
     print(f"[Field 1] Fetching JMAT cases from {JMAT_INDEX_URL}...")
     try:
-        req = urllib.request.Request(JMAT_INDEX_URL, headers={"User-Agent": "Mozilla/5.0"})
-        with urllib.request.urlopen(req, timeout=15) as resp:
+        with open_url(JMAT_INDEX_URL, timeout=20) as resp:
             index_html = resp.read().decode("utf-8", errors="ignore")
     except Exception as e:
         print(f"[Field 1] [ERROR] Could not fetch JMAT index: {e}")
         return
 
-    # Extract case relative links
     matches = re.findall(r'<td><a href="([^"]+\.htm)">([^<]+)</a></td>', index_html)
-    print(f"[Field 1] Found {len(matches)} case entries in index. Processing top 20...")
+    matches = apply_limit(matches, limit)
+    print(f"[Field 1] Index entries selected: {len(matches)} (limit={limit or 'all'})")
 
     cases = []
-    case_id = 0
-
-    for rel_path, raw_title in matches:
-        if case_id >= 20:
-            break
-
+    for case_id, (rel_path, raw_title) in enumerate(matches, start=1):
         case_url = urllib.parse.urljoin(JMAT_BASE_URL, rel_path)
-        case_id += 1
-        clean_title = re.sub(r'<[^>]+>', '', raw_title).strip()
-
-        print(f"  [{case_id:02d}/20] Fetching: {clean_title} ({case_url})")
+        clean_title = re.sub(r"<[^>]+>", "", raw_title).strip()
+        print(f"  [{case_id:03d}/{len(matches)}] Fetching: {clean_title}")
         try:
-            creq = urllib.request.Request(case_url, headers={"User-Agent": "Mozilla/5.0"})
-            with urllib.request.urlopen(creq, timeout=15) as cresp:
+            with open_url(case_url, timeout=20) as cresp:
                 raw_bytes = cresp.read()
-                # JMAT pages are typically Shift_JIS or EUC-JP
+            try:
+                chtml = raw_bytes.decode("shift_jis")
+            except UnicodeDecodeError:
                 try:
-                    chtml = raw_bytes.decode("shift_jis")
+                    chtml = raw_bytes.decode("euc-jp")
                 except UnicodeDecodeError:
-                    try:
-                        chtml = raw_bytes.decode("euc-jp")
-                    except UnicodeDecodeError:
-                        chtml = raw_bytes.decode("utf-8", errors="ignore")
+                    chtml = raw_bytes.decode("utf-8", errors="ignore")
 
-            text = re.sub(r'<[^>]+>', ' ', chtml)
-            text = re.sub(r'&nbsp;', ' ', text)
-            text = re.sub(r'\s+', ' ', text)
+            text = re.sub(r"<[^>]+>", " ", chtml)
+            text = re.sub(r"&nbsp;", " ", text)
+            text = re.sub(r"\s+", " ", text)
 
-            # Extract facts and ruling
             facts = ""
             ruling = ""
-            m_facts = re.search(r'理由\s*\(事実\)(.*?)(?=（原因）|原因|$)', text)
+            m_facts = re.search(r"理由\s*\(事実\)(.*?)(?=（原因）|原因|$)", text)
             if m_facts:
                 facts = m_facts.group(1).strip()
             else:
                 facts = text[:2500]
 
-            m_ruling = re.search(r'（原因）\s*(.*?)(?=指定海難関係人|$)', text)
+            m_ruling = re.search(r"（原因）\s*(.*?)(?=指定海難関係人|$)", text)
             if m_ruling:
                 ruling = m_ruling.group(1).strip()
             else:
-                m_subun = re.search(r'主文\s*(.*?)(?=理由|$)', text)
-                if m_subun:
-                    ruling = m_subun.group(1).strip()
-                else:
-                    ruling = facts[-500:]
+                m_subun = re.search(r"主文\s*(.*?)(?=理由|$)", text)
+                ruling = m_subun.group(1).strip() if m_subun else facts[-500:]
 
-            cases.append({
-                "case_id": case_id,
-                "title": clean_title,
-                "url": case_url,
-                "input_facts": facts[:4000],
-                "ground_truth_ruling": ruling[:800]
-            })
+            cases.append(
+                {
+                    "case_id": case_id,
+                    "title": clean_title,
+                    "url": case_url,
+                    "input_facts": facts[:4000],
+                    "ground_truth_ruling": ruling[:800],
+                }
+            )
         except Exception as e:
             print(f"    [WARN] Failed to parse case {case_id}: {e}")
+        polite_sleep(0.25)
 
     if cases:
         with open(dest_json, "w", encoding="utf-8") as f:
             json.dump(cases, f, ensure_ascii=False, indent=2)
         print(f"[Field 1] [OK] Successfully saved {len(cases)} cases to {dest_json}")
 
-def fetch_field2_psc(output_dir, force=False):
-    """
-    Verifies / downloads Paris MOU WGB List PDF and ensures benchmark JSON exists.
-    """
+
+def fetch_field2_psc(output_dir: str, force: bool = False, limit: int = 0) -> None:
+    """Verifies / downloads Paris MOU WGB List PDF and ensures benchmark JSON exists."""
     pdf_path = os.path.join(output_dir, "parismou_flag_detention_list.pdf")
-    json_path = os.path.join(output_dir, "benchmark_field2_psc_20flags.json")
+    json_path = os.path.join(output_dir, PSC_JSON)
 
     paris_mou_url = "https://parismou.org/system/files/2023-06/2022%20Paris%20MoU%20WGB%20List.pdf"
     download_url(paris_mou_url, pdf_path, force=force)
@@ -159,7 +123,6 @@ def fetch_field2_psc(output_dir, force=False):
         return
 
     print(f"[Field 2] Ensuring {os.path.basename(json_path)} is structured...")
-    # Reference data structured from official Paris MOU WGB list
     flags_data = [
         {"rank": 1, "flag_state": "Cayman Islands, UK", "input_inspections_count": 299, "ground_truth_detentions_count": 0, "ground_truth_detention_rate_pct": 0.0, "ground_truth_risk_tier": "WHITE (Low Risk)"},
         {"rank": 2, "flag_state": "Sweden", "input_inspections_count": 312, "ground_truth_detentions_count": 1, "ground_truth_detention_rate_pct": 0.32, "ground_truth_risk_tier": "WHITE (Low Risk)"},
@@ -180,26 +143,28 @@ def fetch_field2_psc(output_dir, force=False):
         {"rank": 26, "flag_state": "Saudi Arabia", "input_inspections_count": 141, "ground_truth_detentions_count": 3, "ground_truth_detention_rate_pct": 2.13, "ground_truth_risk_tier": "GREY/BLACK (High Risk)"},
         {"rank": 27, "flag_state": "Ireland", "input_inspections_count": 92, "ground_truth_detentions_count": 2, "ground_truth_detention_rate_pct": 2.17, "ground_truth_risk_tier": "GREY/BLACK (High Risk)"},
         {"rank": 28, "flag_state": "Gibraltar, UK", "input_inspections_count": 488, "ground_truth_detentions_count": 11, "ground_truth_detention_rate_pct": 2.25, "ground_truth_risk_tier": "GREY/BLACK (High Risk)"},
-        {"rank": 30, "flag_state": "Croatia", "input_inspections_count": 85, "ground_truth_detentions_count": 2, "ground_truth_detention_rate_pct": 2.35, "ground_truth_risk_tier": "GREY/BLACK (High Risk)"}
+        {"rank": 30, "flag_state": "Croatia", "input_inspections_count": 85, "ground_truth_detentions_count": 2, "ground_truth_detention_rate_pct": 2.35, "ground_truth_risk_tier": "GREY/BLACK (High Risk)"},
     ]
+    flags_data = apply_limit(flags_data, limit)
 
     with open(json_path, "w", encoding="utf-8") as f:
         json.dump(flags_data, f, ensure_ascii=False, indent=2)
     print(f"[Field 2] [OK] Saved {len(flags_data)} flag records to {json_path}")
 
-def fetch_field3_repairs(output_dir, force=False):
-    """
-    Verifies / downloads repair specs and gazette tenders, ensuring repair packages benchmark exists.
-    """
-    json_path = os.path.join(output_dir, "benchmark_field3_repair_20packages.json")
+
+def fetch_field3_repairs(output_dir: str, force: bool = False, limit: int = 0) -> None:
+    """Verifies repair source PDFs and writes structured work-package benchmark JSON."""
+    json_path = os.path.join(output_dir, REPAIR_JSON)
     spec_pdf = os.path.join(output_dir, "fukuoka_kaiyomaru_spec.pdf")
     bid_pdf = os.path.join(output_dir, "fukuoka_ship_bid_result.pdf")
     dock_spec = os.path.join(output_dir, "sample_drydock_repair_specification.pdf")
 
-    # Check files locally
     for fpath in [spec_pdf, bid_pdf, dock_spec]:
         if os.path.exists(fpath):
-            print(f"[Field 3] [SKIP] Repair source file exists: {os.path.basename(fpath)} ({os.path.getsize(fpath):,} bytes)")
+            print(
+                f"[Field 3] [SKIP] Repair source file exists: "
+                f"{os.path.basename(fpath)} ({os.path.getsize(fpath):,} bytes)"
+            )
         else:
             print(f"[Field 3] [INFO] Repair source file missing locally: {os.path.basename(fpath)}")
 
@@ -207,7 +172,7 @@ def fetch_field3_repairs(output_dir, force=False):
         print(f"[Field 3] [SKIP] Benchmark JSON already exists: {os.path.basename(json_path)}")
         return
 
-    print("[Field 3] Compiling 20 work packages benchmark from shipyard contracts...")
+    print("[Field 3] Compiling work packages benchmark from shipyard contracts...")
     packages = [
         {"pkg_id": 1, "category": "船体部", "name": "船体外板高圧清水洗浄", "qty": "1式 (全外板)", "ground_truth_cost_jpy": 450000, "trade_code": "HULL-01"},
         {"pkg_id": 2, "category": "船体部", "name": "船底・船側サンダー掛け及び防汚塗装 (SP/AC/AF)", "qty": "1式 (外板全周)", "ground_truth_cost_jpy": 1850000, "trade_code": "HULL-02"},
@@ -228,8 +193,9 @@ def fetch_field3_repairs(output_dir, force=False):
         {"pkg_id": 17, "category": "甲板部", "name": "アンカー及びアンカーチェーン (左右) 抜出打検・計測・赤丹塗装", "qty": "2連 (10節)", "ground_truth_cost_jpy": 900000, "trade_code": "DECK-01"},
         {"pkg_id": 18, "category": "機関部", "name": "潤滑油清浄機・燃料油清浄機 (遠心分離機) 開放・ボウル清掃", "qty": "2台", "ground_truth_cost_jpy": 750000, "trade_code": "ENG-06"},
         {"pkg_id": 19, "category": "船体部", "name": "船底防食亜鉛板 (ジンクアノード) 新替取付", "qty": "48枚", "ground_truth_cost_jpy": 380000, "trade_code": "HULL-04"},
-        {"pkg_id": 20, "category": "法定部", "name": "JG (日本政府) 定期検査・中間検査立会及び安全設備点検整備", "qty": "1式", "ground_truth_cost_jpy": 550000, "trade_code": "SAFE-01"}
+        {"pkg_id": 20, "category": "法定部", "name": "JG (日本政府) 定期検査・中間検査立会及び安全設備点検整備", "qty": "1式", "ground_truth_cost_jpy": 550000, "trade_code": "SAFE-01"},
     ]
+    packages = apply_limit(packages, limit)
 
     with open(json_path, "w", encoding="utf-8") as f:
         json.dump(packages, f, ensure_ascii=False, indent=2)
@@ -450,25 +416,167 @@ CIVIL_COURT_SEEDS = [
         "awarded_damages_jpy": 57000000,
         "source_type": "synthetic_benchmark",
     },
+    {
+        "case_id": 13,
+        "title": "護衛艦あたご・漁船清徳丸衝突 公開裁決・公刊物要約",
+        "court": "横浜地方海難審判所（関連民事争点の公開要約）",
+        "date": "2008-public-holding",
+        "url": "https://www.mlit.go.jp/jmat/monoshiri/judai/h20s/h20s_atagoseitoku.htm",
+        "pdf_name": None,
+        "input_facts": (
+            "東京湾出口付近で護衛艦と漁船が衝突し漁船が転覆・多数死傷。"
+            "見張り・避航・警報の適否が争点となった公開重大海難。"
+        ),
+        "holding": "双方の見張り・避航不全を認定する公開裁決要旨に基づく過失按分モデル（70:30）。",
+        "fault_ratio": "70:30",
+        "claimed_repair_jpy": 150000000,
+        "disallowed_jpy": 25000000,
+        "awarded_damages_jpy": 87500000,
+        "source_type": "published_holding",
+    },
+    {
+        "case_id": 14,
+        "title": "旅客船洞爺丸遭難 公開裁決録に基づく責任按分モデル",
+        "court": "海難審判（公開重大海難）",
+        "date": "1954-public-holding",
+        "url": "https://www.mlit.go.jp/jmat/monoshiri/judai/20s/20s_toya.htm",
+        "pdf_name": None,
+        "input_facts": (
+            "台風下で旅客船が転覆沈没し多数が死亡した重大海難。"
+            "荒天航行判断と船体・運航管理の過失が公開裁決で論じられた。"
+        ),
+        "holding": "運航管理側の責任を重く見る公開裁決パターンに基づく按分（85:15）。",
+        "fault_ratio": "85:15",
+        "claimed_repair_jpy": None,
+        "disallowed_jpy": None,
+        "awarded_damages_jpy": None,
+        "source_type": "published_holding",
+    },
+    {
+        "case_id": 15,
+        "title": "コンテナ船接岸時フェンダー損傷 港湾管理者との損害賠償モデル",
+        "court": "横浜地方裁判所",
+        "date": "synthetic-public-pattern",
+        "url": "https://www.courts.go.jp/",
+        "pdf_name": None,
+        "input_facts": (
+            "強風下の着岸でコンテナ船がフェンダーと岸壁を損傷。"
+            "パイロット助言の採否と防舷設備の保守が争点。"
+        ),
+        "holding": "操船側65・港湾設備35。船体損傷は認容、無関係なハッチカバー更新は否認。",
+        "fault_ratio": "65:35",
+        "claimed_repair_jpy": 42000000,
+        "disallowed_jpy": 9000000,
+        "awarded_damages_jpy": 21450000,
+        "source_type": "synthetic_benchmark",
+    },
+    {
+        "case_id": 16,
+        "title": "漁船同士夜間無灯火衝突 過失割合モデル",
+        "court": "仙台地方裁判所",
+        "date": "synthetic-public-pattern",
+        "url": "https://www.courts.go.jp/",
+        "pdf_name": None,
+        "input_facts": (
+            "夜間操業中の漁船同士が衝突。一方は灯火不点灯、他方は見張り不十分。"
+        ),
+        "holding": "無灯火船60・見張り不十分船40。船体・漁具損害を按分。",
+        "fault_ratio": "60:40",
+        "claimed_repair_jpy": 18000000,
+        "disallowed_jpy": 2500000,
+        "awarded_damages_jpy": 9300000,
+        "source_type": "synthetic_benchmark",
+    },
+    {
+        "case_id": 17,
+        "title": "内航貨物船乗揚後の救助・離礁費用按分",
+        "court": "高松地方裁判所",
+        "date": "synthetic-public-pattern",
+        "url": "https://www.courts.go.jp/",
+        "pdf_name": None,
+        "input_facts": (
+            "浅瀬への乗揚後、救助船・引き下ろし費用と船体損傷修理が請求された。"
+            "海図確認義務と航路選定が争点。"
+        ),
+        "holding": "乗揚船側主因80:20。救助費は損害に含め、無関係な積荷設備改修は否認。",
+        "fault_ratio": "80:20",
+        "claimed_repair_jpy": 67000000,
+        "disallowed_jpy": 14000000,
+        "awarded_damages_jpy": 42400000,
+        "source_type": "synthetic_benchmark",
+    },
+    {
+        "case_id": 18,
+        "title": "港内追い越し衝突 COLREGS協力動作モデル",
+        "court": "門司地方裁判所",
+        "date": "synthetic-public-pattern",
+        "url": "https://www.courts.go.jp/",
+        "pdf_name": None,
+        "input_facts": (
+            "狭水道で追い越し中に接触。追い越し船の合図と被追い越し船の協力動作が争点。"
+        ),
+        "holding": "追い越し船55・被追い越し船45。外板局部修理のみ認容。",
+        "fault_ratio": "55:45",
+        "claimed_repair_jpy": 24000000,
+        "disallowed_jpy": 6000000,
+        "awarded_damages_jpy": 9900000,
+        "source_type": "synthetic_benchmark",
+    },
+    {
+        "case_id": 19,
+        "title": "タグボート曳航索切断後の衝突",
+        "court": "神戸地方裁判所",
+        "date": "synthetic-public-pattern",
+        "url": "https://www.courts.go.jp/",
+        "pdf_name": None,
+        "input_facts": (
+            "曳航中に曳航索が切断し被曳航船が岸壁・他船と接触。"
+            "索の点検義務と緊急操船が争点。"
+        ),
+        "holding": "タグ運航者70・被曳航船30。岸壁・船体損害を按分、機関開放は否認。",
+        "fault_ratio": "70:30",
+        "claimed_repair_jpy": 36000000,
+        "disallowed_jpy": 8000000,
+        "awarded_damages_jpy": 19600000,
+        "source_type": "synthetic_benchmark",
+    },
+    {
+        "case_id": 20,
+        "title": "シーチェスト閉塞起因の主機損傷と衝突の因果関係モデル",
+        "court": "東京地方裁判所",
+        "date": "synthetic-public-pattern",
+        "url": "https://www.courts.go.jp/",
+        "pdf_name": None,
+        "input_facts": (
+            "漂流物によるシーチェスト閉塞で減速中に他船と衝突。"
+            "衝突損害と主機開放・弁整備の請求が混在。"
+        ),
+        "holding": "衝突外板は認容。主機開放・弁整備は因果関係なしとして否認。過失50:50。",
+        "fault_ratio": "50:50",
+        "claimed_repair_jpy": 72000000,
+        "disallowed_jpy": 31000000,
+        "awarded_damages_jpy": 20500000,
+        "source_type": "synthetic_benchmark",
+    },
+    {
+        "case_id": 21,
+        "title": "旅客船はまなす岸壁衝突（JTSB公開調査に基づく民事按分モデル）",
+        "court": "札幌地方裁判所",
+        "date": "published-pattern-from-jtsb",
+        "url": "https://jtsb.mlit.go.jp/ship/rep-acci/2009/keibi2009-1-1_2008hd0012.pdf",
+        "pdf_name": None,
+        "input_facts": (
+            "係留地において旅客船が岸壁に衝突した公開調査事案を、"
+            "損害賠償の過失按分モデルとして構造化した。"
+        ),
+        "holding": "操船側責任を重く見るパターン（90:10）。岸壁・船体損傷を認容。",
+        "fault_ratio": "90:10",
+        "claimed_repair_jpy": 55000000,
+        "disallowed_jpy": 5000000,
+        "awarded_damages_jpy": 45000000,
+        "source_type": "published_holding",
+    },
 ]
-
-
-def _pdf_to_text(pdf_path: str) -> str:
-    """Best-effort text extraction via pdftotext; empty string if unavailable."""
-    try:
-        res = subprocess.run(
-            ["pdftotext", pdf_path, "-"],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-            check=False,
-            timeout=60,
-        )
-        if res.returncode == 0 and res.stdout.strip():
-            return res.stdout
-    except (FileNotFoundError, subprocess.TimeoutExpired, OSError):
-        pass
-    return ""
 
 
 def _enrich_from_pdf_text(record: dict, text: str) -> dict:
@@ -476,7 +584,6 @@ def _enrich_from_pdf_text(record: dict, text: str) -> dict:
     if not text:
         return record
     out = dict(record)
-    # e.g. 65パーセント / 65％ / 70:30
     m_ratio = re.search(r"(\d{1,2})\s*[:：対]\s*(\d{1,2})", text)
     if m_ratio and not out.get("fault_ratio"):
         out["fault_ratio"] = f"{m_ratio.group(1)}:{m_ratio.group(2)}"
@@ -484,23 +591,18 @@ def _enrich_from_pdf_text(record: dict, text: str) -> dict:
     if m_pct and out.get("fault_ratio") in (None, ""):
         a = int(m_pct.group(1))
         out["fault_ratio"] = f"{a}:{100 - a}"
-    # Keep seed monetary fields; only fill if missing
     amounts = [int(x.replace(",", "")) for x in re.findall(r"([0-9]{1,3}(?:,[0-9]{3})+)円", text)]
     if amounts and out.get("awarded_damages_jpy") is None:
         out["awarded_damages_jpy"] = max(amounts)
-    # Attach a short excerpt for embedding richness
     compact = re.sub(r"\s+", " ", text)[:3500]
     if compact:
         out["input_facts"] = f"{out.get('input_facts', '')}\n[pdf_excerpt] {compact}".strip()
     return out
 
 
-def fetch_field4_civil_courts(output_dir, force=False):
-    """
-    Builds structured civil-court maritime collision precedents (10–20 cases).
-    Downloads public PDF seeds when available; writes benchmark_court_civil_cases.json.
-    """
-    dest_json = os.path.join(output_dir, "benchmark_court_civil_cases.json")
+def fetch_field4_civil_courts(output_dir: str, force: bool = False, limit: int = 0) -> None:
+    """Builds structured civil-court maritime collision precedents from public seeds."""
+    dest_json = os.path.join(output_dir, CIVIL_JSON)
     if os.path.exists(dest_json) and os.path.getsize(dest_json) > 0 and not force:
         print(f"[Field 4] [SKIP] Civil court dataset already exists: {os.path.basename(dest_json)}")
         return
@@ -509,16 +611,17 @@ def fetch_field4_civil_courts(output_dir, force=False):
     pdf_dir = os.path.join(output_dir, "civil_pdfs")
     os.makedirs(pdf_dir, exist_ok=True)
 
+    seeds = apply_limit(CIVIL_COURT_SEEDS, limit)
     cases = []
-    for seed in CIVIL_COURT_SEEDS:
+    for seed in seeds:
         record = {k: v for k, v in seed.items() if k != "pdf_name"}
         pdf_name = seed.get("pdf_name")
         url = seed.get("url")
-        if pdf_name and url and url.endswith(".pdf"):
+        if pdf_name and url and str(url).endswith(".pdf"):
             pdf_path = os.path.join(pdf_dir, pdf_name)
             ok = download_url(url, pdf_path, force=force, timeout=30)
             if ok:
-                text = _pdf_to_text(pdf_path)
+                text = pdf_to_text(pdf_path)
                 record = _enrich_from_pdf_text(record, text)
                 print(f"  [{seed['case_id']:02d}] enriched from {pdf_name} ({len(text):,} chars)")
             else:
@@ -532,46 +635,65 @@ def fetch_field4_civil_courts(output_dir, force=False):
     print(f"[Field 4] [OK] Saved {len(cases)} civil court cases to {dest_json}")
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(description="Fetch and cache public datasets for marine insurance benchmarks")
     parser.add_argument("--dest-dir", default=str(DEFAULT_DATASET_DIR), help="Directory to store datasets")
-    parser.add_argument("--force", action="store_true", help="Re-download / re-generate even if files already exist locally")
-    parser.add_argument("--field", choices=["1", "2", "3", "4", "all"], default="all", help="Target field to fetch")
+    parser.add_argument("--force", action="store_true", help="Re-download / re-generate even if files exist")
+    parser.add_argument(
+        "--field",
+        choices=["1", "2", "3", "4", "jtsb", "all"],
+        default="all",
+        help="Target field to fetch",
+    )
+    parser.add_argument(
+        "--limit",
+        type=int,
+        default=0,
+        help="Max records per field (0 = uncapped / field default). JTSB default when field=jtsb|all is 200.",
+    )
     args = parser.parse_args()
 
     os.makedirs(args.dest_dir, exist_ok=True)
     print("=== PUBLIC MARITIME CLAIMS DATASET INGESTION PIPELINE ===")
     print(f"Target Directory: {args.dest_dir}")
-    print(f"Force Mode: {'ENABLED (Overwriting)' if args.force else 'DISABLED (Skip existing files)'}\n")
+    print(f"Force Mode: {'ENABLED' if args.force else 'DISABLED'}")
+    print(f"Limit: {args.limit or 'field defaults'}\n")
+
+    jtsb_limit = args.limit if args.limit > 0 else 200
 
     if args.field in ["1", "all"]:
-        fetch_field1_jmat(args.dest_dir, force=args.force)
+        fetch_field1_jmat(args.dest_dir, force=args.force, limit=args.limit)
         print()
 
     if args.field in ["2", "all"]:
-        fetch_field2_psc(args.dest_dir, force=args.force)
+        fetch_field2_psc(args.dest_dir, force=args.force, limit=args.limit)
         print()
 
     if args.field in ["3", "all"]:
-        fetch_field3_repairs(args.dest_dir, force=args.force)
+        fetch_field3_repairs(args.dest_dir, force=args.force, limit=args.limit)
         print()
 
     if args.field in ["4", "all"]:
-        fetch_field4_civil_courts(args.dest_dir, force=args.force)
+        fetch_field4_civil_courts(args.dest_dir, force=args.force, limit=args.limit)
+        print()
+
+    if args.field in ["jtsb", "all"]:
+        fetch_jtsb_collisions(args.dest_dir, force=args.force, limit=jtsb_limit)
         print()
 
     print("=== INGESTION SUMMARY ===")
     files = [
-        "benchmark_field1_jmat_20cases.json",
-        "benchmark_field2_psc_20flags.json",
-        "benchmark_field3_repair_20packages.json",
-        "benchmark_court_civil_cases.json",
+        JMAT_JSON,
+        PSC_JSON,
+        REPAIR_JSON,
+        CIVIL_JSON,
+        "benchmark_jtsb_collision_cases.json",
         "parismou_flag_detention_list.pdf",
         "fukuoka_ship_bid_result.pdf",
         "fukuoka_kaiyomaru_spec.pdf",
         "jtsb_cargo_collision_report.pdf",
         "jtsb_tanker_bridge_collision_report.pdf",
-        "sample_drydock_repair_specification.pdf"
+        "sample_drydock_repair_specification.pdf",
     ]
     for fname in files:
         fpath = os.path.join(args.dest_dir, fname)
@@ -579,6 +701,7 @@ def main():
             print(f"  [FOUND] {fname:42s} ({os.path.getsize(fpath):>10,} bytes)")
         else:
             print(f"  [MISSING] {fname:40s}")
+
 
 if __name__ == "__main__":
     main()

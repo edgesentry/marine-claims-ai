@@ -70,6 +70,7 @@ marine-claims-AI/
 ├── scripts/                          # thin CLI entrypoints only
 │   ├── ci/check_zero_dataset_leak.py
 │   ├── fetch_public_datasets.py
+│   ├── eval_retrieval_scale.py
 │   ├── init_duckdb_vector.py
 │   ├── hybrid_search.py
 │   ├── apportion_analytics.py
@@ -97,10 +98,16 @@ uv run pytest -q
 
 ### 1. Ingest Public Datasets
 
-Fetches missing ground truth datasets (JMAT, PSC, repair packages, civil-court seeds):
+Fetches JMAT (full major index), PSC, repair packages, civil-court seeds, and JTSB collision reports:
 
 ```bash
-uv run python scripts/fetch_public_datasets.py
+# Defaults: JMAT uncapped; JTSB limit 200
+uv run python scripts/fetch_public_datasets.py --force
+
+# Selective / capped fetches
+uv run python scripts/fetch_public_datasets.py --field 1 --force
+uv run python scripts/fetch_public_datasets.py --field jtsb --limit 200 --force
+uv run python scripts/fetch_public_datasets.py --field 4 --force
 ```
 
 ### 2. Rebuild Local Indexes (Polars → LanceDB + DuckDB)
@@ -116,6 +123,20 @@ uv run python scripts/validate_compartment_path.py --damage-zone 球状船首 --
 
 ```bash
 uv run python scripts/verify_3fields_benchmarks.py --config config/benchmark_rules.json
+```
+
+### 3b. Retrieval scale evaluation (hit@k)
+
+Fixed query set in `config/retrieval_eval_queries.json`. Compare thin vs scaled corpora:
+
+```bash
+uv run python scripts/eval_retrieval_scale.py \
+  --out _inputs/poc_datasets/retrieval_scale_report.json
+
+# After rebuilding on a larger cache, diff against a saved baseline:
+uv run python scripts/eval_retrieval_scale.py \
+  --baseline _inputs/poc_datasets/retrieval_scale_report_baseline.json \
+  --out _inputs/poc_datasets/retrieval_scale_report.json
 ```
 
 ### 4. Run Claims Adjustment Pipeline

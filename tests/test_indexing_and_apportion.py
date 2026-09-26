@@ -13,8 +13,8 @@ from marine_claims_ai.index.build import (
 def test_rows_from_sources_maps_domains(sample_dataset_dir: Path):
     rows = rows_from_sources(str(sample_dataset_dir))
     domains = {r["domain"] for r in rows}
-    assert domains == {"jmat", "psc", "repair", "civil_court"}
-    assert len(rows) == 5
+    assert domains == {"jmat", "psc", "repair", "civil_court", "jtsb"}
+    assert len(rows) == 6
 
     repair = [r for r in rows if r["domain"] == "repair"]
     by_id = {r["id"]: r for r in repair}
@@ -25,7 +25,7 @@ def test_rows_from_sources_maps_domains(sample_dataset_dir: Path):
 def test_normalize_with_polars_types(sample_dataset_dir: Path):
     rows = rows_from_sources(str(sample_dataset_dir))
     df = normalize_with_polars(rows)
-    assert df.height == 5
+    assert df.height == 6
     assert "cost_jpy" in df.columns
     assert df.filter(df["id"] == "repair-2")["casualty_related"][0] is False
 
