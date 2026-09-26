@@ -73,35 +73,47 @@ flowchart TD
 In alignment with our **Zero-Dataset Git Policy**, binary database files (`*.duckdb`, `.lancedb/`) and downloaded public files are strictly excluded from version control.
 
 ### A. Idempotent Rebuild (Code as Source of Truth)
+
 - The primary backup mechanism is **deterministic programmatic re-generation**.
 - Any developer or CI runner can reconstruct the entire local database state from scratch at any time:
+
   ```bash
   # 1. Re-fetch public datasets into local cache
   uv run python scripts/fetch_public_datasets.py
-  
+
   # 2. Re-index local DuckDB & LanceDB tables
   uv run python scripts/init_duckdb_vector.py --force
   ```
+
 - Because no proprietary state is held in the open-core repo, rebuild scripts eliminate the need for storing multi-gigabyte binary database dumps in Git.
 
 ### B. Developer Local Snapshotting
+
 For local developers wishing to freeze or preserve a specific experimental database state across machines:
+
 - **LanceDB**: The `.lancedb/` directory contains self-contained Arrow/Lance datasets. Compressing the directory preserves full index and metadata state:
+
   ```bash
   tar -czf lancedb_snapshot_$(date +%Y%m%d).tar.gz .lancedb/
   ```
+
 - **DuckDB**: Use the native zero-overhead SQL export command:
+
   ```sql
   EXPORT DATABASE 'backup/duckdb_snapshot/' (FORMAT PARQUET);
   ```
-  *(Note: Snapshots must remain in local gitignored folders and must never be committed to Git.)*
+
+Snapshots must remain in local gitignored folders and must never be committed to Git.
 
 ### C. Cost-Effective Off-Machine Storage (Laptop Disaster Recovery)
+
 To protect against workstation hardware loss (laptop disk failure or corruption) without violating the Zero-Dataset Git Policy:
+
 - Developers can sync gitignored datasets, OCR caches, and database files directly to S3-compatible cloud object storage.
 - **Cloudflare R2 (Recommended)**: Offers $0.015 / GB-month with **$0.00 egress fees** and a 10 GB free tier.
 - **Backblaze B2 / AWS S3**: Backblaze B2 provides $0.006 / GB-month storage.
 - **Synchronization Routine**: Use standard tools like `rclone` or `aws s3 sync`:
+
   ```bash
   # Sync downloaded datasets and local database state to remote bucket
   rclone sync datasets/ r2:marine-claims-public-cache/datasets/ --fast-list
