@@ -57,7 +57,7 @@ flowchart TD
 
 Idempotently downloads missing public datasets to the local repository, skipping existing verified files.
 
-- **Pipeline Script**: [`scripts/fetch_public_datasets.py`](file:///Users/yoheionishi/work/marine-claims-AI/scripts/fetch_public_datasets.py)
+- **Pipeline Script**: [`scripts/fetch_public_datasets.py`](../scripts/fetch_public_datasets.py)
 - **Primary Data Sources**:
   - MLIT Japan Marine Accident Tribunal (JMAT) Major Casualty Archives.
   - Tokyo and Osaka District Court Maritime Commercial Judgments (`courts.go.jp`).
@@ -121,7 +121,7 @@ Validated knowledge is merged into the local hybrid database and production conf
 - **Storage Destinations**:
   - **Relational Store (DuckDB / PostgreSQL)**: Verified trade packages, contract price baselines, court metadata.
   - **Vector Store (FastEmbed / `multilingual-e5-small`)**: Dense embeddings of damage descriptions, red-flag routine work items, and judicial reasoning.
-  - **Configuration Layer ([`config/benchmark_rules.json`](file:///Users/yoheionishi/work/marine-claims-AI/config/benchmark_rules.json))**: Triage thresholds and trade discipline classification codes.
+  - **Configuration Layer ([`config/benchmark_rules.json`](../config/benchmark_rules.json))**: Triage thresholds and trade discipline classification codes.
 - **Automated Feedback Loop**:
   - The claims engine automatically flags borderline repair items (similarity 0.45 to 0.55) to a triage queue.
   - The next ingestion cycle prioritizes gathering similar public vessel specifications to resolve edge-case ambiguities.

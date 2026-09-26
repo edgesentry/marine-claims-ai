@@ -11,16 +11,15 @@ Supported Data Sources:
 4. JTSB Marine Accident Investigation Reports (運輸安全委員会)
 """
 
-import os
-import sys
-import re
-import json
 import argparse
-import urllib.request
+import json
+import os
+import re
 import urllib.error
-import subprocess
+import urllib.request
 
-DEFAULT_DATASET_DIR = "/Users/yoheionishi/work/marine-claims-AI/_inputs/poc_datasets"
+_REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+DEFAULT_DATASET_DIR = os.path.join(_REPO_ROOT, "_inputs", "poc_datasets")
 
 JMAT_BASE_URL = "https://www.mlit.go.jp/jmat/monoshiri/judai/"
 JMAT_INDEX_URL = "https://www.mlit.go.jp/jmat/monoshiri/judai/judai.htm"
@@ -198,7 +197,7 @@ def fetch_field3_repairs(output_dir, force=False):
         print(f"[Field 3] [SKIP] Benchmark JSON already exists: {os.path.basename(json_path)}")
         return
 
-    print(f"[Field 3] Compiling 20 work packages benchmark from shipyard contracts...")
+    print("[Field 3] Compiling 20 work packages benchmark from shipyard contracts...")
     packages = [
         {"pkg_id": 1, "category": "船体部", "name": "船体外板高圧清水洗浄", "qty": "1式 (全外板)", "ground_truth_cost_jpy": 450000, "trade_code": "HULL-01"},
         {"pkg_id": 2, "category": "船体部", "name": "船底・船側サンダー掛け及び防汚塗装 (SP/AC/AF)", "qty": "1式 (外板全周)", "ground_truth_cost_jpy": 1850000, "trade_code": "HULL-02"},

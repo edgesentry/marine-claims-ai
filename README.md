@@ -58,17 +58,19 @@ MarineClaims AI provides a fully open and reproducible foundation for marine cla
 marine-claims-AI/
 ├── AGENTS.md                               # AI agent guidelines & zero-data security rules
 ├── README.md                               # Project overview and public capabilities
+├── .github/workflows/security-lint.yml     # Zero-Dataset leak check, ruff, markdown CI
 ├── config/
 │   └── benchmark_rules.json                # Decoupled rules, keywords, and triage thresholds
 ├── docs/
 │   └── iterative_knowledge_loop_specification.md  # 5-phase continuous improvement loop spec
 └── scripts/
+    ├── ci/check_zero_dataset_leak.py       # Tracked-data / path / secret leak scanner
     ├── fetch_public_datasets.py            # Idempotent public data ingestion pipeline
     ├── verify_3fields_benchmarks.py        # Multi-field benchmark evaluation runner
     └── prototype_experiment.py             # End-to-end PDF parsing and claims adjustment pipeline
 ```
 
-*(Note: Downloaded PDFs, scraped HTMLs, and extracted benchmark JSONs are cached locally under `_inputs/` or `datasets/` and are strictly excluded from version control via `.gitignore`.)*
+*(Note: Downloaded PDFs, scraped HTMLs, and extracted benchmark JSONs are cached locally under `_inputs/` or `datasets/` and are strictly excluded from version control via `.gitignore`. CI enforces this Zero-Dataset policy on every PR and push to `main`.)*
 
 ---
 
