@@ -110,6 +110,13 @@ uv run python scripts/fetch_public_datasets.py --field jtsb --limit 200 --force
 uv run python scripts/fetch_public_datasets.py --field 4 --force
 ```
 
+Civil precedents are curated in `config/civil_precedent_catalog.json` (courts.go.jp PDFs, JMAT public holdings, published summaries). Check Field 4 DoD coverage:
+
+```bash
+uv run python scripts/civil_coverage.py --catalog
+uv run python scripts/civil_coverage.py
+```
+
 ### 2. Rebuild Local Indexes (Polars → LanceDB + DuckDB)
 
 ```bash

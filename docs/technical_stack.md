@@ -121,6 +121,15 @@ comparisons may show that **more rows do not automatically raise hit@k** when th
 query set already saturates on a small corpus, or when added domains dilute RRF
 ranks. Treat deltas as diagnostic, not as a release gate.
 
+### E. Civil precedents (fault ratios + yen)
+
+Tracked catalog: `config/civil_precedent_catalog.json` (metadata only).
+
+- Sources: courts.go.jp judgment PDFs; MLIT JMAT public major-case pages / saiketsu PDFs; published case commentaries.
+- PDFs are fetched on demand into `_inputs/poc_datasets/civil_pdfs/` and never committed.
+- `source_type` discriminates `court_pdf` / `published_holding` / `synthetic_benchmark`.
+- Coverage: `uv run python scripts/civil_coverage.py` (targets: ≥30 non-synthetic with fault_ratio; ≥15 with claimed/awarded yen).
+
 ### C. Cost-Effective Off-Machine Storage (Laptop Disaster Recovery)
 
 To protect against workstation hardware loss (laptop disk failure or corruption) without violating the Zero-Dataset Git Policy:
