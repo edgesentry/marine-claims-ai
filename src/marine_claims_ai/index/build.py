@@ -35,10 +35,23 @@ def load_json(path: str):
         return json.load(f)
 
 
+def load_json_first(dataset_dir: str, *names: str):
+    """Load the first existing JSON among candidate filenames (new name, then legacy)."""
+    for name in names:
+        data = load_json(os.path.join(dataset_dir, name))
+        if data is not None:
+            return data, name
+    return None, None
+
+
 def rows_from_sources(dataset_dir: str) -> list[dict]:
     rows: list[dict] = []
 
-    jmat = load_json(os.path.join(dataset_dir, "benchmark_field1_jmat_20cases.json"))
+    jmat, jmat_name = load_json_first(
+        dataset_dir,
+        "benchmark_field1_jmat_cases.json",
+        "benchmark_field1_jmat_20cases.json",
+    )
     if isinstance(jmat, list):
         for c in jmat:
             text = f"{c.get('input_facts', '')}\n{c.get('ground_truth_ruling', '')}".strip()
@@ -64,8 +77,14 @@ def rows_from_sources(dataset_dir: str) -> list[dict]:
             )
     else:
         print(f"[WARN] Missing JMAT JSON under {dataset_dir}")
+    if jmat_name:
+        print(f"[INFO] Loaded JMAT from {jmat_name}")
 
-    psc = load_json(os.path.join(dataset_dir, "benchmark_field2_psc_20flags.json"))
+    psc, _ = load_json_first(
+        dataset_dir,
+        "benchmark_field2_psc_flags.json",
+        "benchmark_field2_psc_20flags.json",
+    )
     if isinstance(psc, list):
         for f in psc:
             flag = f.get("flag_state") or ""
@@ -93,13 +112,16 @@ def rows_from_sources(dataset_dir: str) -> list[dict]:
                 }
             )
 
-    repair = load_json(os.path.join(dataset_dir, "benchmark_field3_repair_20packages.json"))
+    repair, _ = load_json_first(
+        dataset_dir,
+        "benchmark_field3_repair_packages.json",
+        "benchmark_field3_repair_20packages.json",
+    )
     if isinstance(repair, list):
         concurrent_trades = {"ENG", "VALVE", "SAFE"}
         for p in repair:
             trade = p.get("trade_code") or ""
             text = f"{p.get('category', '')} {p.get('name', '')} trade_code={trade}".strip()
-            # Statutory / machinery open-ups are concurrent-maintenance candidates
             concurrent = any(trade.startswith(t) for t in concurrent_trades)
             rows.append(
                 {
@@ -149,6 +171,34 @@ def rows_from_sources(dataset_dir: str) -> list[dict]:
             )
     else:
         print("[INFO] No civil court JSON yet (optional Field 4)")
+
+    jtsb = load_json(os.path.join(dataset_dir, "benchmark_jtsb_collision_cases.json"))
+    if isinstance(jtsb, list):
+        for c in jtsb:
+            text = (
+                f"{c.get('input_facts', '')}\n"
+                f"accident_type={c.get('accident_type', '')} place={c.get('place', '')}"
+            ).strip()
+            if not text:
+                continue
+            rows.append(
+                {
+                    "id": f"jtsb-{c.get('case_id')}",
+                    "domain": "jtsb",
+                    "title": c.get("title") or "",
+                    "source_url": c.get("url") or "",
+                    "category": c.get("accident_type") or "",
+                    "trade_code": "",
+                    "risk_tier": "",
+                    "cost_jpy": None,
+                    "fault_split_text": "",
+                    "awarded_jpy": None,
+                    "claimed_repair_jpy": None,
+                    "disallowed_jpy": None,
+                    "casualty_related": True,
+                    "text": text,
+                }
+            )
 
     return rows
 

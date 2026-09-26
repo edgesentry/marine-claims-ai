@@ -1,0 +1,65 @@
+{
+  "k_values": [5, 10],
+  "queries": [
+    {
+      "id": "q_jmat_watchkeeping",
+      "query": "見張り不十分による漁船と貨物船の衝突",
+      "expected_domains": ["jmat", "jtsb", "civil_court"],
+      "expected_id_prefixes": ["jmat-", "jtsb-", "civil-"]
+    },
+    {
+      "id": "q_fog_radar",
+      "query": "濃霧レーダー過失 船舶衝突",
+      "expected_domains": ["jmat", "civil_court", "jtsb"],
+      "expected_id_prefixes": ["jmat-", "civil-", "jtsb-"]
+    },
+    {
+      "id": "q_repair_hull_wash",
+      "query": "船体外板高圧洗浄 防汚塗装",
+      "expected_domains": ["repair"],
+      "expected_id_prefixes": ["repair-"]
+    },
+    {
+      "id": "q_concurrent_engine",
+      "query": "主機ピストン抜出し 便乗修理",
+      "expected_domains": ["repair", "civil_court"],
+      "expected_id_prefixes": ["repair-", "civil-"]
+    },
+    {
+      "id": "q_psc_risk",
+      "query": "Paris MoU high risk flag detention rate",
+      "expected_domains": ["psc"],
+      "expected_id_prefixes": ["psc-"]
+    },
+    {
+      "id": "q_jtsb_collision",
+      "query": "旅客船岸壁衝突 運輸安全委員会調査報告",
+      "expected_domains": ["jtsb", "jmat"],
+      "expected_id_prefixes": ["jtsb-", "jmat-"]
+    },
+    {
+      "id": "q_civil_fault_ratio",
+      "query": "損害賠償 過失割合 65対35 船舶衝突",
+      "expected_domains": ["civil_court"],
+      "expected_id_prefixes": ["civil-"]
+    },
+    {
+      "id": "q_drydock_5050",
+      "query": "入渠料 定期検査と衝突修理の按分",
+      "expected_domains": ["repair", "civil_court"],
+      "expected_id_prefixes": ["repair-", "civil-"]
+    },
+    {
+      "id": "q_anchorage_drag",
+      "query": "走錨による衝突 錨泊監視",
+      "expected_domains": ["civil_court", "jmat", "jtsb"],
+      "expected_id_prefixes": ["civil-", "jmat-", "jtsb-"]
+    },
+    {
+      "id": "q_bulbous_bow",
+      "query": "球状船首損傷 外板曲損修理",
+      "expected_domains": ["repair", "civil_court", "jmat"],
+      "expected_id_prefixes": ["repair-", "civil-", "jmat-"]
+    }
+  ]
+}

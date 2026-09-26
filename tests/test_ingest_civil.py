@@ -7,8 +7,11 @@ from marine_claims_ai.ingest.public_datasets import (
 
 
 def test_civil_court_seeds_meet_minimum_count():
-    assert len(CIVIL_COURT_SEEDS) >= 10
+    assert len(CIVIL_COURT_SEEDS) >= 20
     assert all("case_id" in s and "fault_ratio" in s for s in CIVIL_COURT_SEEDS)
+    assert any(s.get("source_type") == "court_pdf" for s in CIVIL_COURT_SEEDS)
+    assert any(s.get("source_type") == "synthetic_benchmark" for s in CIVIL_COURT_SEEDS)
+    assert any(s.get("source_type") == "published_holding" for s in CIVIL_COURT_SEEDS)
 
 
 def test_enrich_from_pdf_text_extracts_ratio_and_amounts():

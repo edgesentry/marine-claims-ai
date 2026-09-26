@@ -11,7 +11,7 @@ import pytest
 @pytest.fixture
 def sample_dataset_dir(tmp_path: Path) -> Path:
     """Minimal public-benchmark JSON fixtures for indexing tests."""
-    (tmp_path / "benchmark_field1_jmat_20cases.json").write_text(
+    (tmp_path / "benchmark_field1_jmat_cases.json").write_text(
         json.dumps(
             [
                 {
@@ -26,7 +26,7 @@ def sample_dataset_dir(tmp_path: Path) -> Path:
         ),
         encoding="utf-8",
     )
-    (tmp_path / "benchmark_field2_psc_20flags.json").write_text(
+    (tmp_path / "benchmark_field2_psc_flags.json").write_text(
         json.dumps(
             [
                 {
@@ -41,7 +41,7 @@ def sample_dataset_dir(tmp_path: Path) -> Path:
         ),
         encoding="utf-8",
     )
-    (tmp_path / "benchmark_field3_repair_20packages.json").write_text(
+    (tmp_path / "benchmark_field3_repair_packages.json").write_text(
         json.dumps(
             [
                 {
@@ -79,6 +79,24 @@ def sample_dataset_dir(tmp_path: Path) -> Path:
                     "claimed_repair_jpy": 10000000,
                     "disallowed_jpy": 3000000,
                     "awarded_damages_jpy": 3500000,
+                }
+            ],
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+    (tmp_path / "benchmark_jtsb_collision_cases.json").write_text(
+        json.dumps(
+            [
+                {
+                    "case_id": 1,
+                    "title": "旅客船はまなす衝突（岸壁）",
+                    "date": "2007年 04月27日",
+                    "place": "北海道羅臼港係留地",
+                    "accident_type": "事故 衝突（単）",
+                    "url": "https://example.com/jtsb/1.pdf",
+                    "input_facts": "係留地において旅客船が岸壁に衝突した。",
+                    "source_type": "jtsb_pdf",
                 }
             ],
             ensure_ascii=False,
