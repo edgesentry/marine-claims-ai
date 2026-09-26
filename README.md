@@ -58,22 +58,25 @@ MarineClaims AI provides a fully open and reproducible foundation for marine cla
 marine-claims-AI/
 ├── AGENTS.md                               # AI agent guidelines & zero-data security rules
 ├── README.md                               # Project overview and public capabilities
-├── pyproject.toml / uv.lock                # uv-managed dependencies (duckdb, fastembed, …)
+├── pyproject.toml / uv.lock                # uv: Polars, LanceDB, NetworkX, DuckDB, FastEmbed
 ├── .github/workflows/security-lint.yml     # Zero-Dataset leak check, ruff, markdown CI
 ├── config/
 │   └── benchmark_rules.json                # Decoupled rules, keywords, and triage thresholds
 ├── docs/
-│   └── iterative_knowledge_loop_specification.md  # 5-phase continuous improvement loop spec
+│   ├── technical_stack.md                  # Polars → LanceDB → NetworkX → DuckDB architecture
+│   └── iterative_knowledge_loop_specification.md
 └── scripts/
     ├── ci/check_zero_dataset_leak.py       # Tracked-data / path / secret leak scanner
     ├── fetch_public_datasets.py            # Idempotent public data ingestion (Fields 1–4)
-    ├── init_duckdb_vector.py               # Build local DuckDB + embeddings (gitignored DB)
-    ├── hybrid_search.py                    # SQL filter + cosine similarity search CLI
+    ├── init_duckdb_vector.py               # Polars normalize → LanceDB + DuckDB rebuild
+    ├── hybrid_search.py                    # LanceDB hybrid (vector + BM25/RRF) search CLI
+    ├── apportion_analytics.py              # DuckDB 50/50 drydock & leakage SQL
+    ├── validate_compartment_path.py        # NetworkX watertight compartment validator
     ├── verify_3fields_benchmarks.py        # Multi-field benchmark evaluation runner
     └── prototype_experiment.py             # End-to-end PDF parsing and claims adjustment pipeline
 ```
 
-*(Note: Downloaded PDFs, scraped HTMLs, extracted benchmark JSONs, and `_inputs/marine_claims.duckdb` are local caches only — never committed. CI enforces this Zero-Dataset policy on every PR and push to `main`.)*
+*(Note: `_inputs/`, `.lancedb/`, and `*.duckdb` are local caches only — never committed. CI enforces Zero-Dataset policy on every PR and push to `main`.)*
 
 ---
 
@@ -93,26 +96,22 @@ Fetches missing ground truth datasets (JMAT, PSC, repair packages, civil-court s
 uv run python scripts/fetch_public_datasets.py
 ```
 
-### 2. Build Local Hybrid Search DB
-
-Embeds cached JSON into a local DuckDB file (written under `_inputs/`, not committed):
+### 2. Rebuild Local Indexes (Polars → LanceDB + DuckDB)
 
 ```bash
 uv run python scripts/init_duckdb_vector.py --force
 uv run python scripts/hybrid_search.py --query "外板高圧洗浄" --domain repair --top-k 5
+uv run python scripts/apportion_analytics.py
+uv run python scripts/validate_compartment_path.py --damage-zone 球状船首 --repair-zone 機関室
 ```
 
 ### 3. Run Multi-Field Benchmark Evaluation
-
-Executes scientific accuracy verification across public ground truth cases:
 
 ```bash
 uv run python scripts/verify_3fields_benchmarks.py --config config/benchmark_rules.json
 ```
 
 ### 4. Run Claims Adjustment Pipeline
-
-Analyzes a drydock specification PDF against a casualty report PDF:
 
 ```bash
 uv run python scripts/prototype_experiment.py \
@@ -124,6 +123,7 @@ uv run python scripts/prototype_experiment.py \
 
 ## Documentation
 
+- [Technical Stack Architecture](docs/technical_stack.md)
 - [Iterative Knowledge Loop Specification](docs/iterative_knowledge_loop_specification.md)
 - [Benchmark Methodology and Architecture](_inputs/poc_datasets/benchmark_methodology_and_architecture.md)
 - [Benchmark Validation Report](_inputs/poc_datasets/3fields_benchmark_validation_report.md)

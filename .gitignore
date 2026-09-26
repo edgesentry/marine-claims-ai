@@ -13,6 +13,7 @@ downloads/
 *.tsv
 *.duckdb
 *.sqlite3
+.lancedb/
 results/
 reports/
 

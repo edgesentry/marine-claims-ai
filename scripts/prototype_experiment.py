@@ -127,7 +127,8 @@ def extract_repair_items(spec_pdf_path):
             current_category = line
             continue
 
-        m = re.match(r"^(\d+|①|②|③|④|⑤|⑥|⑦|⑧|⑨|⑩|⑪|⑫|⑬|⑭|⑮|⑯)\s*(.+)", line)
+        # Match standard integers or unicode circled numbers (U+2460 to U+246F) without literal platform characters
+        m = re.match(r"^(\d+|[\u2460-\u246f])\s*(.+)", line)
         if m:
             if current_item_text:
                 item_id += 1

@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
 """
-Build a local DuckDB database with hybrid (relational + vector) search over public benchmarks.
+Rebuild local open-core indexes from cached public JSON.
 
-The DuckDB file is written under _inputs/ (gitignored) and must never be committed.
+Pipeline (see docs/technical_stack.md):
+  Polars normalize → LanceDB hybrid index (vector + BM25) → DuckDB analytical tables
+
+Binary artifacts under _inputs/ and .lancedb/ are gitignored and never committed.
 """
 
 from __future__ import annotations
@@ -10,240 +13,264 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import shutil
 import sys
 
 import duckdb
+import lancedb
+import polars as pl
 from fastembed import TextEmbedding
 
 _REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 DEFAULT_DATASET_DIR = os.path.join(_REPO_ROOT, "_inputs", "poc_datasets")
-DEFAULT_DB_PATH = os.path.join(_REPO_ROOT, "_inputs", "marine_claims.duckdb")
+DEFAULT_LANCE_DIR = os.path.join(_REPO_ROOT, ".lancedb")
+DEFAULT_DUCK_PATH = os.path.join(_REPO_ROOT, "_inputs", "marine_claims.duckdb")
 EMBED_MODEL = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
 EMBED_DIM = 384
+LANCE_TABLE = "precedents"
 
 
-SCHEMA_SQL = f"""
-CREATE TABLE precedents (
-    id VARCHAR PRIMARY KEY,
-    domain VARCHAR NOT NULL,
-    title VARCHAR,
-    source_url VARCHAR,
-    category VARCHAR,
-    trade_code VARCHAR,
-    risk_tier VARCHAR,
-    cost_jpy BIGINT,
-    fault_split_text VARCHAR,
-    awarded_jpy BIGINT,
-    claimed_repair_jpy BIGINT,
-    disallowed_jpy BIGINT,
-    text_for_embed VARCHAR NOT NULL,
-    embedding FLOAT[{EMBED_DIM}]
-);
-"""
-
-
-def load_json(path: str) -> list | dict | None:
+def load_json(path: str):
     if not os.path.exists(path):
         return None
     with open(path, encoding="utf-8") as f:
         return json.load(f)
 
 
-def rows_from_jmat(cases: list[dict]) -> list[dict]:
-    rows = []
-    for c in cases:
-        facts = (c.get("input_facts") or "").strip()
-        ruling = (c.get("ground_truth_ruling") or "").strip()
-        text = f"{facts}\n{ruling}".strip()
-        if not text:
-            continue
-        rows.append(
-            {
-                "id": f"jmat-{c.get('case_id')}",
-                "domain": "jmat",
-                "title": c.get("title"),
-                "source_url": c.get("url"),
-                "category": None,
-                "trade_code": None,
-                "risk_tier": None,
-                "cost_jpy": None,
-                "fault_split_text": None,
-                "awarded_jpy": None,
-                "claimed_repair_jpy": None,
-                "disallowed_jpy": None,
-                "text_for_embed": text,
-            }
-        )
-    return rows
-
-
-def rows_from_psc(flags: list[dict]) -> list[dict]:
-    rows = []
-    for f in flags:
-        flag = f.get("flag_state") or ""
-        tier = f.get("ground_truth_risk_tier") or ""
-        rate = f.get("ground_truth_detention_rate_pct")
-        text = (
-            f"Flag state {flag}. Detention rate {rate}%. Risk tier {tier}. "
-            f"Inspections {f.get('input_inspections_count')}, "
-            f"detentions {f.get('ground_truth_detentions_count')}."
-        )
-        rows.append(
-            {
-                "id": f"psc-{f.get('rank')}",
-                "domain": "psc",
-                "title": flag,
-                "source_url": None,
-                "category": None,
-                "trade_code": None,
-                "risk_tier": tier,
-                "cost_jpy": None,
-                "fault_split_text": None,
-                "awarded_jpy": None,
-                "claimed_repair_jpy": None,
-                "disallowed_jpy": None,
-                "text_for_embed": text,
-            }
-        )
-    return rows
-
-
-def rows_from_repair(packages: list[dict]) -> list[dict]:
-    rows = []
-    for p in packages:
-        name = p.get("name") or ""
-        category = p.get("category") or ""
-        trade = p.get("trade_code") or ""
-        text = f"{category} {name} trade_code={trade}".strip()
-        rows.append(
-            {
-                "id": f"repair-{p.get('pkg_id')}",
-                "domain": "repair",
-                "title": name,
-                "source_url": None,
-                "category": category,
-                "trade_code": trade,
-                "risk_tier": None,
-                "cost_jpy": p.get("ground_truth_cost_jpy"),
-                "fault_split_text": None,
-                "awarded_jpy": None,
-                "claimed_repair_jpy": None,
-                "disallowed_jpy": None,
-                "text_for_embed": text,
-            }
-        )
-    return rows
-
-
-def rows_from_civil(cases: list[dict]) -> list[dict]:
-    rows = []
-    for c in cases:
-        facts = (c.get("input_facts") or "").strip()
-        holding = (c.get("holding") or c.get("ground_truth_holding") or "").strip()
-        fault = c.get("fault_ratio") or ""
-        text = f"{facts}\n{holding}\nfault_ratio={fault}".strip()
-        if not text or text == f"fault_ratio={fault}":
-            continue
-        rows.append(
-            {
-                "id": f"civil-{c.get('case_id')}",
-                "domain": "civil_court",
-                "title": c.get("title") or f"{c.get('court', '')} {c.get('date', '')}".strip(),
-                "source_url": c.get("url"),
-                "category": c.get("court"),
-                "trade_code": None,
-                "risk_tier": None,
-                "cost_jpy": c.get("awarded_damages_jpy"),
-                "fault_split_text": fault or None,
-                "awarded_jpy": c.get("awarded_damages_jpy"),
-                "claimed_repair_jpy": c.get("claimed_repair_jpy"),
-                "disallowed_jpy": c.get("disallowed_jpy"),
-                "text_for_embed": text,
-            }
-        )
-    return rows
-
-
-def collect_rows(dataset_dir: str) -> list[dict]:
+def rows_from_sources(dataset_dir: str) -> list[dict]:
     rows: list[dict] = []
 
     jmat = load_json(os.path.join(dataset_dir, "benchmark_field1_jmat_20cases.json"))
     if isinstance(jmat, list):
-        rows.extend(rows_from_jmat(jmat))
+        for c in jmat:
+            text = f"{c.get('input_facts', '')}\n{c.get('ground_truth_ruling', '')}".strip()
+            if not text:
+                continue
+            rows.append(
+                {
+                    "id": f"jmat-{c.get('case_id')}",
+                    "domain": "jmat",
+                    "title": c.get("title") or "",
+                    "source_url": c.get("url") or "",
+                    "category": "",
+                    "trade_code": "",
+                    "risk_tier": "",
+                    "cost_jpy": None,
+                    "fault_split_text": "",
+                    "awarded_jpy": None,
+                    "claimed_repair_jpy": None,
+                    "disallowed_jpy": None,
+                    "casualty_related": True,
+                    "text": text,
+                }
+            )
     else:
-        print(f"[WARN] Missing or invalid JMAT JSON under {dataset_dir}")
+        print(f"[WARN] Missing JMAT JSON under {dataset_dir}")
 
     psc = load_json(os.path.join(dataset_dir, "benchmark_field2_psc_20flags.json"))
     if isinstance(psc, list):
-        rows.extend(rows_from_psc(psc))
-    else:
-        print(f"[WARN] Missing or invalid PSC JSON under {dataset_dir}")
+        for f in psc:
+            flag = f.get("flag_state") or ""
+            tier = f.get("ground_truth_risk_tier") or ""
+            text = (
+                f"Flag state {flag}. Detention rate {f.get('ground_truth_detention_rate_pct')}%. "
+                f"Risk tier {tier}."
+            )
+            rows.append(
+                {
+                    "id": f"psc-{f.get('rank')}",
+                    "domain": "psc",
+                    "title": flag,
+                    "source_url": "",
+                    "category": "",
+                    "trade_code": "",
+                    "risk_tier": tier,
+                    "cost_jpy": None,
+                    "fault_split_text": "",
+                    "awarded_jpy": None,
+                    "claimed_repair_jpy": None,
+                    "disallowed_jpy": None,
+                    "casualty_related": False,
+                    "text": text,
+                }
+            )
 
     repair = load_json(os.path.join(dataset_dir, "benchmark_field3_repair_20packages.json"))
     if isinstance(repair, list):
-        rows.extend(rows_from_repair(repair))
-    else:
-        print(f"[WARN] Missing or invalid repair JSON under {dataset_dir}")
+        concurrent_trades = {"ENG", "VALVE", "SAFE"}
+        for p in repair:
+            trade = p.get("trade_code") or ""
+            text = f"{p.get('category', '')} {p.get('name', '')} trade_code={trade}".strip()
+            # Statutory / machinery open-ups are concurrent-maintenance candidates
+            concurrent = any(trade.startswith(t) for t in concurrent_trades)
+            rows.append(
+                {
+                    "id": f"repair-{p.get('pkg_id')}",
+                    "domain": "repair",
+                    "title": p.get("name") or "",
+                    "source_url": "",
+                    "category": p.get("category") or "",
+                    "trade_code": trade,
+                    "risk_tier": "",
+                    "cost_jpy": p.get("ground_truth_cost_jpy"),
+                    "fault_split_text": "",
+                    "awarded_jpy": None,
+                    "claimed_repair_jpy": None,
+                    "disallowed_jpy": None,
+                    "casualty_related": not concurrent,
+                    "text": text,
+                }
+            )
 
     civil = load_json(os.path.join(dataset_dir, "benchmark_court_civil_cases.json"))
     if isinstance(civil, list):
-        rows.extend(rows_from_civil(civil))
+        for c in civil:
+            text = (
+                f"{c.get('input_facts', '')}\n{c.get('holding', '')}\n"
+                f"fault_ratio={c.get('fault_ratio', '')}"
+            ).strip()
+            if not text:
+                continue
+            rows.append(
+                {
+                    "id": f"civil-{c.get('case_id')}",
+                    "domain": "civil_court",
+                    "title": c.get("title") or "",
+                    "source_url": c.get("url") or "",
+                    "category": c.get("court") or "",
+                    "trade_code": "",
+                    "risk_tier": "",
+                    "cost_jpy": c.get("awarded_damages_jpy"),
+                    "fault_split_text": c.get("fault_ratio") or "",
+                    "awarded_jpy": c.get("awarded_damages_jpy"),
+                    "claimed_repair_jpy": c.get("claimed_repair_jpy"),
+                    "disallowed_jpy": c.get("disallowed_jpy"),
+                    "casualty_related": True,
+                    "text": text,
+                }
+            )
     else:
         print("[INFO] No civil court JSON yet (optional Field 4)")
 
     return rows
 
 
+def normalize_with_polars(rows: list[dict]) -> pl.DataFrame:
+    """Typed Arrow-backed frame for zero-copy handoff to LanceDB / DuckDB."""
+    df = pl.DataFrame(rows)
+    return df.with_columns(
+        [
+            pl.col("id").cast(pl.Utf8),
+            pl.col("domain").cast(pl.Utf8),
+            pl.col("title").cast(pl.Utf8).fill_null(""),
+            pl.col("source_url").cast(pl.Utf8).fill_null(""),
+            pl.col("category").cast(pl.Utf8).fill_null(""),
+            pl.col("trade_code").cast(pl.Utf8).fill_null(""),
+            pl.col("risk_tier").cast(pl.Utf8).fill_null(""),
+            pl.col("cost_jpy").cast(pl.Int64),
+            pl.col("fault_split_text").cast(pl.Utf8).fill_null(""),
+            pl.col("awarded_jpy").cast(pl.Int64),
+            pl.col("claimed_repair_jpy").cast(pl.Int64),
+            pl.col("disallowed_jpy").cast(pl.Int64),
+            pl.col("casualty_related").cast(pl.Boolean),
+            pl.col("text").cast(pl.Utf8),
+        ]
+    )
+
+
 def embed_texts(texts: list[str]) -> list[list[float]]:
     model = TextEmbedding(model_name=EMBED_MODEL)
-    vectors = list(model.embed(texts))
-    return [list(map(float, v)) for v in vectors]
+    return [list(map(float, v)) for v in model.embed(texts)]
 
 
-def build_db(db_path: str, rows: list[dict], force: bool) -> None:
-    if os.path.exists(db_path):
-        if not force:
-            print(f"[SKIP] DB already exists: {db_path} (pass --force to rebuild)")
-            return
-        os.remove(db_path)
-
-    os.makedirs(os.path.dirname(db_path), exist_ok=True)
-    texts = [r["text_for_embed"] for r in rows]
-    print(f"[EMBED] Encoding {len(texts)} passages with {EMBED_MODEL}...")
-    embeddings = embed_texts(texts)
-
-    con = duckdb.connect(db_path)
+def _table_names(db) -> list[str]:
+    tables = db.list_tables()
+    if hasattr(tables, "tables"):
+        return list(tables.tables or [])
+    if isinstance(tables, list):
+        return [t if isinstance(t, str) else getattr(t, "name", str(t)) for t in tables]
+    # Fallback for older clients
     try:
-        con.execute(SCHEMA_SQL)
-        insert_sql = """
-            INSERT INTO precedents VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """
-        for row, emb in zip(rows, embeddings, strict=True):
-            if len(emb) != EMBED_DIM:
-                raise RuntimeError(f"Expected embedding dim {EMBED_DIM}, got {len(emb)}")
-            con.execute(
-                insert_sql,
-                [
-                    row["id"],
-                    row["domain"],
-                    row["title"],
-                    row["source_url"],
-                    row["category"],
-                    row["trade_code"],
-                    row["risk_tier"],
-                    row["cost_jpy"],
-                    row["fault_split_text"],
-                    row["awarded_jpy"],
-                    row["claimed_repair_jpy"],
-                    row["disallowed_jpy"],
-                    row["text_for_embed"],
-                    emb,
-                ],
-            )
+        return list(db.table_names())
+    except Exception:
+        return []
+
+
+def build_lancedb(lance_dir: str, df: pl.DataFrame, force: bool) -> None:
+    if force and os.path.isdir(lance_dir):
+        shutil.rmtree(lance_dir)
+    os.makedirs(lance_dir, exist_ok=True)
+
+    print(f"[EMBED] Encoding {df.height} passages with {EMBED_MODEL}...")
+    vectors = embed_texts(df["text"].to_list())
+    if any(len(v) != EMBED_DIM for v in vectors):
+        raise RuntimeError(f"Expected embedding dim {EMBED_DIM}")
+
+    records = df.to_dicts()
+    for row, vec in zip(records, vectors, strict=True):
+        row["vector"] = vec
+
+    db = lancedb.connect(lance_dir)
+    if LANCE_TABLE in _table_names(db) and not force:
+        print(f"[SKIP] LanceDB table '{LANCE_TABLE}' exists (pass --force)")
+        return
+
+    print(f"[LANCE] Writing table '{LANCE_TABLE}' -> {lance_dir}")
+    table = db.create_table(LANCE_TABLE, data=records, mode="overwrite")
+    from lancedb.index import FTS
+
+    table.create_index("text", config=FTS(), replace=True)
+    print(f"[OK] LanceDB rows={table.count_rows()}")
+
+
+def build_duckdb_analytics(duck_path: str, df: pl.DataFrame, force: bool) -> None:
+    """DuckDB holds analytical / apportionment tables — not vector search."""
+    if os.path.exists(duck_path):
+        if not force:
+            print(f"[SKIP] DuckDB already exists: {duck_path}")
+            return
+        os.remove(duck_path)
+
+    os.makedirs(os.path.dirname(duck_path), exist_ok=True)
+    # Drop vector intent; keep typed financial / triage columns
+    analytics = df.drop("text") if "text" in df.columns else df
+
+    con = duckdb.connect(duck_path)
+    try:
+        con.register("analytics_df", analytics.to_arrow())
+        con.execute("CREATE TABLE line_items AS SELECT * FROM analytics_df")
+        # Convenience view for 50/50 drydock math demos
+        con.execute(
+            """
+            CREATE OR REPLACE VIEW drydock_apportionment AS
+            SELECT
+                id,
+                domain,
+                title,
+                trade_code,
+                cost_jpy,
+                casualty_related,
+                CASE
+                    WHEN domain = 'repair' AND casualty_related THEN cost_jpy
+                    WHEN domain = 'repair' AND NOT casualty_related THEN 0
+                    ELSE NULL
+                END AS insurer_share_jpy,
+                CASE
+                    WHEN domain = 'repair' AND casualty_related THEN 0
+                    WHEN domain = 'repair' AND NOT casualty_related THEN cost_jpy
+                    ELSE NULL
+                END AS owner_share_jpy,
+                CASE
+                    WHEN domain = 'repair' THEN CAST(cost_jpy AS DOUBLE) * 0.5
+                    ELSE NULL
+                END AS drydock_fee_5050_jpy
+            FROM line_items
+            """
+        )
         counts = con.execute(
-            "SELECT domain, COUNT(*) FROM precedents GROUP BY domain ORDER BY domain"
+            "SELECT domain, COUNT(*) FROM line_items GROUP BY domain ORDER BY domain"
         ).fetchall()
-        print(f"[OK] Wrote {db_path}")
+        print(f"[OK] DuckDB analytics -> {duck_path}")
         for domain, n in counts:
             print(f"  {domain}: {n}")
     finally:
@@ -253,17 +280,20 @@ def build_db(db_path: str, rows: list[dict], force: bool) -> None:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--data-dir", default=DEFAULT_DATASET_DIR)
-    parser.add_argument("--db-path", default=DEFAULT_DB_PATH)
+    parser.add_argument("--lance-dir", default=DEFAULT_LANCE_DIR)
+    parser.add_argument("--duck-path", default=DEFAULT_DUCK_PATH)
     parser.add_argument("--force", action="store_true")
     args = parser.parse_args()
 
-    rows = collect_rows(args.data_dir)
+    rows = rows_from_sources(args.data_dir)
     if not rows:
-        print("[ERROR] No rows to ingest. Run scripts/fetch_public_datasets.py first.", file=sys.stderr)
+        print("[ERROR] No rows. Run scripts/fetch_public_datasets.py first.", file=sys.stderr)
         return 1
 
-    print(f"[INGEST] Collected {len(rows)} rows from {args.data_dir}")
-    build_db(args.db_path, rows, force=args.force)
+    print(f"[POLARS] Normalizing {len(rows)} rows")
+    df = normalize_with_polars(rows)
+    build_lancedb(args.lance_dir, df, force=args.force)
+    build_duckdb_analytics(args.duck_path, df, force=args.force)
     return 0
 
 

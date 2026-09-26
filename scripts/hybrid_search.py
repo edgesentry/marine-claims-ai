@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """
-Hybrid search over the local marine_claims.duckdb (SQL filters + cosine similarity).
+Hybrid retrieval over local LanceDB (vector + BM25 / FTS via RRF).
+
+See docs/technical_stack.md — LanceDB is the search plane; DuckDB is analytics.
 """
 
 from __future__ import annotations
@@ -10,102 +12,94 @@ import json
 import os
 import sys
 
-import duckdb
+import lancedb
 from fastembed import TextEmbedding
+from lancedb.rerankers import RRFReranker
 
 _REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-DEFAULT_DB_PATH = os.path.join(_REPO_ROOT, "_inputs", "marine_claims.duckdb")
+DEFAULT_LANCE_DIR = os.path.join(_REPO_ROOT, ".lancedb")
 EMBED_MODEL = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
+LANCE_TABLE = "precedents"
 DOMAINS = ("jmat", "psc", "repair", "civil_court")
 
 
 def embed_query(query: str) -> list[float]:
     model = TextEmbedding(model_name=EMBED_MODEL)
-    vectors = list(model.embed([query]))
-    return list(map(float, vectors[0]))
+    return list(map(float, next(model.embed([query]))))
 
 
 def search(
-    db_path: str,
+    lance_dir: str,
     query: str,
     domain: str | None,
     trade_code: str | None,
-    max_cost_jpy: int | None,
     top_k: int,
 ) -> list[dict]:
-    if not os.path.exists(db_path):
+    if not os.path.isdir(lance_dir):
         raise FileNotFoundError(
-            f"DB not found: {db_path}. Run: uv run python scripts/init_duckdb_vector.py"
+            f"LanceDB not found: {lance_dir}. Run: uv run python scripts/init_duckdb_vector.py --force"
         )
 
+    db = lancedb.connect(lance_dir)
+    listed = db.list_tables()
+    if hasattr(listed, "tables"):
+        names = list(listed.tables or [])
+    elif isinstance(listed, list):
+        names = listed
+    else:
+        names = list(db.table_names())
+    if LANCE_TABLE not in names:
+        raise FileNotFoundError(f"Table '{LANCE_TABLE}' missing in {lance_dir}")
+
+    table = db.open_table(LANCE_TABLE)
     qvec = embed_query(query)
-    filters = ["1=1"]
-    params: list = [qvec]
 
+    filters: list[str] = []
     if domain:
-        filters.append("domain = ?")
-        params.append(domain)
+        filters.append(f"domain = '{domain}'")
     if trade_code:
-        filters.append("trade_code = ?")
-        params.append(trade_code)
-    if max_cost_jpy is not None:
-        filters.append("(cost_jpy IS NULL OR cost_jpy <= ?)")
-        params.append(max_cost_jpy)
+        filters.append(f"trade_code = '{trade_code}'")
+    where = " AND ".join(filters) if filters else None
 
-    where = " AND ".join(filters)
-    params.append(top_k)
+    reranker = RRFReranker()
+    builder = table.search(query_type="hybrid").vector(qvec).text(query).rerank(reranker=reranker)
+    if where:
+        builder = builder.where(where, prefilter=True)
+    hits = builder.limit(top_k).to_list()
 
-    sql = f"""
-        SELECT
-            id,
-            domain,
-            title,
-            category,
-            trade_code,
-            risk_tier,
-            cost_jpy,
-            fault_split_text,
-            awarded_jpy,
-            claimed_repair_jpy,
-            disallowed_jpy,
-            source_url,
-            array_cosine_similarity(embedding, ?::FLOAT[384]) AS score,
-            left(text_for_embed, 240) AS snippet
-        FROM precedents
-        WHERE {where}
-        ORDER BY score DESC
-        LIMIT ?
-    """
-
-    con = duckdb.connect(db_path, read_only=True)
-    try:
-        cur = con.execute(sql, params)
-        cols = [d[0] for d in cur.description]
-        return [dict(zip(cols, row, strict=True)) for row in cur.fetchall()]
-    finally:
-        con.close()
+    out = []
+    for h in hits:
+        out.append(
+            {
+                "id": h.get("id"),
+                "domain": h.get("domain"),
+                "title": h.get("title"),
+                "category": h.get("category"),
+                "trade_code": h.get("trade_code"),
+                "risk_tier": h.get("risk_tier"),
+                "cost_jpy": h.get("cost_jpy"),
+                "fault_split_text": h.get("fault_split_text"),
+                "awarded_jpy": h.get("awarded_jpy"),
+                "source_url": h.get("source_url"),
+                "score": h.get("_relevance_score") or h.get("_distance"),
+                "snippet": (h.get("text") or "")[:240],
+            }
+        )
+    return out
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--db-path", default=DEFAULT_DB_PATH)
+    parser.add_argument("--lance-dir", default=DEFAULT_LANCE_DIR)
     parser.add_argument("--query", required=True)
     parser.add_argument("--domain", choices=DOMAINS, default=None)
     parser.add_argument("--trade-code", default=None)
-    parser.add_argument("--max-cost-jpy", type=int, default=None)
     parser.add_argument("--top-k", type=int, default=5)
-    parser.add_argument("--json", action="store_true", help="Emit JSON instead of a table")
+    parser.add_argument("--json", action="store_true")
     args = parser.parse_args()
 
     try:
-        hits = search(
-            args.db_path,
-            args.query,
-            args.domain,
-            args.trade_code,
-            args.max_cost_jpy,
-            args.top_k,
-        )
+        hits = search(args.lance_dir, args.query, args.domain, args.trade_code, args.top_k)
     except FileNotFoundError as exc:
         print(f"[ERROR] {exc}", file=sys.stderr)
         return 1
@@ -118,7 +112,7 @@ def main() -> int:
         print("No matches.")
         return 0
 
-    print(f"Query: {args.query!r}  domain={args.domain or '*'}  top_k={args.top_k}")
+    print(f"Query: {args.query!r}  domain={args.domain or '*'}  top_k={args.top_k}  (LanceDB hybrid)")
     print("-" * 80)
     for i, h in enumerate(hits, start=1):
         score = h.get("score")
