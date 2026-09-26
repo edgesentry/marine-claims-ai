@@ -12,6 +12,11 @@ import os
 import re
 import subprocess
 
+from marine_claims_ai.appraisal.negative_patterns import (
+    ACTION_APPORTIONED,
+    ACTION_DISALLOWED,
+    NegativePatternScorer,
+)
 from marine_claims_ai.appraisal.report import render_preliminary_survey_report
 from marine_claims_ai.ontology.compartments import (
     any_damage_allows_repair,
@@ -72,19 +77,23 @@ def _ontology_exclude_reason(causality: dict, damaged_zones: list[str]) -> str:
     )
 
 
-def evaluate_claims_dynamically(items, casualty_profile):
+def evaluate_claims_dynamically(items, casualty_profile, scorer=None):
     """
     Evaluate each specification item against the casualty profile.
 
-    Dual check: (1) naval-architecture compartment causality via NetworkX ontology,
-    (2) trade-specific outer-hull / propulsion / machinery keyword gates.
+    Checks in order: (1) drydock dues, (2) naval-architecture compartment causality,
+    (3) Negative Pattern Library cosine red-flag scoring, (4) keyword gates.
     Bare 「塗装」「洗浄」 alone never triggers COVERED.
+
+    ``scorer`` may be a NegativePatternScorer (or compatible) for tests; when None,
+    the default library-backed scorer is constructed once per call.
     """
     damaged_zones = list(casualty_profile["damaged_components"])
     analyzed = []
     total_claimed = 0
     total_covered = 0
     total_excluded = 0
+    npl_scorer = scorer if scorer is not None else NegativePatternScorer()
 
     has_hull_damage = any(z in damaged_zones for z in ["外板", "球状船首", "貨物タンク", "タンク"])
     has_propulsion_damage = any(z in damaged_zones for z in ["推進器", "舵"])
@@ -102,6 +111,7 @@ def evaluate_claims_dynamically(items, casualty_profile):
         approved_amount = 0
         repair_zone = None
         causality = None
+        red_flag = npl_scorer.score_description(desc)
 
         # Rule 1: Common Drydocking charges (入出渠・滞渠) — apportionment, not zone-gated
         if "入出渠" in desc or "滞渠" in desc:
@@ -121,6 +131,30 @@ def evaluate_claims_dynamically(items, casualty_profile):
                     approved_amount = 0
                     reason = _ontology_exclude_reason(causality, damaged_zones)
                     clause_ref = "普通保険条項 第3条 / 水密隔壁・区画因果制約"
+
+            # Rule 1b: Negative Pattern Library semantic red-flag triage.
+            # Skip status override when compartment causality already supports the
+            # line item (avoids MiniLM false-positive apportionment on hull work).
+            if not status:
+                action = red_flag.get("recommended_action")
+                citation = red_flag.get("citation") or ""
+                ontology_ok = causality is not None and causality.get("valid")
+                if action == ACTION_DISALLOWED and not ontology_ok:
+                    status = "EXCLUDED (便乗修理)"
+                    approved_amount = 0
+                    reason = (
+                        f"{citation}。"
+                        "公開定期検査仕様との意味的一致により便乗修理（通常損耗・法定整備）として全額排斥。"
+                    )
+                    clause_ref = "普通保険条項 第3条（通常損耗免責） / Negative Pattern Library"
+                elif action == ACTION_APPORTIONED and not ontology_ok:
+                    status = "APPORTIONED (50%)"
+                    approved_amount = cost * 0.5
+                    reason = (
+                        f"{citation}。"
+                        "定期整備との境界領域のため、ドック共通費用実務に準じ50%按分。"
+                    )
+                    clause_ref = "ITC-Hulls Apportionment / Negative Pattern Library"
 
             if not status:
                 # Rule 2: Outer hull surface restoration (explicit outer-plate terms only)
@@ -216,6 +250,11 @@ def evaluate_claims_dynamically(items, casualty_profile):
         item_result["excluded_amount"] = int(cost - approved_amount)
         item_result["reason"] = reason
         item_result["clause_ref"] = clause_ref
+        item_result["red_flag_similarity"] = red_flag.get("red_flag_similarity", 0.0)
+        item_result["matched_pattern_id"] = red_flag.get("matched_pattern_id")
+        item_result["matched_trade_code"] = red_flag.get("matched_trade_code")
+        item_result["recommended_action"] = red_flag.get("recommended_action")
+        item_result["citation"] = red_flag.get("citation")
         if repair_zone:
             item_result["repair_zone"] = repair_zone
         if causality:
