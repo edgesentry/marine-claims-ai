@@ -17,6 +17,7 @@ By combining deterministic domain engines (COLREGS rules, naval architecture str
 1. **Concurrent Repair Screening**:
    - Evaluates multi-page drydock repair specifications against incident damage zones.
    - Detects routine periodic maintenance (e.g., piston extraction, sea chest valve overhauls) disguised as casualty repairs.
+   - Scores each line item against a curated **Negative Pattern Library** (`config/negative_pattern_library.json`) via FastEmbed cosine similarity: `>= 0.80` Disallowed, `0.50–0.80` Apportioned 50%, `< 0.50` Approved (then keyword/ontology gates apply).
    - Automatically applies standard 50/50 drydocking fee apportionment rules.
 
 2. **Collision Fault Attribution**:
@@ -169,6 +170,11 @@ uv run python scripts/prototype_experiment.py \
   --spec _inputs/poc_datasets/sample_drydock_repair_specification.pdf \
   --casualty _inputs/poc_datasets/jtsb_cargo_collision_report.pdf \
   --export-report
+
+# Negative Pattern Library red-flag scoring (standalone)
+uv run python scripts/score_negative_patterns.py \
+  --text "主機関シリンダヘッド及びピストン抜出開放点検" \
+  --text "船体外板高圧清水洗浄"
 ```
 
 JPY amounts on public specs without tender prices are **standard unit-price heuristics** (see `summary.pricing_note`). The optional `--export-report` writes a deterministic English Preliminary Survey Report (no LLM).
