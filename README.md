@@ -173,6 +173,21 @@ uv run python scripts/prototype_experiment.py \
 
 JPY amounts on public specs without tender prices are **standard unit-price heuristics** (see `summary.pricing_note`). The optional `--export-report` writes a deterministic English Preliminary Survey Report (no LLM).
 
+### 4b. Public appraisal accuracy (Week 1)
+
+Measure item-status agreement against **provisional founder gold v1** on tracked public casualty×spec pairs (`config/public_appraisal_eval.json`). PDFs remain local under `_inputs/`.
+
+```bash
+uv run python scripts/eval_public_appraisal.py \
+  --json-out _inputs/poc_datasets/public_appraisal_eval_report.json \
+  --write-gold-dir _inputs/poc_datasets/public_appraisal_gold \
+  --fail-on-gate
+```
+
+Gates (config): ≥3 runnable cases, critical False Accept = 0, mean status agreement ≥ 85%.
+
+**Interpretation:** provisional gold v1 is an independent *code path* (not a call into `pipeline.py`), but it encodes the same naval-architecture checklist. High agreement today is mainly a **regression signal** (parser/ontology breaks show up as FA/FR). It is **not** a substitute for surveyor-labeled gold or Gate B (#6). Dump `_inputs/.../public_appraisal_gold/` and hand-edit statuses to create a true held-out gold set.
+
 ---
 
 ## Documentation

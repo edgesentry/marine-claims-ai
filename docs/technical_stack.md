@@ -130,6 +130,14 @@ Two tracked catalogs (metadata only; document binaries stay in gitignored `_inpu
 
 Field 4 fetch writes raw files under `_inputs/poc_datasets/civil_pdfs/` and `civil_html/` (response body unchanged) plus JSON sidecars with `local_path`. Do not mix lanes: synthetic patterns must not be labeled `published_holding`. Coverage: `uv run python scripts/civil_coverage.py --catalog`.
 
+### F. Public appraisal accuracy (concurrent repair)
+
+Tracked case list: `config/public_appraisal_eval.json` (≥3 public JTSB × drydock pairs). Item statuses are scored against **provisional founder gold v1** (`assign_provisional_gold_status`), which is intentionally separate from `appraisal/pipeline.py`. Critical False Accepts (e.g. calorifier / shaft covered on bow-only damage) must stay at 0.
+
+```bash
+uv run python scripts/eval_public_appraisal.py --fail-on-gate
+```
+
 ### C. Cost-Effective Off-Machine Storage (Laptop Disaster Recovery)
 
 To protect against workstation hardware loss (laptop disk failure or corruption) without violating the Zero-Dataset Git Policy:

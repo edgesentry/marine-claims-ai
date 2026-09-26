@@ -1,0 +1,43 @@
+{
+  "version": 1,
+  "description": "Public casualty×drydock pairs for concurrent-repair appraisal accuracy (Week 1). PDFs stay under gitignored _inputs/poc_datasets/.",
+  "metrics_note": "Score item status buckets only (COVERED/APPORTIONED/REVIEW/EXCLUDED). JPY amounts are unit-price heuristics and are not gold.",
+  "gold_note": "Provisional founder gold v1 is assigned by an independent policy module (not pipeline.py). Human edits can be dumped locally via --write-gold-dir.",
+  "cases": [
+    {
+      "case_id": "bow_sample_drydock",
+      "title": "JTSB container bow collision × public drydock specification",
+      "casualty_pdf": "jtsb_cargo_collision_report.pdf",
+      "spec_pdf": "sample_drydock_repair_specification.pdf",
+      "expected_damage_hints": ["球状船首", "外板"]
+    },
+    {
+      "case_id": "bow_kaiyomaru_spec",
+      "title": "JTSB container bow collision × Fukuoka kaiyomaru public repair spec",
+      "casualty_pdf": "jtsb_cargo_collision_report.pdf",
+      "spec_pdf": "fukuoka_kaiyomaru_spec.pdf",
+      "expected_damage_hints": ["球状船首", "外板"]
+    },
+    {
+      "case_id": "tanker_bridge_sample_drydock",
+      "title": "JTSB tanker bridge collision × public drydock specification",
+      "casualty_pdf": "jtsb_tanker_bridge_collision_report.pdf",
+      "spec_pdf": "sample_drydock_repair_specification.pdf",
+      "expected_damage_hints": ["外板", "球状船首", "貨物タンク"]
+    }
+  ],
+  "critical_exclude_substrings": [
+    "カロリーファイヤー",
+    "プロペラ軸",
+    "減速機",
+    "クラッチ",
+    "汚物処理装置",
+    "主機関",
+    "ピストン"
+  ],
+  "gates": {
+    "min_cases_with_pdfs": 3,
+    "max_critical_false_accepts": 0,
+    "min_status_agreement": 0.85
+  }
+}
