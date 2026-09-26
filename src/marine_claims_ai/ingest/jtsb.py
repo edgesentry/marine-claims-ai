@@ -29,7 +29,7 @@ def apply_limit(items: list[Any], limit: int) -> list[Any]:
 
 def parse_jtsb_list_page(html: str) -> list[dict[str, str]]:
     """Extract collision (and related) report rows + PDF URLs from a list page."""
-    clean = re.sub(r"<script.*?</script>", "", html, flags=re.S | re.I)
+    clean = re.sub(r"<script\b[^>]*>.*?</script\s*>", "", html, flags=re.S | re.I)
     rows: list[dict[str, str]] = []
     seen: set[str] = set()
 
