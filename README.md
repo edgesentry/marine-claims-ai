@@ -117,6 +117,18 @@ uv run python scripts/civil_coverage.py --catalog
 uv run python scripts/civil_coverage.py
 ```
 
+Catalog document links (concrete PDF/HTML only) can be checked in CI / locally:
+
+```bash
+# Reachability (CI default)
+uv run python scripts/ci/verify_civil_catalog.py --mode alive
+
+# Soft content consistency (title / fault / yen evidence)
+uv run python scripts/ci/verify_civil_catalog.py --mode content
+```
+
+Entries that only point at `https://www.courts.go.jp/` are skipped (no document to compare).
+
 ### 2. Rebuild Local Indexes (Polars → LanceDB + DuckDB)
 
 ```bash
