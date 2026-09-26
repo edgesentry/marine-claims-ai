@@ -121,6 +121,15 @@ comparisons may show that **more rows do not automatically raise hit@k** when th
 query set already saturates on a small corpus, or when added domains dilute RRF
 ranks. Treat deltas as diagnostic, not as a release gate.
 
+### E. Civil precedents (fault ratios + yen)
+
+Two tracked catalogs (metadata only; document binaries stay in gitignored `_inputs/`):
+
+- `config/civil_precedent_catalog.json` — **real** `court_pdf` / `published_holding` with concrete document URLs (Field 4 realism eval).
+- `config/civil_synthetic_benchmarks.json` — **synthetic_benchmark** rows for unit / regression tests only.
+
+Field 4 fetch writes raw files under `_inputs/poc_datasets/civil_pdfs/` and `civil_html/` (response body unchanged) plus JSON sidecars with `local_path`. Do not mix lanes: synthetic patterns must not be labeled `published_holding`. Coverage: `uv run python scripts/civil_coverage.py --catalog`.
+
 ### C. Cost-Effective Off-Machine Storage (Laptop Disaster Recovery)
 
 To protect against workstation hardware loss (laptop disk failure or corruption) without violating the Zero-Dataset Git Policy:

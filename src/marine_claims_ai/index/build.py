@@ -172,6 +172,34 @@ def rows_from_sources(dataset_dir: str) -> list[dict]:
     else:
         print("[INFO] No civil court JSON yet (optional Field 4)")
 
+    civil_syn = load_json(os.path.join(dataset_dir, "benchmark_court_civil_synthetic.json"))
+    if isinstance(civil_syn, list):
+        for c in civil_syn:
+            text = (
+                f"[synthetic] {c.get('input_facts', '')}\n{c.get('holding', '')}\n"
+                f"fault_ratio={c.get('fault_ratio', '')}"
+            ).strip()
+            if not text:
+                continue
+            rows.append(
+                {
+                    "id": f"civil-syn-{c.get('case_id')}",
+                    "domain": "civil_synthetic",
+                    "title": c.get("title") or "",
+                    "source_url": c.get("url") or "",
+                    "category": c.get("court") or "",
+                    "trade_code": "",
+                    "risk_tier": "",
+                    "cost_jpy": c.get("awarded_damages_jpy"),
+                    "fault_split_text": c.get("fault_ratio") or "",
+                    "awarded_jpy": c.get("awarded_damages_jpy"),
+                    "claimed_repair_jpy": c.get("claimed_repair_jpy"),
+                    "disallowed_jpy": c.get("disallowed_jpy"),
+                    "casualty_related": True,
+                    "text": text,
+                }
+            )
+
     jtsb = load_json(os.path.join(dataset_dir, "benchmark_jtsb_collision_cases.json"))
     if isinstance(jtsb, list):
         for c in jtsb:

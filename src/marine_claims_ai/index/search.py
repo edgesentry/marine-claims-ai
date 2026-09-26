@@ -20,7 +20,7 @@ from marine_claims_ai.paths import DEFAULT_LANCE_DIR
 
 EMBED_MODEL = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
 LANCE_TABLE = "precedents"
-DOMAINS = ("jmat", "psc", "repair", "civil_court", "jtsb")
+DOMAINS = ("jmat", "psc", "repair", "civil_court", "civil_synthetic", "jtsb")
 
 def embed_query(query: str) -> list[float]:
     model = TextEmbedding(model_name=EMBED_MODEL)
