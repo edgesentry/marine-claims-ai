@@ -32,17 +32,21 @@ def test_banned_tracked_files():
 
 
 def test_scan_line_detects_private_paths_and_secrets():
-    hits = scan_line("x.py", 1, 'path = "/Users/alice/secret/file"')
+    # Assemble probes so this test file itself is not flagged by the leak scanner.
+    macos_path = "/" + "/".join(["Users", "alice", "secret", "file"])
+    hits = scan_line("x.py", 1, f'path = "{macos_path}"')
     assert hits and "macOS home" in hits[0]
 
-    hits = scan_line("x.py", 2, 'api_key = "sk-test-123456"')
+    hits = scan_line("x.py", 2, 'api_' + 'key = "sk-test-123456"')
     assert hits and "API key" in hits[0]
 
-    hits = scan_line("x.py", 3, "from marine-claims-knowledge-enterprise import x")
+    enterprise = "marine-claims-knowledge-" + "enterprise"
+    hits = scan_line("x.py", 3, f"from {enterprise} import x")
     assert hits and "enterprise" in hits[0]
 
     # Actions runner home should not trip Linux home detector
-    assert scan_line("x.py", 4, "cwd=/home/runner/work/repo") == []
+    runner_cwd = "/" + "/".join(["home", "runner", "work", "repo"])
+    assert scan_line("x.py", 4, f"cwd={runner_cwd}") == []
 
 
 def test_scannable_text_skips_leak_checker_itself():
