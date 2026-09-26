@@ -10,6 +10,7 @@
       "trade_code": "ENG-01",
       "category": "機関部",
       "text": "主機関シリンダヘッド及びピストン抜出開放点検",
+      "anchor_tokens": ["ピストン", "シリンダヘッド"],
       "source": "public Field3 periodic survey package ENG-01"
     },
     {
@@ -17,6 +18,7 @@
       "trade_code": "ENG-02",
       "category": "機関部",
       "text": "主機関燃料噴射弁整備・圧力テスト・ノズル交換",
+      "anchor_tokens": ["燃料噴射弁", "ノズル", "圧力テスト"],
       "source": "public Field3 periodic survey package ENG-02"
     },
     {
@@ -24,6 +26,7 @@
       "trade_code": "ENG-03",
       "category": "機関部",
       "text": "主機関吸排気弁摺り合わせ及びスピンドル交換",
+      "anchor_tokens": ["吸排気弁", "スピンドル"],
       "source": "public Field3 periodic survey package ENG-03"
     },
     {
@@ -31,6 +34,7 @@
       "trade_code": "ENG-04",
       "category": "機関部",
       "text": "過給機 (ターボチャージャー) 分解・カーボン除去・ベアリング交換",
+      "anchor_tokens": ["過給機", "ターボチャージャー"],
       "source": "public Field3 periodic survey package ENG-04"
     },
     {
@@ -38,6 +42,7 @@
       "trade_code": "ENG-05",
       "category": "機関部",
       "text": "主発電機関 (No.1/No.2) 開放点検・クランク軸デフレクション計測",
+      "anchor_tokens": ["主発電機関", "デフレクション", "クランク軸"],
       "source": "public Field3 periodic survey package ENG-05"
     },
     {
@@ -45,6 +50,7 @@
       "trade_code": "ENG-06",
       "category": "機関部",
       "text": "潤滑油清浄機・燃料油清浄機 (遠心分離機) 開放・ボウル清掃",
+      "anchor_tokens": ["清浄機", "遠心分離機", "ボウル"],
       "source": "public Field3 periodic survey package ENG-06"
     },
     {
@@ -52,6 +58,7 @@
       "trade_code": "VALVE-01",
       "category": "弁部",
       "text": "船底・船側キングストン弁及び非常排出弁開放摺合せ",
+      "anchor_tokens": ["キングストン", "排出弁"],
       "source": "public Field3 periodic survey package VALVE-01"
     },
     {
@@ -59,6 +66,7 @@
       "trade_code": "VALVE-02",
       "category": "弁部",
       "text": "各部空気・油・水系統仕切弁及び逆止弁摺合せ点検",
+      "anchor_tokens": ["仕切弁", "逆止弁"],
       "source": "public Field3 periodic survey package VALVE-02"
     },
     {
@@ -66,6 +74,7 @@
       "trade_code": "PUMP-01",
       "category": "補機部",
       "text": "主海水冷却ポンプ・バラストポンプ分解点検・インペラ交換",
+      "anchor_tokens": ["海水冷却ポンプ", "バラストポンプ", "インペラ"],
       "source": "public Field3 periodic survey package PUMP-01"
     },
     {
@@ -73,6 +82,7 @@
       "trade_code": "PUMP-02",
       "category": "補機部",
       "text": "空気圧縮機 (エアーコンプレッサー) 開放弁摺合せ・ピストンリング交換",
+      "anchor_tokens": ["空気圧縮機", "エアーコンプレッサー", "ピストンリング"],
       "source": "public Field3 periodic survey package PUMP-02"
     },
     {
@@ -80,6 +90,7 @@
       "trade_code": "PROP-01",
       "category": "推進部",
       "text": "可変ピッチプロペラ (CPP) 翼抜出点検・Oリング交換",
+      "anchor_tokens": ["可変ピッチ", "CPP", "プロペラ"],
       "source": "public Field3 periodic survey package PROP-01"
     },
     {
@@ -87,6 +98,7 @@
       "trade_code": "PROP-02",
       "category": "推進部",
       "text": "プロペラ軸抜出・スカルン隙間計測・スタンチューブ整備",
+      "anchor_tokens": ["プロペラ軸", "スカルン", "スタンチューブ"],
       "source": "public Field3 periodic survey package PROP-02"
     },
     {
@@ -94,6 +106,7 @@
       "trade_code": "ELEC-01",
       "category": "電気部",
       "text": "主配電盤メガテスト・保護継電器動作試験及び制御回路点検",
+      "anchor_tokens": ["メガテスト", "保護継電器", "主配電盤"],
       "source": "public Field3 periodic survey package ELEC-01"
     },
     {
@@ -101,6 +114,7 @@
       "trade_code": "DECK-01",
       "category": "甲板部",
       "text": "アンカー及びアンカーチェーン (左右) 抜出打検・計測・赤丹塗装",
+      "anchor_tokens": ["アンカー", "アンカーチェーン", "赤丹"],
       "source": "public Field3 periodic survey package DECK-01"
     },
     {
@@ -108,6 +122,7 @@
       "trade_code": "SAFE-01",
       "category": "法定部",
       "text": "JG (日本政府) 定期検査・中間検査立会及び安全設備点検整備",
+      "anchor_tokens": ["JG", "定期検査", "中間検査", "安全設備"],
       "source": "public Field3 periodic survey package SAFE-01"
     },
     {
@@ -115,6 +130,7 @@
       "trade_code": "HULL-04",
       "category": "船体部",
       "text": "船底防食亜鉛板 (ジンクアノード) 新替取付",
+      "anchor_tokens": ["亜鉛", "ジンク", "アノード"],
       "source": "public Field3 periodic survey package HULL-04"
     }
   ]

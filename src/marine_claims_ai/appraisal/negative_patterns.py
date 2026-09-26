@@ -81,6 +81,40 @@ def format_citation(similarity: float, trade_code: str) -> str:
     )
 
 
+def normalize_category(category: str | None) -> str | None:
+    """Strip bracket markers and whitespace from a line-item / library category."""
+    if category is None:
+        return None
+    text = str(category).strip()
+    if not text:
+        return None
+    text = text.replace("【", "").replace("】", "").strip()
+    return text or None
+
+
+def pattern_passes_gates(
+    pattern: dict[str, Any],
+    description: str,
+    category: str | None = None,
+) -> bool:
+    """
+    Return True when ``pattern`` is eligible for ``description``.
+
+    - If the pattern declares ``anchor_tokens``, at least one must appear in
+      ``description`` (lexical gate against mid-band semantic false positives).
+    - If both the line-item ``category`` and pattern ``category`` are set, they
+      must match after normalization.
+    """
+    anchors = pattern.get("anchor_tokens") or []
+    if anchors and not any(str(tok) in description for tok in anchors if tok):
+        return False
+    item_cat = normalize_category(category)
+    pattern_cat = normalize_category(pattern.get("category"))
+    if item_cat and pattern_cat and item_cat != pattern_cat:
+        return False
+    return True
+
+
 @dataclass(frozen=True)
 class PatternMatch:
     pattern_id: str
@@ -116,34 +150,45 @@ class NegativePatternScorer:
                 raise RuntimeError("Embedding count does not match pattern count")
         return self._pattern_vectors
 
-    def best_match(self, description: str) -> PatternMatch | None:
-        """Return the highest-similarity library pattern for ``description``."""
+    def best_match(
+        self,
+        description: str,
+        category: str | None = None,
+    ) -> PatternMatch | None:
+        """
+        Return the highest-similarity library pattern that passes lexical and
+        category gates for ``description``.
+        """
         text = (description or "").strip()
         if not text or not self.patterns:
             return None
         vectors = self._ensure_pattern_vectors()
         query_vec = self._embed_fn([text])[0]
-        best_idx = -1
-        best_sim = -1.0
+        ranked: list[tuple[float, int]] = []
         for i, pvec in enumerate(vectors):
             sim = cosine_similarity(query_vec, pvec)
-            if sim > best_sim:
-                best_sim = sim
-                best_idx = i
-        if best_idx < 0:
-            return None
-        pattern = self.patterns[best_idx]
-        return PatternMatch(
-            pattern_id=str(pattern.get("id") or ""),
-            trade_code=str(pattern.get("trade_code") or ""),
-            text=str(pattern.get("text") or ""),
-            source=str(pattern.get("source") or ""),
-            similarity=best_sim,
-        )
+            ranked.append((sim, i))
+        ranked.sort(key=lambda pair: pair[0], reverse=True)
+        for sim, idx in ranked:
+            pattern = self.patterns[idx]
+            if not pattern_passes_gates(pattern, text, category):
+                continue
+            return PatternMatch(
+                pattern_id=str(pattern.get("id") or ""),
+                trade_code=str(pattern.get("trade_code") or ""),
+                text=str(pattern.get("text") or ""),
+                source=str(pattern.get("source") or ""),
+                similarity=sim,
+            )
+        return None
 
-    def score_description(self, description: str) -> dict[str, Any]:
+    def score_description(
+        self,
+        description: str,
+        category: str | None = None,
+    ) -> dict[str, Any]:
         """Score a single description into red-flag fields + recommended action."""
-        match = self.best_match(description)
+        match = self.best_match(description, category=category)
         if match is None:
             return {
                 "red_flag_similarity": 0.0,
@@ -186,7 +231,10 @@ def score_line_items(
     scored: list[dict[str, Any]] = []
     for item in items:
         row = dict(item)
-        fields = active.score_description(str(item.get("description") or ""))
+        fields = active.score_description(
+            str(item.get("description") or ""),
+            category=item.get("category"),
+        )
         row.update(fields)
         scored.append(row)
     return scored

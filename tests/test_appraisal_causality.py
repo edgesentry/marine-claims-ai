@@ -22,7 +22,8 @@ BOW_CASUALTY = {
 class _NoOpNplScorer:
     """Keep causality tests independent of FastEmbed / NPL thresholds."""
 
-    def score_description(self, description: str) -> dict:
+    def score_description(self, description: str, category: str | None = None) -> dict:
+        del description, category
         return {
             "red_flag_similarity": 0.0,
             "matched_pattern_id": None,
@@ -101,7 +102,8 @@ def test_bow_machinery_emits_npl_citation_fields():
     citation = format_citation(0.894, "ENG-01")
 
     class _HighScorer:
-        def score_description(self, description: str) -> dict:
+        def score_description(self, description: str, category: str | None = None) -> dict:
+            del description, category
             return {
                 "red_flag_similarity": 0.894,
                 "matched_pattern_id": "npl-eng-01",
