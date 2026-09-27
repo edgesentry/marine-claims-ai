@@ -54,6 +54,9 @@ To construct a legally and technically defensible symbolic engine, rules cannot 
 | **4** | **Collision Fault Attribution** | Automates initial liability splits (e.g., 80:20 crossing) based on codified navigational regulations. | ・**COLREGS 1972** (Rules 13 to 17: Overtaking, Head-on, Crossing situations)<br>・**Japan Marine Accident Tribunal (JMAT) Precedent Archive**<br>・Civil Court Collision Fault Assessment Tables | **First-Order Predicate Logic**<br>(Rule-based decision trees with angle/speed inputs) |
 | **5** | **Evidentiary Admissibility** | Verifies whether damage photos, surveyor notes, and logbooks satisfy legal burden of proof. | ・International Marine Surveying Guidelines<br>・Civil Procedure Code on documentary evidence authentication | **Relational Knowledge Graph Nodes**<br>(Graph attributes: `isValid`, `reasonForInvalid`) |
 
+> [!NOTE]
+> **International Harmonization & Domestic Ground Truth**: International conventions (IMO COLREGS 1972, SOLAS Chapter II-1) are directly transposed into Japanese domestic law (*海上衝突予防法*, *船舶安全法*) with identical mathematical thresholds (e.g., 22.5° overtaking sector) and navigational duties. Because Japanese maritime tribunals (JMAT) and courts publish open-access fact-findings and liability splits, Japanese judicial records serve as an internationally valid, open-access benchmark for the core reasoning engine. For a detailed legal-technical analysis, refer to [Public Datasets & Accuracy Evaluation Methodology](public_benchmarks_and_accuracy_evaluation.md#5-jurisprudential-grounding-international-conventions-japanese-law-and-strategic-benchmark-selection).
+
 ---
 
 ## 3. Formalization & Construction Methodology (How to Build It)
