@@ -6,6 +6,7 @@ from marine_claims_ai.paths import (
     DEFAULT_CONFIG_PATH,
     DEFAULT_DATASET_DIR,
     DEFAULT_DUCK_PATH,
+    DEFAULT_JURISDICTIONS_DIR,
     DEFAULT_LANCE_DIR,
     DEFAULT_NEGATIVE_PATTERN_PATH,
     REPO_ROOT,
@@ -26,5 +27,7 @@ def test_repo_paths_point_inside_checkout():
     assert DEFAULT_NEGATIVE_PATTERN_PATH.is_file()
     assert DEFAULT_CIVIL_CATALOG_PATH.name == "civil_precedent_catalog.json"
     assert DEFAULT_CIVIL_CATALOG_PATH.is_file()
+    assert DEFAULT_JURISDICTIONS_DIR.name == "jurisdictions"
+    assert (DEFAULT_JURISDICTIONS_DIR / "jp.json").is_file()
     assert (REPO_ROOT / "pyproject.toml").is_file()
     assert (REPO_ROOT / "src" / "marine_claims_ai").is_dir()

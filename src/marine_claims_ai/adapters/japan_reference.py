@@ -1,8 +1,10 @@
 """
 Japan reference jurisdiction adapter (public open-core default).
 
-Wires to ``config/civil_precedent_catalog.json`` (real civil judgments and JMAT
-holdings). Serves as the verified reference model for international adapter plugins.
+Wires to ``config/civil_precedent_catalog.json`` and
+``config/jurisdictions/jp.json``. Lexicons, fairway stubs, and warranty metadata
+live in JSON so international plugins can mirror the same layout without forking
+adapter code.
 """
 
 from __future__ import annotations
@@ -13,7 +15,6 @@ from typing import Any
 
 from marine_claims_ai.adapters.base import (
     EncounterSituation,
-    EncounterType,
     GeoPoint,
     JurisdictionAdapter,
     LocalFairwayConstraint,
@@ -22,47 +23,15 @@ from marine_claims_ai.adapters.base import (
     PSCDeficiency,
     WarrantyAssessment,
 )
+from marine_claims_ai.adapters.jurisdiction_config import (
+    JurisdictionPluginConfig,
+    load_jurisdiction_config,
+)
 from marine_claims_ai.ingest.civil import load_catalog
+from marine_claims_ai.ontology.psc import is_detention_action
 from marine_claims_ai.paths import DEFAULT_CIVIL_CATALOG_PATH
 
-# Domain → holding_kind filters against the public civil precedent catalog.
-_DOMAIN_HOLDING_KINDS: dict[str, frozenset[str]] = {
-    "civil_court": frozenset({"civil_judgment", "civil_published_summary"}),
-    "jmat": frozenset({"jmat_major", "jmat_saiketsu"}),
-}
-
-# Japanese Maritime Traffic Safety Act style public fairway stubs (reference only).
-_FAIRWAY_RULES: dict[str, LocalFairwayConstraint] = {
-    "uraga": LocalFairwayConstraint(
-        channel_id="uraga",
-        applies=True,
-        rule_citations=[
-            "Japan Maritime Traffic Safety Act (海上交通安全法) — Uraga Channel",
-        ],
-        notes="Uraga Suido traffic separation / transit duties (public reference stub).",
-        traffic_direction="TSS",
-    ),
-    "kanmon": LocalFairwayConstraint(
-        channel_id="kanmon",
-        applies=True,
-        rule_citations=[
-            "Japan Maritime Traffic Safety Act (海上交通安全法) — Kanmon Passage",
-        ],
-        notes="Kanmon Kaikyo transit constraints (public reference stub).",
-        traffic_direction="TSS",
-    ),
-}
-
-_SITUATION_TOKENS: dict[EncounterType, tuple[str, ...]] = {
-    EncounterType.CROSSING: ("横切", "crossing", "交差"),
-    EncounterType.HEAD_ON: ("行き会い", "head-on", "head_on", "正面"),
-    EncounterType.OVERTAKING: ("追越し", "追越", "overtaking"),
-}
-
 _TOKEN_RE = re.compile(r"[\w\u3040-\u30ff\u3400-\u9fff]+", re.UNICODE)
-
-# IMO PSC action code commonly used for detention.
-_DETENTION_ACTION = "30"
 
 
 class JapanJurisdictionAdapter(JurisdictionAdapter):
@@ -71,14 +40,25 @@ class JapanJurisdictionAdapter(JurisdictionAdapter):
 
     Precedent lookup reads the tracked civil / JMAT catalog only (no LanceDB /
     network requirement) so unit tests and CI remain offline-reproducible.
+    Jurisdiction-local tokens and fairways come from plugin JSON.
     """
 
     jurisdiction_code = "JP"
-    warranty_standard_id = "JP_Commercial_Code_Art815"
 
-    def __init__(self, catalog_path: str | Path | None = None) -> None:
+    def __init__(
+        self,
+        catalog_path: str | Path | None = None,
+        *,
+        config: JurisdictionPluginConfig | None = None,
+        config_path: str | Path | None = None,
+    ) -> None:
         self.catalog_path = Path(catalog_path) if catalog_path else DEFAULT_CIVIL_CATALOG_PATH
+        self.plugin = config or load_jurisdiction_config("JP", path=config_path)
         self._seeds: list[dict[str, Any]] | None = None
+
+    @property
+    def warranty_standard_id(self) -> str:
+        return self.plugin.warranty.standard_id
 
     def _load_seeds(self) -> list[dict[str, Any]]:
         if self._seeds is None:
@@ -112,9 +92,16 @@ class JapanJurisdictionAdapter(JurisdictionAdapter):
                 notes="No channel_id supplied; no Japan fairway rule applied.",
             )
         key = channel_id.strip().lower()
-        known = _FAIRWAY_RULES.get(key)
+        known = self.plugin.fairways.get(key)
         if known is not None:
-            return known.model_copy()
+            return LocalFairwayConstraint(
+                channel_id=key,
+                applies=known.applies,
+                rule_citations=list(known.rule_citations),
+                notes=known.notes,
+                traffic_direction=known.traffic_direction,
+                speed_limit_kn=known.speed_limit_kn,
+            )
         return LocalFairwayConstraint(
             channel_id=key,
             applies=False,
@@ -129,14 +116,15 @@ class JapanJurisdictionAdapter(JurisdictionAdapter):
         """
         Japanese Commercial Code Art. 815 due-diligence standard.
 
-        Unlike English MIA 1906 §39 time policies, Japanese law does not require
-        privity of the assured as a threshold for carrier seaworthiness duties.
+        Detention detection uses universal IMO PSC action codes; privity and
+        standard identity come from the jurisdiction plugin config.
         """
+        critical = {s.lower() for s in self.plugin.warranty.critical_severities}
         detention_hits = [
             d
             for d in psc_deficiencies
-            if (d.action_code or "").strip() == _DETENTION_ACTION
-            or (d.severity or "").lower() in {"detention", "high", "critical"}
+            if is_detention_action(d.action_code)
+            or (d.severity or "").lower() in critical
         ]
         if detention_hits:
             breached: bool | None = True
@@ -148,7 +136,7 @@ class JapanJurisdictionAdapter(JurisdictionAdapter):
         elif psc_deficiencies:
             breached = None
             rationale = (
-                "PSC deficiencies present without Code 30 detention; due-diligence "
+                "PSC deficiencies present without IMO detention action; due-diligence "
                 "assessment inconclusive without fuller survey facts."
             )
         else:
@@ -157,33 +145,30 @@ class JapanJurisdictionAdapter(JurisdictionAdapter):
 
         return WarrantyAssessment(
             standard_id=self.warranty_standard_id,
-            privity_required=False,
+            privity_required=self.plugin.warranty.privity_required,
             breached=breached,
             rationale=rationale,
             matched_deficiencies=list(detention_hits or psc_deficiencies),
             policy_form=policy_form,
         )
 
-    @staticmethod
-    def _filter_by_domain(seeds: list[dict[str, Any]], domain: str) -> list[dict[str, Any]]:
-        key = (domain or "").strip().lower()
-        kinds = _DOMAIN_HOLDING_KINDS.get(key)
+    def _filter_by_domain(self, seeds: list[dict[str, Any]], domain: str) -> list[dict[str, Any]]:
+        kinds = self.plugin.holding_kinds_for(domain)
         if kinds is None:
             return list(seeds)
         return [s for s in seeds if str(s.get("holding_kind") or "") in kinds]
 
-    @classmethod
-    def _score_seed(cls, seed: dict[str, Any], situation: EncounterSituation) -> float:
+    def _score_seed(self, seed: dict[str, Any], situation: EncounterSituation) -> float:
         blob = " ".join(
             str(seed.get(k) or "")
             for k in ("title", "input_facts", "holding", "court")
         ).lower()
         score = 0.0
-        tokens = cls._tokens(situation.facts)
+        tokens = self._tokens(situation.facts)
         if tokens:
             hits = sum(1 for tok in tokens if tok in blob)
             score += hits / max(len(tokens), 1)
-        for marker in _SITUATION_TOKENS.get(situation.situation_type, ()):
+        for marker in self.plugin.tokens_for(situation.situation_type):
             if marker.lower() in blob:
                 score += 0.5
                 break

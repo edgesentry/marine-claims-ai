@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import json
 from decimal import Decimal
+from pathlib import Path
 
 import pytest
 
@@ -24,10 +26,12 @@ from marine_claims_ai.adapters import (
     get_jurisdiction_adapter,
     get_tariff_adapter,
     list_jurisdiction_adapters,
+    load_jurisdiction_config,
     register_jurisdiction_adapter,
     register_tariff_adapter,
 )
 from marine_claims_ai.adapters.base import LocalFairwayConstraint, WarrantyAssessment
+from marine_claims_ai.ontology.psc import ACTION_DETENTION, is_detention_action
 
 
 @pytest.fixture(autouse=True)
@@ -51,6 +55,22 @@ def test_tariff_abc_cannot_instantiate():
 def test_japan_adapter_is_jurisdiction_adapter():
     adapter = JapanJurisdictionAdapter()
     assert isinstance(adapter, JurisdictionAdapter)
+
+
+def test_load_japan_jurisdiction_plugin_config():
+    cfg = load_jurisdiction_config("JP")
+    assert cfg.jurisdiction_code == "JP"
+    assert cfg.warranty.standard_id == "JP_Commercial_Code_Art815"
+    assert cfg.warranty.privity_required is False
+    assert "横切" in cfg.tokens_for(EncounterType.CROSSING)
+    assert "uraga" in cfg.fairways
+
+
+def test_imo_detention_action_is_universal_constant():
+    assert ACTION_DETENTION == "30"
+    assert is_detention_action("30") is True
+    assert is_detention_action("17") is False
+    assert is_detention_action(None) is False
 
 
 def test_japan_lookup_precedents_from_public_catalog():
@@ -88,9 +108,43 @@ def test_japan_fairway_uraga_and_unknown():
     assert unknown.applies is False
 
 
+def test_japan_adapter_reads_custom_plugin_config(tmp_path: Path):
+    plugin = {
+        "version": 1,
+        "jurisdiction_code": "JP",
+        "warranty": {
+            "standard_id": "JP_Commercial_Code_Art815",
+            "privity_required": False,
+            "critical_severities": ["critical"],
+        },
+        "domain_holding_kinds": {"civil_court": ["civil_judgment"]},
+        "situation_tokens": {"crossing": ["CUSTOM_CROSS_TOKEN"]},
+        "fairways": {
+            "custom_channel": {
+                "applies": True,
+                "rule_citations": ["Custom fairway citation"],
+                "notes": "tmp plugin",
+                "traffic_direction": "TSS",
+                "speed_limit_kn": None,
+            }
+        },
+    }
+    path = tmp_path / "jp.json"
+    path.write_text(json.dumps(plugin), encoding="utf-8")
+    adapter = JapanJurisdictionAdapter(config_path=path)
+    fairway = adapter.evaluate_fairway_rules(GeoPoint(lat=0.0, lon=0.0), "custom_channel")
+    assert fairway.applies is True
+    assert fairway.rule_citations == ["Custom fairway citation"]
+    assert adapter.plugin.tokens_for(EncounterType.CROSSING) == ("CUSTOM_CROSS_TOKEN",)
+
+
 def test_japan_seaworthiness_art815_no_privity():
     adapter = JapanJurisdictionAdapter()
-    detention = PSCDeficiency(code="07105", action_code="30", description="Fire pumps")
+    detention = PSCDeficiency(
+        code="07105",
+        action_code=ACTION_DETENTION,
+        description="Fire pumps",
+    )
     assessment = adapter.evaluate_seaworthiness_warranty([detention], PolicyForm.NK_HULL)
     assert isinstance(assessment, WarrantyAssessment)
     assert assessment.standard_id == "JP_Commercial_Code_Art815"
