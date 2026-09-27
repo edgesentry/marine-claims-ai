@@ -158,6 +158,14 @@ flowchart TD
 - **Current Benchmark**:
   - Geometry fixtures: **100.0% (20/20)**.
   - E2E narrative catalog: **Extraction Rate 100%**, **Situation Accuracy 100%**, **Critical Role Inversions 0** (≥10 cases spanning Head-on / Crossing / Overtaking).
+- **Field 1 cache refresh** (Issue #50): major-case pages declare `Shift_JIS` and some include CP932 bytes such as `0x87 0x40` (①). `fetch_field1_jmat` tries `shift_jis` and then `cp932`, and reads `理由（事実）` / `主文` including fullwidth parentheses and spaced headings (`理 由`, `主 文`). The cache stays gitignored under `_inputs/poc_datasets/`. Refresh it and reject a mojibake cache with:
+
+  ```text
+  uv run python scripts/fetch_public_datasets.py --field 1 --force
+  uv run python scripts/validate_field1_jmat.py
+  ```
+
+  Issue #39 E2E keeps using the embedded narratives in `config/jmat_collision_eval.json`. Binding those rows to live cache `case_id`s waits until this cache is the raw input for that eval.
 
 #### Pillar 3: Prefectural Award Tender Ground Truth (Cost Estimation)
 - **The Rationale**: Prefectural official gazettes publish exact contract award prices alongside itemized repair specifications.
