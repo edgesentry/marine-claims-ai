@@ -1,0 +1,55 @@
+{
+  "summary": {
+    "casualty_profile": {
+      "vessel_name": "SYNTHETIC DEMO VESSEL",
+      "incident_type": "衝突",
+      "incident_date": "2020-01-01",
+      "incident_location": "テスト海域",
+      "damaged_components": ["球状船首", "外板"],
+      "source_pdf": "synthetic"
+    },
+    "total_claimed_jpy": 10000000,
+    "total_approved_jpy": 1000000,
+    "total_excluded_jpy": 9000000,
+    "leakage_prevention_rate_pct": 90.0,
+    "pricing_note": "Synthetic fixture for demo E2E tests (not a real tender)."
+  },
+  "items": [
+    {
+      "id": "1",
+      "category": "船体",
+      "num": "1",
+      "description": "球状船首外板修繕",
+      "estimated_cost": 800000,
+      "status": "COVERED",
+      "approved_amount": 800000,
+      "excluded_amount": 0,
+      "reason": "",
+      "clause_ref": ""
+    },
+    {
+      "id": "2",
+      "category": "入渠",
+      "num": "2",
+      "description": "入出渠・滞渠共通費",
+      "estimated_cost": 200000,
+      "status": "APPORTIONED (50%)",
+      "approved_amount": 100000,
+      "excluded_amount": 100000,
+      "reason": "Rule D5 sample",
+      "clause_ref": "D5"
+    },
+    {
+      "id": "3",
+      "category": "機関",
+      "num": "3",
+      "description": "機関室ピストン抜出開放点検",
+      "estimated_cost": 9000000,
+      "status": "EXCLUDED (便乗修理)",
+      "approved_amount": 0,
+      "excluded_amount": 9000000,
+      "reason": "watertight_barrier_violation",
+      "clause_ref": ""
+    }
+  ]
+}

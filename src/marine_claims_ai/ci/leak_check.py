@@ -19,8 +19,15 @@ from marine_claims_ai.paths import REPO_ROOT
 
 BANNED_EXTENSIONS = {".pdf", ".csv", ".tsv", ".html", ".htm"}
 
-# Only configuration schemas under config/ may be tracked as JSON.
-JSON_ALLOWLIST_PREFIX = "config/"
+# Configuration schemas under config/, plus tiny synthetic demo E2E fixtures.
+JSON_ALLOWLIST_PREFIXES = (
+    "config/",
+)
+
+# Application UI templates (Jinja2), not scraped dataset HTML.
+HTML_ALLOWLIST_PREFIXES = (
+    "src/marine_claims_ai/demo/templates/",
+)
 
 # Scanner sources embed detection literals; skip during content scan.
 SELF_SCAN_SKIP = {
@@ -103,14 +110,24 @@ def list_tracked_files() -> list[str]:
 
 def is_json_allowed(path: str) -> bool:
     normalized = path.replace("\\", "/")
-    return normalized.startswith(JSON_ALLOWLIST_PREFIX) and normalized.endswith(".json")
+    return normalized.endswith(".json") and any(
+        normalized.startswith(prefix) for prefix in JSON_ALLOWLIST_PREFIXES
+    )
+
+
+def is_html_allowed(path: str) -> bool:
+    normalized = path.replace("\\", "/")
+    return any(normalized.startswith(prefix) for prefix in HTML_ALLOWLIST_PREFIXES)
 
 
 def check_banned_tracked_files(tracked: list[str]) -> list[str]:
     violations: list[str] = []
     for path in tracked:
         suffix = Path(path).suffix.lower()
-        if suffix in BANNED_EXTENSIONS:
+        if suffix in {".html", ".htm"}:
+            if not is_html_allowed(path):
+                violations.append(f"banned extension tracked: {path}")
+        elif suffix in BANNED_EXTENSIONS:
             violations.append(f"banned extension tracked: {path}")
         elif suffix == ".json" and not is_json_allowed(path):
             violations.append(f"non-allowlisted JSON tracked: {path}")

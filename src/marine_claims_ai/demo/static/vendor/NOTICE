@@ -1,0 +1,4 @@
+Vendored for offline executive demos (no CDN at runtime).
+
+- htmx.min.js — https://htmx.org/ (BSD Zero Clause)
+- chart.umd.min.js — https://www.chartjs.org/ (MIT)

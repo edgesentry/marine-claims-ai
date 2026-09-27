@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="{{ lang }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ t('app_title', lang) }}</title>
+  <link rel="stylesheet" href="/static/demo.css">
+  <script src="/static/vendor/htmx.min.js" defer></script>
+  <script src="/static/vendor/chart.umd.min.js" defer></script>
+  <script>
+  document.addEventListener('click', function (e) {
+    const a = e.target && e.target.closest ? e.target.closest('a.doc-open') : null;
+    if (!a || !a.href) return;
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.assign(a.href);
+  }, true);
+  </script>
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <div class="brand">{{ t('app_title', lang) }}</div>
+      <div class="badge">{{ t('offline_badge', lang) }}</div>
+    </div>
+    <nav class="nav">
+      <a href="/uc2" class="{{ 'active' if active == 'uc2' else '' }}">{{ t('nav_uc2', lang) }}</a>
+      <a href="/uc3" class="{{ 'active' if active == 'uc3' else '' }}">{{ t('nav_uc3', lang) }}</a>
+    </nav>
+    <div class="lang">
+      <form method="post" action="/demo/clear-cache" class="cache-clear-form"
+            onsubmit="return confirm({{ t('clear_cache_confirm', lang)|tojson }});">
+        {# Never return to /analyze/* (POST-only) — clear-cache would 405 on GET. #}
+        <input type="hidden" name="next" value="{% if path.startswith('/analyze') %}/{{ active or 'uc2' }}{% else %}{{ path }}{% endif %}">
+        <button type="submit" class="btn secondary cache-clear">{{ t('clear_cache', lang) }}</button>
+      </form>
+      <a class="{{ 'active' if lang == 'en' else '' }}" href="/set-lang?lang=en&next={% if path.startswith('/analyze') %}/{{ active or 'uc2' }}{% else %}{{ path }}{% endif %}">{{ t('lang_en', lang) }}</a>
+      <a class="{{ 'active' if lang == 'ja' else '' }}" href="/set-lang?lang=ja&next={% if path.startswith('/analyze') %}/{{ active or 'uc2' }}{% else %}{{ path }}{% endif %}">{{ t('lang_ja', lang) }}</a>
+    </div>
+  </header>
+  {% if cache_cleared %}
+  <p class="banner ok">{{ t('cache_cleared', lang) }}</p>
+  {% endif %}
+  {% if analyzed %}
+  <p class="banner ok">{{ t('analyzed_ok', lang) }}</p>
+  {% endif %}
+  <main>
+    {% block content %}{% endblock %}
+  </main>
+  {% block scripts %}{% endblock %}
+</body>
+</html>
