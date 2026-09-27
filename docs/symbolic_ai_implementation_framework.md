@@ -100,8 +100,9 @@ Rules are strictly decoupled from executable code to allow review, audit, and ad
    - Evaluated in sub-millisecond execution via `nx.has_path(graph, source, target)`.
 2. **Deterministic Fee Apportionment (`src/marine_claims_ai/analytics/rule_d_solver.py`)**:
    - Implements AAA Rule D5 as deterministic DuckDB SQL queries. Common drydock dues are apportioned 50/50 or 100% to underwriters per D5 ¶1–¶2. See [aaa_rule_d5_drydock_apportionment.md](aaa_rule_d5_drydock_apportionment.md). Aggregation CLI remains in `analytics/apportion.py`.
-3. **COLREGS Predicate Engine**:
+3. **COLREGS Predicate Engine (`src/marine_claims_ai/legal/colregs_engine.py`)**:
    - Calculates relative bearing and heading vectors between encountering vessels.
+   - Encodes COLREGS Rules 13–15 / 海上衝突予防法 第13–15条 as deterministic predicates. See [colregs_encounter_engine.md](colregs_encounter_engine.md).
    - Maps facts directly to formal predicate implications:
 
      ```text
