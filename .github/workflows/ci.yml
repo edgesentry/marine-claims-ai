@@ -10,6 +10,64 @@ permissions:
   contents: read
 
 jobs:
+  # PR-only: GitHub dependency-graph diff (new/changed deps + license policy).
+  dependency-review:
+    name: Dependency review
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Dependency review
+        uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: high
+          license-check: true
+          vulnerability-check: true
+          comment-summary-in-pr: on-failure
+          # Permissive / weak-copyleft set compatible with Apache-2.0 open-core.
+          allow-licenses: >-
+            Apache-2.0,
+            MIT,
+            BSD-2-Clause,
+            BSD-3-Clause,
+            0BSD,
+            ISC,
+            PSF-2.0,
+            MPL-2.0,
+            Zlib,
+            CC0-1.0,
+            MIT-CMU,
+            Unlicense
+
+  # Full installed-env audit (direct + transitive). Complements dependency-review.
+  license-check:
+    name: pip-licenses
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Sync project with dev deps
+        run: uv sync --group dev
+
+      - name: License inventory
+        run: uv run pip-licenses --from=mixed --format=markdown --order=license
+
+      - name: Fail on strong copyleft / source-available traps
+        run: >-
+          uv run pip-licenses
+          --from=mixed
+          --partial-match
+          --fail-on='GPL;AGPL;LGPL;SSPL;BUSL;Commons Clause;Elastic License;Server Side Public License'
+
   leak-check:
     name: Zero-Dataset leak check
     runs-on: ubuntu-latest

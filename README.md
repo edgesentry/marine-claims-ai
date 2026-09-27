@@ -223,3 +223,5 @@ Gates (config): ≥3 runnable cases, critical False Accept = 0, mean status agre
 ## License
 
 This project is licensed under the [Apache License, Version 2.0](LICENSE).
+
+Dependency license policy is enforced in CI via `pip-licenses` (installed environment) and GitHub Dependency Review (PR dependency diffs). Strong copyleft and common source-available traps (GPL/AGPL/LGPL/SSPL/BUSL, etc.) fail the build.
