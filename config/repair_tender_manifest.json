@@ -1,0 +1,82 @@
+{
+  "version": 1,
+  "description": "Public municipal / prefectural ship repair tender PDFs (specs & bids). PDF bodies stay gitignored under _inputs/repairs/.",
+  "polite_sleep_seconds": 0.8,
+  "entries": [
+    {
+      "id": "iwate_riasumaru_spec_2024",
+      "kind": "spec",
+      "vessel": "りあす丸",
+      "source": "iwate_pref",
+      "filename": "iwate_riasumaru_intermediate_survey_spec_2024.pdf",
+      "url": "https://www.kkj.go.jp/d/?A=aXdhdGUvaXdhdGVfcHJlZi8yMDI0LzIwMjQwNTEwXzA0NjcyXzAzLnBkZgo%3D&L=ja",
+      "notes": "Iwate Prefectural Fisheries HS training vessel intermediate survey / maintenance repair specification"
+    },
+    {
+      "id": "iwate_riasumaru_design_2022",
+      "kind": "spec",
+      "vessel": "りあす丸",
+      "source": "iwate_pref",
+      "filename": "iwate_riasumaru_design_book_2022.pdf",
+      "url": "https://www.kkj.go.jp/d/?A=aXdhdGUvaXdhdGVfcHJlZi8yMDIyLzIwMjIwNTE4XzAzNDE3XzA0LnBkZgo%3D&L=ja",
+      "notes": "Iwate Riasu-maru intermediate survey design book (line items)"
+    },
+    {
+      "id": "iwate_riasumaru_paint_design_2023",
+      "kind": "spec",
+      "vessel": "りあす丸",
+      "source": "iwate_pref",
+      "filename": "iwate_riasumaru_paint_design_2023.pdf",
+      "url": "https://www.kkj.go.jp/d/?A=aXdhdGUvaXdhdGVfcHJlZi8yMDIzLzIwMjMxMTEzXzA0MzQyXzA0LnBkZgo%3D&L=ja",
+      "notes": "Iwate Riasu-maru paint and maintenance design book"
+    },
+    {
+      "id": "yamagata_chokaimaru_spec_2022",
+      "kind": "spec",
+      "vessel": "鳥海丸",
+      "source": "yamagata_pref",
+      "filename": "yamagata_chokaimaru_pendock_spec_2022.pdf",
+      "url": "https://www.kkj.go.jp/d/?A=eWFtYWdhdGEvcHJlZi15YW1hZ2F0YS8yMDIyLzIwMjIxMjI3XzA0MjIxXzAyLnBkZgo%3D&L=ja",
+      "notes": "Yamagata Chokai-maru pendock drydock repair specification"
+    },
+    {
+      "id": "yamagata_chokaimaru_spec_2023",
+      "kind": "spec",
+      "vessel": "鳥海丸",
+      "source": "yamagata_pref",
+      "filename": "yamagata_chokaimaru_intermediate_spec_2023.pdf",
+      "url": "https://www.kkj.go.jp/d/?A=eWFtYWdhdGEvcHJlZi15YW1hZ2F0YS8yMDIzLzIwMjMxMjE1XzA1MDc1XzAxLnBkZgo%3D&L=ja",
+      "notes": "Yamagata Chokai-maru intermediate survey / docking specification"
+    },
+    {
+      "id": "fukuoka_kaiyomaru_spec_local",
+      "kind": "spec",
+      "vessel": "海友丸",
+      "source": "fukuoka_pref",
+      "filename": "fukuoka_kaiyomaru_spec.pdf",
+      "url": null,
+      "local_seed": "fukuoka_kaiyomaru_spec.pdf",
+      "notes": "Fukuoka training-vessel repair tender (seed from existing PoC cache; remote URL may rotate)"
+    },
+    {
+      "id": "fukuoka_ship_bid_local",
+      "kind": "bid",
+      "vessel": "海友丸",
+      "source": "fukuoka_pref",
+      "filename": "fukuoka_ship_bid_result.pdf",
+      "url": null,
+      "local_seed": "fukuoka_ship_bid_result.pdf",
+      "notes": "Fukuoka gazette bid award notice (seed from PoC cache)"
+    },
+    {
+      "id": "tottori_wakatorimaru_spec_local",
+      "kind": "spec",
+      "vessel": "若鳥丸",
+      "source": "tottori_pref",
+      "filename": "sample_drydock_repair_specification.pdf",
+      "url": null,
+      "local_seed": "sample_drydock_repair_specification.pdf",
+      "notes": "Tottori Wakatori-maru drydock repair specification (PoC seed)"
+    }
+  ]
+}

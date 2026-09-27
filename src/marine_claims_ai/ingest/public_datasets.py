@@ -29,7 +29,8 @@ from marine_claims_ai.ingest.civil import (
 )
 from marine_claims_ai.ingest.download import download_url, open_url, polite_sleep
 from marine_claims_ai.ingest.jtsb import apply_limit, fetch_jtsb_collisions
-from marine_claims_ai.paths import DEFAULT_DATASET_DIR
+from marine_claims_ai.ingest.repair_tenders import fetch_repair_tenders
+from marine_claims_ai.paths import DEFAULT_DATASET_DIR, DEFAULT_INPUT_REPAIRS_DIR
 
 # Back-compat for tests / callers that imported seeds from this module.
 CIVIL_COURT_SEEDS = load_catalog()
@@ -330,9 +331,9 @@ def main() -> None:
     parser.add_argument("--force", action="store_true", help="Re-download / re-generate even if files exist")
     parser.add_argument(
         "--field",
-        choices=["1", "2", "3", "4", "jtsb", "all"],
+        choices=["1", "2", "3", "4", "jtsb", "repairs", "all"],
         default="all",
-        help="Target field to fetch",
+        help="Target field to fetch (repairs = public drydock tender PDFs)",
     )
     parser.add_argument(
         "--limit",
@@ -360,6 +361,16 @@ def main() -> None:
 
     if args.field in ["3", "all"]:
         fetch_field3_repairs(args.dest_dir, force=args.force, limit=args.limit)
+        print()
+
+    if args.field in ["repairs", "all"]:
+        print("[Repairs] Fetching public repair tender PDFs into _inputs/repairs/ ...")
+        fetch_repair_tenders(
+            repairs_dir=DEFAULT_INPUT_REPAIRS_DIR,
+            force=args.force,
+            dry_run=False,
+            limit=args.limit,
+        )
         print()
 
     if args.field in ["4", "all"]:
