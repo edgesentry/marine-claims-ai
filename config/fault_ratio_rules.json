@@ -1,0 +1,70 @@
+{
+  "version": 1,
+  "description": "Japan open-core judicial baseline splits and contributory-negligence modifier heuristics for collision fault-ratio prediction (Issue #44). Baselines are conventional civil practice splits, not COLREGS statutory percentages.",
+  "baselines": {
+    "crossing": "80:20",
+    "overtaking": "80:20",
+    "head_on": "50:50",
+    "safe_passing": "75:25",
+    "unknown": "75:25"
+  },
+  "blend": {
+    "rule_weight": 0.45,
+    "knn_weight": 0.55,
+    "min_knn_score": 0.15,
+    "top_k": 3,
+    "round_to_pp": 5,
+    "clamp_primary_min": 50,
+    "clamp_primary_max": 95
+  },
+  "modifiers": [
+    {
+      "id": "fog",
+      "patterns": ["霧", "濃霧", "霧中", "fog", "restricted visibility"],
+      "delta_primary_pp": -10,
+      "citation": "Fog / restricted visibility (Rule 19 / 第19条 nuance): mutual reduced visibility often compresses the primary-side share (−10pp)."
+    },
+    {
+      "id": "night",
+      "patterns": ["夜間", "夜陰", "night", "darkness"],
+      "delta_primary_pp": 10,
+      "citation": "Night navigation lookout default: discretionary +10pp to the primary / give-way side."
+    },
+    {
+      "id": "lookout",
+      "patterns": ["見張り不十分", "見張りを怠", "見張り不全", "lookout", "proper lookout"],
+      "delta_primary_pp": 10,
+      "citation": "Failure to maintain proper lookout (Rule 5 / 第5条): +10pp primary-side adjustment."
+    },
+    {
+      "id": "radar",
+      "patterns": ["レーダー", "radar", "レーダ映像"],
+      "delta_primary_pp": 10,
+      "citation": "Radar available but unused / silent watchkeeping: +10pp primary-side adjustment."
+    },
+    {
+      "id": "sound_signals",
+      "patterns": ["霧中信号", "警告信号", "音響信号", "汽笛", "sound signal", "whistle"],
+      "delta_primary_pp": 5,
+      "citation": "Failure of required sound / warning signals: +5pp primary-side adjustment."
+    },
+    {
+      "id": "narrow_channel",
+      "patterns": ["狭水路", "狭水道", "narrow channel", "fairway"],
+      "delta_primary_pp": 10,
+      "citation": "Narrow-channel / constrained-water maneuvering fault: +10pp primary-side adjustment."
+    },
+    {
+      "id": "speed",
+      "patterns": ["安全な速力", "減速を怠", "速力過大", "excessive speed", "safe speed"],
+      "delta_primary_pp": 10,
+      "citation": "Failure to proceed at a safe speed (Rule 6 / 第6条): +10pp primary-side adjustment."
+    },
+    {
+      "id": "mutual_fault",
+      "patterns": ["双方の過失", "双方過失", "mutual fault", "both vessels at fault"],
+      "delta_primary_pp": -15,
+      "citation": "Mutual / bilateral fault holding: compress primary-side share toward parity (−15pp)."
+    }
+  ]
+}
