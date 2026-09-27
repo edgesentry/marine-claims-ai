@@ -101,7 +101,7 @@ flowchart TD
 
 #### Pillar 1: Spatial Invariant Ground Truth (Concurrent Repair Screening)
 - **The Rationale**: If a vessel experiences a bulbous bow collision with no breach to machinery bulkheads, repairs to internal engine components (e.g., piston extraction, turbocharger overhaul, sanitary sewage unit maintenance) are physical impossibilities as casualty consequences.
-- **Gold Baseline**: Defined in an independent validation module ([`public_appraisal_eval.py`](file:///Users/yoheionishi/work/maritime-ai/marine-claims-AI/src/marine_claims_ai/benchmarks/public_appraisal_eval.py)), completely decoupled from the production inference pipeline.
+- **Gold Baseline**: Defined in an independent validation module (`src/marine_claims_ai/benchmarks/public_appraisal_eval.py`), completely decoupled from the production inference pipeline.
 - **Key Metrics**:
   - **Status Agreement Rate**: Percentage of items where AI output matches the independent engineering gold (`COVERED`, `APPORTIONED`, `EXCLUDED`, `REVIEW`). Target: **≥ 85%**.
   - **Critical False Accept (FA)**: Any engine or propulsion item improperly marked as `COVERED` when damage was isolated to the bow. Gate: **Strictly 0 items**.
@@ -147,7 +147,7 @@ flowchart TD
 ```
 
 ### 3.1 Layer 1: GitHub Actions CI (Unit & Integration Regression)
-The project runs 8 automated CI checks on every pull request and push to `main` ([`.github/workflows/ci.yml`](file:///Users/yoheionishi/work/maritime-ai/marine-claims-AI/.github/workflows/ci.yml)):
+The project runs 8 automated CI checks on every pull request and push to `main` (`.github/workflows/ci.yml`):
 
 - **`CI/Unit tests` (`pytest --tb=short`)**:
   - Automatically executes **61 unit and regression tests**:
@@ -183,7 +183,7 @@ A common pitfall in AI evaluation is circular testing—evaluating an algorithm 
 
 1. **Independent Gold Implementation**:
    - The production pipeline utilizes complex prompt embeddings, hierarchical table parsing, and LLM extraction (`src/marine_claims_ai/appraisal/pipeline.py`).
-   - The evaluation harness ([`public_appraisal_eval.py`](file:///Users/yoheionishi/work/maritime-ai/marine-claims-AI/src/marine_claims_ai/benchmarks/public_appraisal_eval.py)) uses an independent naval architecture rule policy. Any parser hallucination or heuristic drift creates an immediate regression discrepancy.
+   - The evaluation harness (`src/marine_claims_ai/benchmarks/public_appraisal_eval.py`) uses an independent naval architecture rule policy. Any parser hallucination or heuristic drift creates an immediate regression discrepancy.
 2. **Deterministic Physical Invariants**:
    - Watertight bulkheads and compartment boundaries are immutable engineering facts under SOLAS regulations, not subjective LLM choices.
 3. **External Judicial Ground Truth**:
