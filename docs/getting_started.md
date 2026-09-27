@@ -36,6 +36,9 @@ uv run marine-claims-demo uc3 --case civil_7 --export-md _data/colregs.md
 uv sync --group demo
 uv run marine-claims-demo serve
 # → http://127.0.0.1:8765/
+
+# Optional local E2E (excluded from default/CI pytest)
+uv run pytest -m demo -q
 ```
 
 ---

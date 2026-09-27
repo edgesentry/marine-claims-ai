@@ -83,6 +83,13 @@ uv run marine-claims-demo serve
 
 Language: `--lang en|ja` on each CLI subcommand; Web uses `/set-lang?lang=…` (Cookie `demo_lang`).
 
+Local E2E (optional; **not** part of CI):
+
+```bash
+uv sync --group demo
+uv run pytest -m demo -q
+```
+
 ---
 
 ## 5. Data prerequisites
@@ -106,7 +113,7 @@ When extending the demo:
 2. Keep new strings in **`i18n.py`** with both `en` and `ja` keys; tests assert key symmetry.
 3. Respect **Zero-Dataset** and **no confidential pitch copy** ([AGENTS.md](../AGENTS.md)).
 4. Do not add CDN dependencies; vendor offline assets under `demo/static/vendor/` with a NOTICE line.
-5. Smoke tests: `tests/test_demo_app.py` (ops, CLI, optional FastAPI `TestClient` when demo group is installed).
+5. Local demo tests (not CI): after `uv sync --group demo`, run `uv run pytest -m demo -q`. Default `pytest` excludes the `demo` marker.
 
 ---
 

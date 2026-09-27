@@ -58,6 +58,10 @@ marine_claims_ai = [
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src"]
+markers = [
+    "demo: local executive demo CLI/Web tests (not required in CI; run with: pytest -m demo)",
+]
+addopts = "-m 'not demo'"
 
 [tool.ruff]
 target-version = "py311"
