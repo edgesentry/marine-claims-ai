@@ -203,7 +203,10 @@ CRITICAL_SYSTEM_KEYWORDS: Final[tuple[tuple[str, str], ...]] = (
 
 REPEAT_MULTIPLIER: Final[float] = 1.5
 
-_CODE_DIGITS = re.compile(r"(\d{2,5})")
+# Prefer full MOU 4–5 digit codes over leading item indexes ("Item 12: 04102").
+_CODE_LONG = re.compile(r"(?<!\d)(\d{4,5})(?!\d)")
+_CODE_SHORT = re.compile(r"(?<!\d)(\d{2,3})(?!\d)")
+_ISM_WORD = re.compile(r"\bism\b", re.IGNORECASE)
 
 
 def normalize_action_code(action_code: str | None) -> str | None:
@@ -238,10 +241,19 @@ def normalize_deficiency_code(code: str | None) -> str | None:
     text = str(code).strip()
     if not text:
         return None
-    match = _CODE_DIGITS.search(text.replace(" ", "").replace("-", ""))
-    if match:
-        return match.group(1)
-    digits = "".join(ch for ch in text if ch.isdigit())
+    # Prefer 4–5 digit MOU codes over leading item indexes ("Item 12: 04102").
+    long_match = _CODE_LONG.search(text)
+    if long_match:
+        return long_match.group(1)
+    # Dotted / hyphenated forms: "07.106", "071-06" → "07106".
+    compact = text.replace(" ", "").replace("-", "").replace(".", "")
+    long_match = _CODE_LONG.search(compact)
+    if long_match:
+        return long_match.group(1)
+    short_match = _CODE_SHORT.search(text) or _CODE_SHORT.search(compact)
+    if short_match:
+        return short_match.group(1)
+    digits = "".join(ch for ch in compact if ch.isdigit())
     return digits or None
 
 
@@ -312,7 +324,11 @@ def critical_system_id(code: str | None, description: str = "") -> str | None:
     if prefix in CRITICAL_SYSTEM_PREFIXES:
         return "ism"
     for needle, system_id in CRITICAL_SYSTEM_KEYWORDS:
-        if needle in desc:
+        # "ism" must be a whole word — otherwise "mechanism" / "transmission" false-hit.
+        if needle == "ism":
+            if _ISM_WORD.search(desc):
+                return system_id
+        elif needle in desc:
             return system_id
     return None
 

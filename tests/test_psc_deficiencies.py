@@ -24,6 +24,7 @@ from marine_claims_ai.ontology.psc import (
     action_severity,
     category_prefix,
     convention_for_code,
+    critical_system_id,
     is_detention_action,
     lookup_category,
     normalize_action_code,
@@ -80,6 +81,21 @@ def test_normalize_codes_accept_aliases():
     assert category_prefix("04102") == "041"
     assert normalize_action_code("Code 17") == "17"
     assert lookup_category("15150")["convention"] == "ISM"
+
+
+def test_normalize_prefers_five_digit_over_item_index():
+    assert normalize_deficiency_code("Item 12: 04102") == "04102"
+    assert normalize_deficiency_code("No. 10 - 07106") == "07106"
+    assert normalize_deficiency_code("07.106") == "07106"
+    assert normalize_deficiency_code("071-06") == "07106"
+
+
+def test_ism_keyword_requires_word_boundary():
+    assert critical_system_id(None, "ISM non-conformity on SMS") == "ism"
+    assert critical_system_id(None, "valve mechanism defective") is None
+    assert critical_system_id(None, "governor mechanism") is None
+    assert critical_system_id(None, "transmission") is None
+    assert critical_system_id(None, "steering gear jammed") == "steering_gear"
 
 
 def test_parse_paris_and_tokyo_field_aliases(fixtures: dict):
