@@ -23,7 +23,8 @@ from marine_claims_ai.legal.colregs_engine import (
     relative_bearing_deg,
 )
 
-FIXTURE_PATH = Path(__file__).parent / "fixtures" / "collision_geometries.json"
+# Tracked under config/ (Zero-Dataset JSON allowlist); not tests/fixtures/.
+FIXTURE_PATH = Path(__file__).resolve().parents[1] / "config" / "collision_geometries.json"
 
 
 def _load_cases() -> list[dict]:

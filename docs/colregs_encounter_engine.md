@@ -90,7 +90,7 @@ Attached as `VesselRole` on Rule 13/15 verdicts. Rule 14 uses mutual starboard a
 | :--- | :--- |
 | Engine | `src/marine_claims_ai/legal/colregs_engine.py` |
 | Package exports | `src/marine_claims_ai/legal/__init__.py` |
-| Geometry fixtures | `tests/fixtures/collision_geometries.json` |
+| Geometry fixtures | `config/collision_geometries.json` (Zero-Dataset JSON allowlist) |
 | Unit tests | `tests/test_colregs_engine.py` |
 
 ### 4.1 Telemetry helpers
@@ -117,7 +117,7 @@ Determinism: identical inputs always yield identical `EncounterVerdict` (no LLM 
 
 ## 5. Fixture policy
 
-`tests/fixtures/collision_geometries.json` holds **synthetic** compass-quadrant cases plus **anonymized historical-pattern** rows (no real vessel names / IMO). Pattern citations point at public ruling *situation* labels (e.g. Art. 15) and COLREGS thresholds, not proprietary claim files. Raw PDFs remain under gitignored `_inputs/`.
+`config/collision_geometries.json` holds **synthetic** compass-quadrant cases plus **anonymized historical-pattern** rows (no real vessel names / IMO). JSON lives under `config/` to satisfy the Zero-Dataset allowlist (Issue #30’s `tests/fixtures/` path would fail CI leak check). Pattern citations point at public ruling *situation* labels (e.g. Art. 15) and COLREGS thresholds, not proprietary claim files. Raw PDFs remain under gitignored `_inputs/`.
 
 ---
 
