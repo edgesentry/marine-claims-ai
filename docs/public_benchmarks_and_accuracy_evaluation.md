@@ -221,34 +221,44 @@ Benchmarking AI reasoning requires authoritative, reproducible ground truth with
 2. **International Validity of Japanese Ground Truth**:
    - Because Japanese tribunals evaluate navigational fault strictly under COLREGS principles, a benchmark case demonstrating that the AI correctly attributes a 70:30 crossing liability in Tokyo Bay serves as valid, transferable evidence that the underlying logic engine conforms to international COLREGS standards globally.
 
-### 5.3 Two-Tier Architecture for Future Multi-Jurisdiction Expansion
+### 5.3 Two-Tier Architecture: Universal Core vs. Jurisdiction & Regional Adapters
 
-To maintain complete legal interoperability as MarineClaims AI scales internationally, the system enforces a strict architectural decoupling between the **Universal Navigational Core** and **Jurisdiction-Specific Precedent Adapters**:
+To guarantee seamless global expansion (e.g., from Japan to Singapore, London, or European hubs) without architectural refactoring, the system enforces a strict separation of concerns:
+- **Universal Core (`src/marine_claims_ai/`)**: Codifies immutable physical laws, mathematical apportionment formulas, and international treaty conventions that are identical globally.
+- **Jurisdiction & Regional Adapters (`config/jurisdictions/` & LanceDB Partitions)**: Modular plug-in configurations encapsulating local precedent case law, regional shipyard labor tariffs, and domestic fairway regulations.
 
 ```mermaid
 flowchart TD
-    subgraph CORE["Universal Open-Core Reasoning Engine: Globally Neutral"]
-        C1["COLREGS Predicate Engine\nRules 13-17 Encounter Geometry Calculations\nRelative Bearing, Course Difference, Give-Way Identification"]
-        C2["SOLAS Watertight Spatial Graph\nPhysical Bulkhead Isolation & Damage Propagation Limits"]
-        C3["AAA Rule D / YAR Mathematical Apportionment\nStatutory 50/50 Dual-Condition Solver"]
+    subgraph CORE["Universal Open-Core Engine: Globally Neutral (No Code Changes)"]
+        C1["Pillar 1: Spatial Bulkhead Graph & AAA Rule D 50/50 Solver"]
+        C2["Pillar 2: COLREGS Rules 13-17 Encounter Geometry Engine"]
+        C3["Pillar 3: IMO Statutory Safety Conventions & PSC Taxonomy"]
     end
 
-    subgraph ADAPTERS["Jurisdiction-Specific Precedent Adapters"]
-        J1["Japan Adapter: Active Benchmark Target\nJMAT Decisions, Tokyo District Court Precedents, Commercial Code"]
-        J2["UK & London Adapter: International Expansion Target\nEnglish Admiralty Court Precedents, LMAA Rulings, MIA 1906"]
-        J3["Singapore Adapter: Asia-Pacific Hub Target\nSCMA Maritime Arbitration, Singapore High Court Precedents"]
+    subgraph ADAPTERS["Modular Jurisdiction & Regional Adapters (Config / DB Plugins)"]
+        A1["Japan Adapter (Current Active Target)\nJMAT Decisions, Tokyo District Court Precedents, Setouchi/Kyushu Tariffs"]
+        A2["UK & London Adapter (International Expansion)\nEnglish Admiralty Precedents, LMAA Arbitrations, UK ITC-Hulls"]
+        A3["Singapore & SE Asia Adapter (Asia-Pacific Hub)\nSCMA Arbitration Precedents, Malacca Strait Rules, Jurong Tariffs"]
     end
 
-    C1 --> J1
-    C2 --> J1
-    C3 --> J1
-    C1 -.->|"Global Fleet Expansion"| J2
-    C1 -.->|"Global Fleet Expansion"| J3
+    C1 --> A1
+    C2 --> A1
+    C3 --> A1
+    C1 -.->|"Global Fleet Expansion"| A2
+    C1 -.->|"Global Fleet Expansion"| A3
 ```
 
-- **Universal Core (Invariant)**:
-  - Relative encounter geometry, physical spatial constraints, and international convention predicates are identical regardless of flag state or port of registry.
-- **Jurisdiction Adapters (Modular)**:
-  - Local legal practices (such as minor variations in discretionary contributory negligence adjustments or local tariff structures) are encapsulated inside modular vector indexes without modifying core navigational or spatial algorithms.
-- **Future-Proof Guarantee**:
-  - Validating the universal core against Japanese open-access judicial records establishes algorithmic correctness under COLREGS, ensuring immediate readiness for UK and Singapore jurisdiction adapters without architectural refactoring.
+#### Detailed Breakdown Across the Three Functional Pillars
+
+| Functional Pillar | Universal Open Core (Globally Invariant) | Jurisdiction & Regional Adapters (Modular Plugins) |
+| :--- | :--- | :--- |
+| **Pillar 1: Concurrent Repair & Drydock Apportionment** | • **Physical Compartment Invariants**: Transverse watertight bulkhead barriers (SOLAS II-1) preventing causality across isolated compartments.<br>• **Statutory Survey Intervals**: IACS unified periodic survey cycles (Special Survey 5 years, Intermediate Survey 2.5 years) and mandatory inspection items (piston pulls, tailshafts).<br>• **Statutory 50/50 Apportionment**: Association of Average Adjusters (AAA) Rule D mathematical logic for dual-necessity common docking dues.<br>• **Standard Work Breakdown**: SFI group classification system for hull, engine, and electrical trades. | • **Shipyard Man-Hour Tariffs (Regional Rates)**:<br>  - Japan (Setouchi/Kyushu): Approx. 4,500–6,500 JPY/hr.<br>  - Singapore (Jurong): Approx. 35–50 USD/hr.<br>  - China (Zhoushan/Nantong): Approx. 18–28 USD/hr.<br>• **Local Dock Tariff Structure**: Daily lay-docking fee vs. tonnage lump-sum conventions.<br>• **Policy Wordings & Forms**: Japanese Hull Clauses (NK Form) vs. English Institute Time Clauses - Hulls (ITC-Hulls 1/10/83, 1995) vs. Nordic Marine Insurance Plan. |
+| **Pillar 2: Collision Fault Attribution & Legal Reasoning** | • **Steering & Sailing Regulations**: COLREGS 1972 Part B (Rule 13 Overtaking > 22.5° abaft the beam, Rule 14 Head-on mutual starboard alteration, Rule 15 Crossing starboard give-way).<br>• **Nautical Telemetry Analytics**: Mathematical computation of Relative Bearing, Course Difference, CPA (Closest Point of Approach), and TCPA from AIS/VDR records.<br>• **Proportional Fault Doctrine**: Core principle of 1910 Collision Convention dividing damages proportionally to fault degree. | • **Judicial Precedent Catalog (Fault Splits)**:<br>  - Japan: JMAT tribunal decisions & civil court precedent catalog.<br>  - UK: English Admiralty Court precedents & LMAA arbitration awards.<br>  - Singapore: SCMA maritime arbitration awards & High Court rulings.<br>• **Contributory Negligence Nuance**: Local judicial discretion on discretionary adjustment percentages (e.g., standard +10% increments for night lookout defaults).<br>• **Fairway Special Regulations**: Local transit rules (Japan Maritime Traffic Safety Act for Uraga/Kanmon vs. Singapore Strait TSS rules vs. Dover Strait CALDOVREP). |
+| **Pillar 3: PSC Risk Scoring & Warranty of Seaworthiness** | • **International Convention Treaties**: SOLAS, MARPOL, STCW, and ISM Code text and mandatory safety standards.<br>• **PSC Deficiency & Action Codes**: IMO Resolution A.1155(32) 5-digit category taxonomy (011xx, 041xx, 071xx, 131xx, 151xx) and standardized action codes (Code 17 rectify, Code 30 detention).<br>• **Baseline Severity Weights**: Algorithmic weighting of safety-critical systems (steering gear, emergency fire pumps, SMS non-conformities). | • **Regional MOU Inspection Priorities**: Tokyo MOU vs. Paris MOU vs. US Coast Guard (Qualship 21) annual Concentrated Inspection Campaigns (CIC).<br>• **Legal Thresholds for Warranty Breach**:<br>  - English Law (MIA 1906 Sec 39): Absolute warranty on voyage policies; requiring "privity of the assured" on time policies.<br>  - Japanese Law (Commercial Code Art 815): Carrier due-diligence and burden-of-proof standards.<br>  - Nordic Law (Nordic Plan): Stricter proximate causation requirements. |
+
+#### Architectural Guarantee Against Technical Debt
+
+By enforcing this strict boundary:
+1. **Zero Core Logic Rewrite**: The core Python and Rust modules (`ontology/compartments.py`, `legal/colregs_engine.py`, `analytics/rule_d_solver.py`) remain completely untouched when deploying to international markets.
+2. **Configuration-Driven Adaptation**: Adapting to a new maritime cluster (e.g., Singapore or London) requires only populating an external jurisdiction vector table in LanceDB and supplying local shipyard tariff schedules in YAML.
+3. **Reproducible Proof of Concept**: Validating the universal core against Japanese open-access judicial records proves the soundness of the underlying COLREGS and SOLAS logic, ensuring instantaneous credibility when presenting to international marine underwriters.

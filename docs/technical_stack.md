@@ -12,18 +12,18 @@ The core pipeline operates entirely on an **embedded, serverless data stack** un
 flowchart TD
     subgraph ARROW["Unified In-Process Data Pipeline (Apache Arrow Format)"]
         direction LR
-        POLARS["<b>Polars</b> (Rust)<br>High-speed tabular ETL &<br>repair specification normalization"]
-        LANCE["<b>LanceDB</b> (Rust)<br>Embedded Vector + BM25<br>hybrid retrieval (RRF)"]
-        NX["<b>NetworkX</b> (Python)<br>Watertight bulkhead &<br>ship compartment graph traversal"]
-        DUCK["<b>DuckDB</b> (C++)<br>Analytical SQL engine for<br>50/50 drydock apportionment"]
+        POLARS["Polars (Rust)\nHigh-speed tabular ETL and\nrepair specification normalization"]
+        LANCE["LanceDB (Rust)\nEmbedded Vector + BM25\nhybrid retrieval (RRF)"]
+        NX["NetworkX (Python)\nWatertight bulkhead and\nship compartment graph traversal"]
+        DUCK["DuckDB (C++)\nAnalytical SQL engine for\n50/50 drydock apportionment"]
         
         POLARS -->|"Arrow RecordBatch"| LANCE
         LANCE -->|"Candidate Item IDs"| NX
         NX -->|"Validated Causality Flags"| DUCK
     end
 
-    RAW["Input PDF Specifications &<br>Casualty Incident Reports"] --> POLARS
-    DUCK --> OUT["Appraisal Decision Output &<br>Claims Leakage Summary"]
+    RAW["Input PDF Specifications and\nCasualty Incident Reports"] --> POLARS
+    DUCK --> OUT["Appraisal Decision Output and\nClaims Leakage Summary"]
 ```
 
 ---
@@ -60,7 +60,49 @@ flowchart TD
 
 ---
 
-## 3. Deployment & Execution Characteristics
+## 3. Two-Tier System Architecture: Universal Core vs. Jurisdiction Adapters
+
+To guarantee international portability across global maritime hubs while anchoring accuracy against rigorous judicial benchmarks, the architecture enforces a strict decoupling between **Universal Open-Core Engines** and **Modular Jurisdiction/Regional Adapters**:
+
+```mermaid
+flowchart TD
+    subgraph CORE["Universal Open Core (Globally Invariant)"]
+        direction TB
+        C1["Pillar 1: Watertight Bulkhead Isolation & AAA Rule D Engine"]
+        C2["Pillar 2: COLREGS Rules 13-17 Encounter Geometry Engine"]
+        C3["Pillar 3: IMO Statutory Safety Conventions & PSC Taxonomy"]
+    end
+
+    subgraph ADAPTERS["Modular Jurisdiction & Regional Adapters (Config / DB Plugins)"]
+        A1["Japan Adapter (Current Active Target)\nJMAT Decisions, Tokyo District Court Precedents, Setouchi/Kyushu Tariffs"]
+        A2["UK & London Adapter (International Expansion)\nEnglish Admiralty Precedents, LMAA Arbitrations, UK ITC-Hulls"]
+        A3["Singapore & SE Asia Adapter (Asia-Pacific Hub)\nSCMA Arbitration Precedents, Malacca Strait Rules, Jurong Tariffs"]
+    end
+
+    C1 --> A1
+    C2 --> A1
+    C3 --> A1
+    C1 -.->|"Global Fleet Expansion"| A2
+    C1 -.->|"Global Fleet Expansion"| A3
+```
+
+### Architectural Separation Matrix
+
+| Functional Pillar | Universal Open Core (Globally Invariant) | Jurisdiction & Regional Adapters (Modular Plugins) |
+| :--- | :--- | :--- |
+| **Pillar 1: Concurrent Repair & Drydock Apportionment** | • **Physical Compartment Invariants**: Transverse watertight bulkhead barriers (SOLAS II-1) preventing causality across isolated compartments.<br>• **Statutory Survey Intervals**: IACS unified periodic survey cycles (Special Survey 5 years, Intermediate Survey 2.5 years) and mandatory inspection items (piston pulls, tailshafts).<br>• **Statutory 50/50 Apportionment**: Association of Average Adjusters (AAA) Rule D mathematical logic for dual-necessity common docking dues.<br>• **Standard Work Breakdown**: SFI group classification system for hull, engine, and electrical trades. | • **Shipyard Man-Hour Tariffs (Regional Rates)**:<br>  - Japan (Setouchi/Kyushu): Approx. 4,500–6,500 JPY/hr.<br>  - Singapore (Jurong): Approx. 35–50 USD/hr.<br>  - China (Zhoushan/Nantong): Approx. 18–28 USD/hr.<br>• **Local Dock Tariff Structure**: Daily lay-docking fee vs. tonnage lump-sum conventions.<br>• **Policy Wordings & Forms**: Japanese Hull Clauses (NK Form) vs. English Institute Time Clauses - Hulls (ITC-Hulls 1/10/83, 1995) vs. Nordic Marine Insurance Plan. |
+| **Pillar 2: Collision Fault Attribution & Legal Reasoning** | • **Steering & Sailing Regulations**: COLREGS 1972 Part B (Rule 13 Overtaking > 22.5° abaft the beam, Rule 14 Head-on mutual starboard alteration, Rule 15 Crossing starboard give-way).<br>• **Nautical Telemetry Analytics**: Mathematical computation of Relative Bearing, Course Difference, CPA (Closest Point of Approach), and TCPA from AIS/VDR records.<br>• **Proportional Fault Doctrine**: Core principle of 1910 Collision Convention dividing damages proportionally to fault degree. | • **Judicial Precedent Catalog (Fault Splits)**:<br>  - Japan: JMAT tribunal decisions & civil court precedent catalog.<br>  - UK: English Admiralty Court precedents & LMAA arbitration awards.<br>  - Singapore: SCMA maritime arbitration awards & High Court rulings.<br>• **Contributory Negligence Nuance**: Local judicial discretion on discretionary adjustment percentages (e.g., standard +10% increments for night lookout defaults).<br>• **Fairway Special Regulations**: Local transit rules (Japan Maritime Traffic Safety Act for Uraga/Kanmon vs. Singapore Strait TSS rules vs. Dover Strait CALDOVREP). |
+| **Pillar 3: PSC Risk Scoring & Warranty of Seaworthiness** | • **International Convention Treaties**: SOLAS, MARPOL, STCW, and ISM Code text and mandatory safety standards.<br>• **PSC Deficiency & Action Codes**: IMO Resolution A.1155(32) 5-digit category taxonomy (011xx, 041xx, 071xx, 131xx, 151xx) and standardized action codes (Code 17 rectify, Code 30 detention).<br>• **Baseline Severity Weights**: Algorithmic weighting of safety-critical systems (steering gear, emergency fire pumps, SMS non-conformities). | • **Regional MOU Inspection Priorities**: Tokyo MOU vs. Paris MOU vs. US Coast Guard (Qualship 21) annual Concentrated Inspection Campaigns (CIC).<br>• **Legal Thresholds for Warranty Breach**:<br>  - English Law (MIA 1906 Sec 39): Absolute warranty on voyage policies; requiring "privity of the assured" on time policies.<br>  - Japanese Law (Commercial Code Art 815): Carrier due-diligence and burden-of-proof standards.<br>  - Nordic Law (Nordic Plan): Stricter proximate causation requirements. |
+
+### Technical Debt Elimination Guarantee
+
+1. **Zero Core Logic Rewrite**: Core calculation and constraint engines (`ontology/compartments.py`, `legal/colregs_engine.py`, `analytics/rule_d_solver.py`) are strictly decoupled from jurisdiction-specific rules.
+2. **Configuration-Driven Adaptation**: Deploying to a new maritime cluster (e.g., London or Singapore) requires only populating an external jurisdiction vector table in LanceDB and supplying local shipyard tariff schedules in YAML.
+3. **Soundness Verification**: Benchmarking against Japanese open-access judicial records proves the soundness of the underlying COLREGS and SOLAS logic, ensuring instantaneous credibility when presenting to international marine underwriters.
+
+---
+
+## 4. Deployment & Execution Characteristics
 
 - **Zero External Dependencies**: Operates entirely within standard Python virtual environments (`>= 3.11`) without requiring background daemons, Docker runtime, or external network connections during verification.
 - **Local Isolation**: All caches and intermediate database files reside in local, gitignored directories (`_inputs/`, `datasets/`, `.lancedb/`).
@@ -68,7 +110,7 @@ flowchart TD
 
 ---
 
-## 4. Local Database Persistence & Backup Strategy
+## 5. Local Database Persistence & Backup Strategy
 
 In alignment with our **Zero-Dataset Git Policy**, binary database files (`*.duckdb`, `.lancedb/`) and downloaded public files are strictly excluded from version control.
 
