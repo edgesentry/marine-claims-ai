@@ -144,12 +144,20 @@ flowchart TD
 
 #### Pillar 2: Judicial Ruling Ground Truth (Collision Fault Attribution & COLREGS)
 - **The Rationale**: Maritime tribunal rulings (*JMAT*) and civil court decisions (*courts.go.jp*) contain authoritative, legally binding determinations of encounter situations (e.g., Article 15 Crossing) and fault ratios (e.g., 80:20).
-- **Evaluation Mechanism (`tests/test_colregs_engine.py` & `scripts/eval_colregs_end_to_end.py`)**:
-  - Extracts encounter geometry (vessel headings, speed, relative sighting bearings) from raw incident texts and AIS telemetry plots.
-  - Evaluates situation and vessel duty through `colregs_engine.classify_encounter()` against the certified tribunal ruling (*主文*).
+- **Evaluation Mechanism**:
+  - **Geometry unit fixtures** (`tests/test_colregs_engine.py` + `config/collision_geometries.json`): 20 synthetic / historical-pattern geometries → `classify_encounter` (100% situation accuracy).
+  - **E2E raw-narrative pipeline** (`scripts/eval_colregs_end_to_end.py`):
+    - Catalog: `config/jmat_collision_eval.json` (≥10 public-style JMAT/JTSB collision narratives with independent gold Arts. 13–15).
+    - Stage A extractor: `src/marine_claims_ai/ingest/jmat_extractor.py` (headings, relative bearings, speeds, statutory article).
+    - Stage B: `colregs_engine.classify_encounter()` vs catalog gold (not vs extractor-echoed labels).
+    - Offline Zero-Dataset: embedded `facts_text` / `ruling_text`; optional `source_file` under `_inputs/poc_datasets` when present.
+- **Metrics**:
+  - **Telemetry Extraction Rate**: share of runnable cases where required geometry fields parse successfully.
+  - **E2E Situation Accuracy**: share of extracted cases where predicted situation matches catalog gold.
+  - **Critical Role Inversions**: give-way / stand-on swap when situation matches (must be 0; head-on mutual give-way excluded).
 - **Current Benchmark**:
-  - **Encounter Situation Accuracy**: **100.0% (20/20 cases passed)** across all compass quadrants and historical collision patterns (e.g., Kii Channel crossing collision).
-  - **Critical Role Inversions**: **0**.
+  - Geometry fixtures: **100.0% (20/20)**.
+  - E2E narrative catalog: **Extraction Rate 100%**, **Situation Accuracy 100%**, **Critical Role Inversions 0** (≥10 cases spanning Head-on / Crossing / Overtaking).
 
 #### Pillar 3: Prefectural Award Tender Ground Truth (Cost Estimation)
 - **The Rationale**: Prefectural official gazettes publish exact contract award prices alongside itemized repair specifications.
@@ -262,6 +270,22 @@ uv run python scripts/eval_public_appraisal.py \
   - `max_critical_false_accepts`: Strictly 0.
   - `min_status_agreement`: ≥ 85.0%.
 - If a prompt modification or parser update introduces a regression (e.g., an engine overhaul is erroneously approved under a bow collision), the evaluation script immediately exits with code 1, flagging the exact conflicting line items.
+
+### 3.3 Layer 2: COLREGS E2E Narrative Evaluation CLI
+Pillar 2 end-to-end accuracy from raw collision narratives (Issue #39). Runs fully offline against embedded catalog text (no network):
+
+```bash
+uv run python scripts/eval_colregs_end_to_end.py \
+  --json-out _inputs/poc_datasets/colregs_e2e_eval_report.json \
+  --fail-on-gate
+```
+
+- **`--fail-on-gate`** thresholds (`config/jmat_collision_eval.json` → `gates`):
+  - `min_cases_run`: ≥ 10.
+  - `min_extraction_rate`: ≥ 90.0%.
+  - `min_situation_agreement`: ≥ 90.0%.
+  - `max_critical_role_inversions`: Strictly 0.
+- Offline unit coverage: `tests/test_jmat_extractor.py` (fullwidth digits, half-width katakana, compass points, role-inversion gate).
 
 ---
 

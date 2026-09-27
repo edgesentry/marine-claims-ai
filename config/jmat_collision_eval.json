@@ -1,0 +1,157 @@
+{
+  "version": 1,
+  "description": "Pillar 2 E2E COLREGS eval catalog: curated public-style JMAT/JTSB collision narratives with independent gold (Arts. 13–15). Offline Zero-Dataset; no network required. Issue #39.",
+  "attribution": "Narrative fixtures stylized after public MLIT JMAT saiketsu and JTSB casualty report phrasing. Gold labels are founder-curated statutory determinations, independent of colregs_engine output.",
+  "cases": [
+    {
+      "case_id": "crossing_kii_starboard_giveway",
+      "title": "紀伊水道横切衝突パターン（右舷給路）",
+      "url": "https://www.mlit.go.jp/jmat/",
+      "source_type": "jmat_style_fixture",
+      "facts_text": "本船Ａは針路０３０度、速力約１２ノットで進行中、右舷前約４０度に相手船Ｂを視認した。相手船Ｂは針路３００度、速力約１０ノットで航行していた。両船は接近し衝突の危険が生じた。",
+      "ruling_text": "本件衝突は、海上衝突予防法第１５条に規定する横切り船の航法が適用される状況において、本船Ａが相手船を右舷に見て避航義務を怠ったことによって発生したものである。",
+      "expected_situation": "crossing",
+      "expected_role_a": "give_way",
+      "expected_role_b": "stand_on",
+      "expected_article": 15
+    },
+    {
+      "case_id": "crossing_port_standon",
+      "title": "左舷他船横切における保持船パターン",
+      "url": "https://www.mlit.go.jp/jmat/",
+      "source_type": "jmat_style_fixture",
+      "facts_text": "本船Ａは針路０００度、速力約１１ノットで進行中、左舷前約６０度に相手船Ｂを視認した。相手船Ｂは針路０９０度、速力約９ノットであった。",
+      "ruling_text": "本件は海上衝突予防法第１５条の横切り船の航法が適用され、相手船Ｂが避航船、本船Ａが保持船となる状況であった。",
+      "expected_situation": "crossing",
+      "expected_role_a": "stand_on",
+      "expected_role_b": "give_way",
+      "expected_article": 15
+    },
+    {
+      "case_id": "crossing_fine_starboard",
+      "title": "右舷小角度横切パターン",
+      "url": "https://www.mlit.go.jp/jmat/",
+      "source_type": "jmat_style_fixture",
+      "facts_text": "本船Ａは針路０００度、速力約１４ノットで進行中、右舷前約４５度に相手船Ｂを視認し、相手船Ｂは針路２７０度、速力約１２ノットで横切る態勢にあった。",
+      "ruling_text": "海上衝突予防法第１５条に定める横切り船の航法が適用される状況において衝突した。",
+      "expected_situation": "crossing",
+      "expected_role_a": "give_way",
+      "expected_role_b": "stand_on",
+      "expected_article": 15
+    },
+    {
+      "case_id": "crossing_wide_starboard",
+      "title": "右舷大幅横切パターン",
+      "url": "https://www.mlit.go.jp/jmat/",
+      "source_type": "jmat_style_fixture",
+      "facts_text": "本船Ａは針路０９０度、速力約１０ノットで東進中、右舷前約７０度に相手船Ｂを視認した。相手船Ｂは針路０００度、速力約１１ノットで北進していた。",
+      "ruling_text": "本件衝突は第１５条の横切り船の航法が適用される局面で発生した。",
+      "expected_situation": "crossing",
+      "expected_role_a": "give_way",
+      "expected_role_b": "stand_on",
+      "expected_article": 15
+    },
+    {
+      "case_id": "head_on_reciprocal",
+      "title": "航路内行会い（真向かい）パターン",
+      "url": "https://jtsb.mlit.go.jp/",
+      "source_type": "jtsb_style_fixture",
+      "facts_text": "本船Ａは針路０００度、速力約８ノットで進行中、船首方向に相手船Ｂを視認した。相手船Ｂは針路１８０度、速力約９ノットで接近していた。",
+      "ruling_text": "本件は海上衝突予防法第１４条に規定する行会い船の航法が適用される状況において、双方が右転を怠ったことによって発生した。",
+      "expected_situation": "head_on",
+      "expected_role_a": "give_way",
+      "expected_role_b": "give_way",
+      "expected_article": 14
+    },
+    {
+      "case_id": "head_on_channel_nearly",
+      "title": "狭水道ほぼ真向かいパターン",
+      "url": "https://jtsb.mlit.go.jp/",
+      "source_type": "jtsb_style_fixture",
+      "facts_text": "本船Ａは針路２００度、速力約７ノットで進行中、ほとんど船首方向に相手船Ｂを視認した。相手船Ｂは針路０２０度、速力約８ノットであった。",
+      "ruling_text": "海上衝突予防法第１４条の行会い船の航法が適用される状況であった。",
+      "expected_situation": "head_on",
+      "expected_role_a": "give_way",
+      "expected_role_b": "give_way",
+      "expected_article": 14
+    },
+    {
+      "case_id": "head_on_plus5",
+      "title": "行会い許容帯（航向差＋５度）パターン",
+      "url": "https://www.mlit.go.jp/jmat/",
+      "source_type": "jmat_style_fixture",
+      "facts_text": "本船Ａは針路０９０度、速力約１０ノットで進行中、船首方向に相手船Ｂを認めた。相手船Ｂは針路２７５度、速力約１０ノットで対進していた。",
+      "ruling_text": "本件衝突は第１４条行会い船の航法が適用される状況で発生したものである。",
+      "expected_situation": "head_on",
+      "expected_role_a": "give_way",
+      "expected_role_b": "give_way",
+      "expected_article": 14
+    },
+    {
+      "case_id": "overtaking_starboard_quarter",
+      "title": "沿岸追越し（右舷四分円）パターン",
+      "url": "https://jtsb.mlit.go.jp/",
+      "source_type": "jtsb_style_fixture",
+      "facts_text": "本船Ａは針路０８５度、速力約１４ノットで進行中、左舷前約１５度に相手船Ｂを視認した。相手船Ｂは針路０９０度、速力約８ノットで東進しており、本船Ａは相手船の右舷正横後から追越し接近していた。",
+      "ruling_text": "本件は海上衝突予防法第１３条に規定する追越し船の航法が適用される状況において、追越し船である本船Ａが避航を怠ったことによって発生した。",
+      "expected_situation": "overtaking",
+      "expected_role_a": "give_way",
+      "expected_role_b": "stand_on",
+      "expected_article": 13
+    },
+    {
+      "case_id": "overtaking_astern",
+      "title": "正船尾からの追越しパターン",
+      "url": "https://www.mlit.go.jp/jmat/",
+      "source_type": "jmat_style_fixture",
+      "facts_text": "本船Ａは針路０００度、速力約１５ノットで進行中、船首方向に相手船Ｂを視認した。相手船Ｂは針路０００度、速力約８ノットで同針路を航行しており、本船Ａはその後方から追いつつあった。",
+      "ruling_text": "海上衝突予防法第１３条の追越し船の航法が適用され、追越し船に避航義務があった。",
+      "expected_situation": "overtaking",
+      "expected_role_a": "give_way",
+      "expected_role_b": "stand_on",
+      "expected_article": 13
+    },
+    {
+      "case_id": "overtaking_port_quarter",
+      "title": "左舷四分円からの追越しパターン",
+      "url": "https://jtsb.mlit.go.jp/",
+      "source_type": "jtsb_style_fixture",
+      "facts_text": "本船Ａは針路０９５度、速力約１３ノットで進行中、船首方向に相手船Ｂを視認した。相手船Ｂは針路０９０度、速力約７ノットであり、本船Ａは相手船の左舷正横後から追越し接近していた。",
+      "ruling_text": "本件衝突は第１３条追越し船の航法が適用される状況で発生した。",
+      "expected_situation": "overtaking",
+      "expected_role_a": "give_way",
+      "expected_role_b": "stand_on",
+      "expected_article": 13
+    },
+    {
+      "case_id": "crossing_compass_heading",
+      "title": "コンパス表記針路の横切パターン",
+      "url": "https://www.mlit.go.jp/jmat/",
+      "source_type": "jmat_style_fixture",
+      "facts_text": "本船Ａは針路北東、速力約１２ﾉｯﾄで進行中、右舷前約５０度に相手船Ｂを視認した。相手船Ｂは針路北西、速力約１０ノットで航行していた。",
+      "ruling_text": "海上衝突予防法第１５条に規定する横切り船の航法が適用される状況であった。",
+      "expected_situation": "crossing",
+      "expected_role_a": "give_way",
+      "expected_role_b": "stand_on",
+      "expected_article": 15
+    },
+    {
+      "case_id": "crossing_micro_north_compass",
+      "title": "北東の微北コンパス針路パターン",
+      "url": "https://www.mlit.go.jp/jmat/",
+      "source_type": "jmat_style_fixture",
+      "facts_text": "本船Ａは針路北東の微北、速力約１１ノットで進行中、右舷前約３５度に相手船Ｂを視認した。相手船Ｂは針路３００度、速力約９ノットであった。",
+      "ruling_text": "本件は第１５条の横切り船の航法が適用される局面であった。",
+      "expected_situation": "crossing",
+      "expected_role_a": "give_way",
+      "expected_role_b": "stand_on",
+      "expected_article": 15
+    }
+  ],
+  "gates": {
+    "min_cases_run": 10,
+    "min_extraction_rate": 0.9,
+    "min_situation_agreement": 0.9,
+    "max_critical_role_inversions": 0
+  }
+}
