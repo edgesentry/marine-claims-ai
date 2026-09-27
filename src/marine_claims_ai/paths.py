@@ -1,4 +1,9 @@
-"""Shared filesystem paths for the open-core package."""
+"""Shared filesystem paths for the open-core package.
+
+Canonical 3-tier layout (`_inputs/` / `_data/` / `_logs/`) is defined in
+``docs/directory_structure_and_data_governance.md``. Callers must use these
+constants instead of hardcoding relative paths.
+"""
 
 from __future__ import annotations
 
@@ -8,12 +13,35 @@ from pathlib import Path
 PACKAGE_ROOT = Path(__file__).resolve().parent
 REPO_ROOT = PACKAGE_ROOT.parents[1]
 
+# --- Tier 1: raw external documents (read-only) -------------------------------
+DEFAULT_INPUTS_DIR = REPO_ROOT / "_inputs"
+DEFAULT_INPUT_REPAIRS_DIR = DEFAULT_INPUTS_DIR / "repairs"
+DEFAULT_INPUT_CASUALTIES_DIR = DEFAULT_INPUTS_DIR / "casualties"
+DEFAULT_INPUT_LEGAL_DIR = DEFAULT_INPUTS_DIR / "legal"
+DEFAULT_INPUT_CHARTER_PARTY_DIR = DEFAULT_INPUTS_DIR / "charter_party"
+DEFAULT_INPUT_REINSURANCE_DIR = DEFAULT_INPUTS_DIR / "reinsurance"
+DEFAULT_INPUT_STANDARDS_DIR = DEFAULT_INPUTS_DIR / "standards"
+
+# --- Tier 2: derived storage (rebuildable) ------------------------------------
 DEFAULT_DATA_DIR = REPO_ROOT / "_data"
+DEFAULT_DUCK_DIR = DEFAULT_DATA_DIR / "duckdb"
+DEFAULT_DUCK_PATH = DEFAULT_DUCK_DIR / "marine_claims.duckdb"
+DEFAULT_LANCE_DIR = DEFAULT_DATA_DIR / "lancedb"
+DEFAULT_BENCHMARK_DIR = DEFAULT_DATA_DIR / "benchmarks"
+DEFAULT_CACHE_DIR = DEFAULT_DATA_DIR / "cache"
+
+# Compat: flat PoC PDF cache used by current demo / eval scripts.
 DEFAULT_DATASET_DIR = DEFAULT_DATA_DIR / "poc_datasets"
-DEFAULT_LANCE_DIR = REPO_ROOT / ".lancedb"
-DEFAULT_DUCK_PATH = DEFAULT_DATA_DIR / "marine_claims.duckdb"
-# Legacy cache path (pre-_data migration); loaders may fall back when present.
-LEGACY_DATASET_DIR = REPO_ROOT / "_inputs" / "poc_datasets"
+
+# --- Tier 3: operational / audit logs ----------------------------------------
+DEFAULT_LOG_DIR = REPO_ROOT / "_logs"
+
+# --- Legacy locations (read fallbacks; prefer constants above) ----------------
+LEGACY_DATASET_DIR = DEFAULT_INPUTS_DIR / "poc_datasets"
+LEGACY_DUCK_PATH = DEFAULT_DATA_DIR / "marine_claims.duckdb"
+LEGACY_LANCE_DIR = REPO_ROOT / ".lancedb"
+
+# --- Tracked config -----------------------------------------------------------
 DEFAULT_CONFIG_PATH = REPO_ROOT / "config" / "benchmark_rules.json"
 DEFAULT_NEGATIVE_PATTERN_PATH = REPO_ROOT / "config" / "negative_pattern_library.json"
 DEFAULT_CIVIL_CATALOG_PATH = REPO_ROOT / "config" / "civil_precedent_catalog.json"

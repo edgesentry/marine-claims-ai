@@ -18,7 +18,12 @@ Any autonomous or semi-autonomous AI agent operating in this codebase MUST stric
 
 ### B. Zero-Dataset Git Policy (Do Not Commit Raw or Extracted Data)
 - **NEVER** commit raw external documents (PDFs, HTML files), private spreadsheets (CSV, TSV), or extracted benchmark JSON files to this Git repository.
-- All evaluation data must be generated or fetched on-demand into gitignored local cache directories (`_data/`, legacy `_inputs/`, `datasets/`).
+- All evaluation data must be generated or fetched on-demand into gitignored local cache directories (`_inputs/`, `_data/`, `_logs/`).
+- The canonical directory layout and subfolder rules are defined in **[docs/directory_structure_and_data_governance.md](docs/directory_structure_and_data_governance.md)**:
+  - `_inputs/`: Raw external documents only (PDF, HTML). Read-only; no databases or generated files.
+  - `_data/`: Derived databases (DuckDB, LanceDB), benchmark evaluation JSONs, and rendering/OCR caches.
+  - `_logs/`: Runtime operational logs, benchmark evaluation logs, and audit trails.
+- Resolve filesystem locations via `marine_claims_ai.paths` (do not hardcode `_inputs/` / `_data/` / `_logs/` relative paths).
 - Only source code (`src/marine_claims_ai/`, thin `scripts/` entrypoints), configuration schemas (`config/benchmark_rules.json`), and architectural documentation (`docs/`) are tracked in version control.
 
 ### C. Architectural Boundaries
