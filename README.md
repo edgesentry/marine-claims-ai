@@ -217,3 +217,9 @@ Gates (config): ≥3 runnable cases, critical False Accept = 0, mean status agre
 - [Prior Research Synthesis](docs/prior_research_synthesis.md)
 - [Benchmark Methodology and Architecture](_inputs/poc_datasets/benchmark_methodology_and_architecture.md)
 - [Benchmark Validation Report](_inputs/poc_datasets/3fields_benchmark_validation_report.md)
+
+---
+
+## License
+
+This project is licensed under the [Apache License, Version 2.0](LICENSE).
