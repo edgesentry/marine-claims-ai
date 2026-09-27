@@ -165,8 +165,8 @@ def create_app() -> FastAPI:
 def _export_uc1(lang: Lang, fmt: str, filename: str, media_type: str) -> Response:
     try:
         _, body = export_uc1(lang, fmt=fmt)  # type: ignore[arg-type]
-    except FileNotFoundError as exc:
-        return Response(str(exc), status_code=404, media_type="text/plain")
+    except FileNotFoundError:
+        return Response("Requested resource was not found.", status_code=404, media_type="text/plain")
     return _download(body, filename, media_type)
 
 
