@@ -54,6 +54,7 @@ flowchart TD
 - **Civil Court Collision Judgments (民事裁判例)**:
   - *Source*: Supreme Court and High Courts public judgment database (`courts.go.jp`).
   - *Data Captured*: Certified civil liability splits (e.g., 65:35, 70:30, 80:20), claimed drydock expenses, awarded damages, and judicial rationale.
+  - *Automated extraction*: `civil_judgment_extractor.py` parses fault ratios and yen awards from raw judgment text (see §2.4).
 - **Port State Control (PSC) WGB Flag Lists (寄港国検査データ)**:
   - *Source*: Paris MOU and Tokyo MOU annual publications.
   - *Data Captured*: Flag-state inspection counts, detention counts, detention rates, and official risk tier classifications (White, Grey, Black).
@@ -160,6 +161,54 @@ flowchart TD
   ```
 
 - **Current Benchmark**: **3.0% MAPE** (97.0% price estimation accuracy) across municipal shipyard work packages.
+
+#### Pillar 2 Supplement: Civil Judgment Fault / Yen Extraction (`civil_judgment_extractor`)
+
+Raw Japanese maritime civil judgments (courts.go.jp PDFs/HTML) encode contributory negligence and damages using vertical-writing residue, kanji numerals, and varied holding phrasing. Manual cataloging into `config/civil_precedent_catalog.json` does not scale; the extractor automates Stage A for Field 4 realism eval.
+
+**Module**: `src/marine_claims_ai/ingest/civil_judgment_extractor.py`  
+**Validation CLI**: `uv run python scripts/validate_civil_judgment_extractor.py`  
+**Offline tests**: `tests/test_civil_judgment_extractor.py` (Zero-Dataset; no network / no committed PDFs)
+
+##### Extraction rules
+
+| Target | Accepted surface forms | Normalized output |
+| :--- | :--- | :--- |
+| Fault ratio pair | `65:35`, `65対35`, `六五対三五`, `65／35` | `65:35` |
+| Percent holding | `六五パーセント`, `65%`, `七五％` (near 責任/過失割合) | `65:35` (= pct : 100−pct) |
+| Tenths / named vessels | `建昌六・五、有漁丸三・五`; `しんえい丸八、金宝丸二` | `65:35` / `80:20` |
+| Compact catalog style | `建昌65・有漁丸35` | `65:35` |
+| Wari (割) | `原告の過失割合を三割と認める` | `30:70` |
+| Cause fallback | `主因`+`一因`, or `によって発生`+`一因`, **only when** the span (±40 chars) also contains `過失`/`責任`/`航法`/`衝突`/… | `70:30` (conventional); roles `primary_cause` / `secondary_cause` |
+
+**Party / vessel binding (Issue #44 prep):** `FaultRatioHit` and `JudgmentExtraction` expose optional `side_a_label` / `side_b_label` (e.g. 建昌 / 有漁丸, 原告) and `side_a_role` / `side_b_role` (`vessel`, `plaintiff`, `defendant`, `primary_cause`, …) aligned with the `A:B` ratio sides. Catalog-facing `fault_ratio` remains the anonymous `A:B` string for backward compatibility.
+| Claimed yen | Label `請求額` / `請求金額` / `損害額合計` / … + Arabic or kanji `円` | int JPY |
+| Awarded yen | Label `認容額` / `認容` / `支払を命じ` / … | int JPY |
+| Disallowed yen | Label `棄却` / `否認` / `減額` / … | int JPY |
+| Kanji yen | `八〇七万二三三五円`, `一億〇三九〇万三〇〇〇円` | digit-run × 万/億 |
+
+Operative holding spans are located via anchors `過失相殺`, `過失割合`, `責任割合`, `双方の過失`, etc., and returned as `holding_excerpt` for audit.
+
+Ingestion (`enrich_from_text` in `civil.py`) delegates to this extractor and never overwrites seed gold already present in the catalog.
+
+##### Known edge cases
+
+1. **Ratio not stated in the document**: Some catalog rows (e.g. disciplinary / criminal PDFs, modelled published summaries) carry curated `fault_ratio` gold that never appears as an explicit percentage in the source text. Local-document validation **skips** those cases rather than counting them as extractor failures.
+2. **Multiple ratios in one judgment**: Older Supreme Court PDFs may recite prior collisions (e.g. 80:20 for a different pair) before the operative 65:35. The extractor ranks by pattern confidence (labeled pair / percent > tenths > 主因/一因 fallback); gold comparison uses the top-ranked hit.
+3. **Unlabeled yen figures**: Large `円` amounts without 請求/認容 labels are retained as unlabeled hits so gold matching can still succeed (exact amount presence), but labeled fields are preferred when filling `claimed_repair_jpy` / `awarded_damages_jpy`.
+4. **Fullwidth / ideographic punctuation**: Digits `０-９`, percent `％`, and commas `，`/`、` are normalized before Arabic yen regex matching.
+
+##### Accuracy gate
+
+```bash
+# CI-safe offline fixtures (embedded public phrasing; target ≥ 90%)
+uv run python scripts/validate_civil_judgment_extractor.py --mode offline --min-accuracy 0.90
+
+# Against local cached PDFs (after fetch_public_datasets --field 4)
+uv run python scripts/validate_civil_judgment_extractor.py --mode local --data-dir _inputs/poc_datasets
+```
+
+Definition of Done for Issue #43: offline fixture accuracy ≥ 90%, and local PDF/HTML extraction agrees with catalog gold on **evidenced** fields at ≥ 90% when documents are present (rows whose source text never restates the curated ratio/yen are skipped, not failed).
 
 ---
 
