@@ -1,0 +1,193 @@
+{
+  "version": 1,
+  "description": "Anonymized Paris/Tokyo MOU-style PSC inspection records for seaworthiness Defect Score unit tests. No real vessel names or IMO numbers. Codes verified against Tokyo/Paris Deficiency Codes July 2026.",
+  "sources": {
+    "taxonomy": [
+      "https://www.tokyo-mou.org/wp/wp-content/uploads/Tokyo-MOU-deficiency-codes-July-2026.pdf",
+      "https://parismou.org/download/2556/"
+    ],
+    "action_codes": [
+      "https://parismou.org/download/pscc59-2026-03-guidelines-on-detention-and-action-taken/"
+    ],
+    "procedures": [
+      "https://wwwcdn.imo.org/localresources/en/KnowledgeCentre/IndexofIMOResolutions/AssemblyDocuments/A.1155(32).pdf"
+    ]
+  },
+  "cases": [
+    {
+      "id": "paris_detention_emergency_fire_pump",
+      "kind": "synthetic",
+      "mou_id": "paris",
+      "inspection": {
+        "inspection_date": "2024-03-12",
+        "mou_id": "paris",
+        "deficiencies": [
+          {
+            "deficiency_code": "04102",
+            "action_taken": "30",
+            "nature": "Emergency fire pump and its pipes — inoperative"
+          },
+          {
+            "deficiency_code": "01106",
+            "action_taken": "17",
+            "nature": "Document of Compliance (DoC/ISM) — overdue endorsement"
+          }
+        ]
+      },
+      "expect": {
+        "detention_present": true,
+        "min_defect_score": 1.0,
+        "has_critical_system": "emergency_fire_pump",
+        "conventions_contain": ["SOLAS II-1/II-2", "SOLAS Certificates"]
+      }
+    },
+    {
+      "id": "tokyo_fire_safety_not_navigation",
+      "kind": "synthetic",
+      "mou_id": "tokyo",
+      "inspection": {
+        "inspection_date": "2025-01-08",
+        "mou_id": "tokyo",
+        "deficiencies": [
+          {
+            "deficiency_code": "07106",
+            "action_taken": "17",
+            "nature": "Fire detection and alarm system defective"
+          }
+        ]
+      },
+      "expect": {
+        "detention_present": false,
+        "category_label": "Fire safety",
+        "convention": "SOLAS II-2",
+        "prefix": "071",
+        "not_navigation": true
+      }
+    },
+    {
+      "id": "tokyo_navigation_gyro",
+      "kind": "synthetic",
+      "mou_id": "tokyo",
+      "inspection": {
+        "inspection_date": "2025-02-01",
+        "mou_id": "tokyo",
+        "items": [
+          {
+            "code": "10104",
+            "action_code": "16",
+            "description": "Gyro compass — unreliable heading"
+          }
+        ]
+      },
+      "expect": {
+        "detention_present": false,
+        "category_label": "Safety of Navigation",
+        "convention": "SOLAS V",
+        "prefix": "101"
+      }
+    },
+    {
+      "id": "paris_steering_code17",
+      "kind": "synthetic",
+      "mou_id": "paris",
+      "inspection": {
+        "date": "2023-11-20",
+        "mou": "paris",
+        "deficiencies": [
+          {
+            "def_code": "02105",
+            "action_taken_code": "Code 17",
+            "nature_of_deficiency": "Steering gear — abnormal noise / delayed response"
+          }
+        ]
+      },
+      "expect": {
+        "detention_present": false,
+        "has_critical_system": "steering_gear",
+        "action_code": "17"
+      }
+    },
+    {
+      "id": "repeat_ism_major",
+      "kind": "synthetic",
+      "mou_id": "tokyo",
+      "prior_inspection": {
+        "inspection_date": "2023-06-01",
+        "mou_id": "tokyo",
+        "deficiencies": [
+          {
+            "deficiency_code": "15150",
+            "action_taken": "17",
+            "nature": "ISM — maintenance of the ship and equipment non-conformity"
+          }
+        ]
+      },
+      "inspection": {
+        "inspection_date": "2024-06-15",
+        "mou_id": "tokyo",
+        "deficiencies": [
+          {
+            "deficiency_code": "15109",
+            "action_taken": "30",
+            "nature": "ISM — Maintenance of the ship and equipment (repeat)"
+          }
+        ]
+      },
+      "expect": {
+        "detention_present": true,
+        "repeat_critical_flags": ["ism"],
+        "min_defect_score": 1.5
+      }
+    },
+    {
+      "id": "cic_weight_fire_campaign",
+      "kind": "synthetic",
+      "mou_id": "paris",
+      "cic_weights": {
+        "071": 2.0
+      },
+      "inspection": {
+        "inspection_date": "2025-09-01",
+        "mou_id": "paris",
+        "deficiencies": [
+          {
+            "deficiency_code": "07109",
+            "action_taken": "17",
+            "nature": "Fixed fire extinguishing installation — CIC focus"
+          }
+        ]
+      },
+      "expect": {
+        "detention_present": false,
+        "cic_boosts_score": true,
+        "baseline_without_cic": 0.5
+      }
+    },
+    {
+      "id": "propulsion_auxiliary",
+      "kind": "anonymized_historical_pattern",
+      "mou_id": "tokyo",
+      "notes": "Pattern inspired by public detention-review narratives (no vessel identity).",
+      "inspection": {
+        "inspection_date": "2023-02-14",
+        "mou_id": "tokyo",
+        "deficiencies": [
+          {
+            "deficiency_code": "13101",
+            "action_taken": "17",
+            "nature": "Propulsion main engine — safety devices"
+          },
+          {
+            "deficiency_code": "14104",
+            "action_taken": "16",
+            "nature": "Oil filtering equipment — MARPOL Annex I"
+          }
+        ]
+      },
+      "expect": {
+        "detention_present": false,
+        "conventions_contain": ["SOLAS II-1", "MARPOL Annex I"]
+      }
+    }
+  ]
+}
