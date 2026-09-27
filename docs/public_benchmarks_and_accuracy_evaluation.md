@@ -188,3 +188,67 @@ A common pitfall in AI evaluation is circular testing—evaluating an algorithm 
    - Watertight bulkheads and compartment boundaries are immutable engineering facts under SOLAS regulations, not subjective LLM choices.
 3. **External Judicial Ground Truth**:
    - Collision fault percentages and court damage awards were certified by real judges and maritime tribunals decades before this software was written, providing an unalterable external anchor.
+
+---
+
+## 5. Jurisprudential Grounding: International Conventions, Japanese Law, and Strategic Benchmark Selection
+
+A foundational design question in maritime AI systems is the relationship between **international conventions** (such as COLREGS and SOLAS) and **domestic law** (such as the Japanese Act on Preventing Collisions at Sea and Japanese court judgments). This section details the jurisprudential alignment underpinning the system and explains why Japanese public judicial records serve as the optimal global benchmark without creating legal fragmentation.
+
+### 5.1 Harmonization of International Conventions and Japanese Domestic Law
+
+Maritime law is uniquely standardized worldwide compared to terrestrial civil or penal law. International maritime conventions promulgated by the International Maritime Organization (IMO) are directly transposed by signatory states into domestic legislation with verbatim preservation of mathematical parameters and navigational duties:
+
+- **COLREGS 1972 vs. Act on Preventing Collisions at Sea (海上衝突予防法)**:
+  - The Japanese Act on Preventing Collisions at Sea (*海上衝突予防法*, Act No. 62 of 1977) is a direct domestic transposition of the IMO Convention on the International Regulations for Preventing Collisions at Sea (COLREGS 1972).
+  - Critical geometric criteria—such as Rule 13 overtaking (approaching from a direction more than 22.5° abaft the beam, corresponding to relative bearings exceeding 112.5°), Rule 14 head-on situations (reciprocal courses within approximately 180° ± 5°), and Rule 15 crossing situations (duty of the vessel having the other on her starboard side to give way)—are **100% identical in definition, numerical threshold, and legal duty** across Japanese, English, US, and Singapore maritime law.
+- **SOLAS 1974 & MARPOL 73/78 vs. Japanese Statutory Maritime Safety Laws**:
+  - The Japanese Ship Safety Act (*船舶安全法*) and Marine Pollution Prevention Act (*海洋汚染防止法*) enforce identical structural subdivision standards, transverse watertight bulkhead invariants, and machinery fail-safes mandated by SOLAS Chapter II-1 and MARPOL Annex I.
+  - Port State Control (PSC) inspections conducted in Japanese ports operate under the exact same Tokyo MOU / IMO Resolution A.1155(32) deficiency code taxonomy as inspections in Rotterdam, Singapore, or Houston.
+- **AAA Rule D vs. Japanese Average Adjusters Rules of Practice**:
+  - The 50/50 dual-apportionment principle governing drydocking common dues is universally applied across both London (Association of Average Adjusters Rule D) and Tokyo (Association of Average Adjusters of Japan Rule D), originating from shared English admiralty precedents (*The Vancouver* and *The Ruabon*).
+
+### 5.2 Strategic Rationale for Benchmarking Against Japanese Judicial Records
+
+Benchmarking AI reasoning requires authoritative, reproducible ground truth with complete factual inputs. Japanese public maritime records provide distinct strategic advantages over foreign jurisdictions:
+
+1. **Open-Access Telemetry and Fact-Findings (High Judicial Transparency)**:
+   - In international maritime hubs like London or Singapore, the majority of collision and salvage disputes are resolved through confidential maritime arbitration (e.g., LMAA, SCMA) or published behind expensive commercial legal paywalls (e.g., *Lloyd's Law Reports* on LexisNexis/i-law).
+   - In contrast, the Government of Japan provides comprehensive, certified, open-access public records:
+     - **JTSB Casualty Reports**: Contain full AIS navigational tracks, radar plots, certified speeds, encounter angles, and structural damage photographs.
+     - **JMAT Decisions (*海難審判裁決録*)**: Provide authoritative judicial determinations of proximate cause, navigational blameworthiness, and administrative rulings (*主文*).
+     - **Civil Court Decisions (`courts.go.jp`)**: Provide legally binding civil liability apportionment percentages (e.g., 65:35, 70:30, 80:20) and itemized awarded damages.
+2. **International Validity of Japanese Ground Truth**:
+   - Because Japanese tribunals evaluate navigational fault strictly under COLREGS principles, a benchmark case demonstrating that the AI correctly attributes a 70:30 crossing liability in Tokyo Bay serves as valid, transferable evidence that the underlying logic engine conforms to international COLREGS standards globally.
+
+### 5.3 Two-Tier Architecture for Future Multi-Jurisdiction Expansion
+
+To maintain complete legal interoperability as MarineClaims AI scales internationally, the system enforces a strict architectural decoupling between the **Universal Navigational Core** and **Jurisdiction-Specific Precedent Adapters**:
+
+```mermaid
+flowchart TD
+    subgraph CORE["Universal Open-Core Reasoning Engine: Globally Neutral"]
+        C1["COLREGS Predicate Engine\nRules 13-17 Encounter Geometry Calculations\nRelative Bearing, Course Difference, Give-Way Identification"]
+        C2["SOLAS Watertight Spatial Graph\nPhysical Bulkhead Isolation & Damage Propagation Limits"]
+        C3["AAA Rule D / YAR Mathematical Apportionment\nStatutory 50/50 Dual-Condition Solver"]
+    end
+
+    subgraph ADAPTERS["Jurisdiction-Specific Precedent Adapters"]
+        J1["Japan Adapter: Active Benchmark Target\nJMAT Decisions, Tokyo District Court Precedents, Commercial Code"]
+        J2["UK & London Adapter: International Expansion Target\nEnglish Admiralty Court Precedents, LMAA Rulings, MIA 1906"]
+        J3["Singapore Adapter: Asia-Pacific Hub Target\nSCMA Maritime Arbitration, Singapore High Court Precedents"]
+    end
+
+    C1 --> J1
+    C2 --> J1
+    C3 --> J1
+    C1 -.->|"Global Fleet Expansion"| J2
+    C1 -.->|"Global Fleet Expansion"| J3
+```
+
+- **Universal Core (Invariant)**:
+  - Relative encounter geometry, physical spatial constraints, and international convention predicates are identical regardless of flag state or port of registry.
+- **Jurisdiction Adapters (Modular)**:
+  - Local legal practices (such as minor variations in discretionary contributory negligence adjustments or local tariff structures) are encapsulated inside modular vector indexes without modifying core navigational or spatial algorithms.
+- **Future-Proof Guarantee**:
+  - Validating the universal core against Japanese open-access judicial records establishes algorithmic correctness under COLREGS, ensuring immediate readiness for UK and Singapore jurisdiction adapters without architectural refactoring.
