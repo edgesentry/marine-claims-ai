@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from pathlib import Path
 from typing import Annotated
+from urllib.parse import urlparse
 
 from fastapi import Cookie, FastAPI, Query, Request, Response
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -56,7 +57,11 @@ def create_app() -> FastAPI:
     @app.get("/set-lang")
     def set_lang(lang: str = Query("en"), next: str = Query("/")):
         loc = "ja" if lang == "ja" else "en"
-        target = next if next.startswith("/") else "/"
+
+        candidate = next.replace("\\", "")
+        parsed = urlparse(candidate)
+        target = candidate if candidate.startswith("/") and not parsed.scheme and not parsed.netloc else "/"
+
         resp = RedirectResponse(url=target, status_code=303)
         resp.set_cookie("demo_lang", loc, max_age=60 * 60 * 24 * 365, httponly=False, samesite="lax")
         return resp
