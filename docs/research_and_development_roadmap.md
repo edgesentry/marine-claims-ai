@@ -79,7 +79,7 @@ flowchart TD
 - **Objective**: Codify international adjusting rules and maritime traffic regulations into mathematically auditable, deterministic solvers.
 - **Prerequisites**: Completion of Stage 0; formal statutory rules text (AAA Rule D, COLREGS 1972, Tokyo/Paris MOU deficiency action codes).
 - **Key Deliverables**:
-  1. **Deterministic 50/50 Apportionment Engine**: Formalize dock dues, pumping, and general yard services into DuckDB analytical SQL expressions that divide shared costs strictly in accordance with Rule D when owner repairs are immediately necessary for seaworthiness.
+  1. **Deterministic 50/50 Apportionment Engine**: Formalize dock dues, pumping, and general yard services into DuckDB analytical SQL expressions that divide shared costs strictly in accordance with AAA Rules of Practice **D5** (Issue #29; see [aaa_rule_d5_drydock_apportionment.md](aaa_rule_d5_drydock_apportionment.md)) when owner repairs are immediately necessary for seaworthiness, or when underwriters’ repairs are deferred to a routine docking.
   2. **COLREGS Predicate Logic Rules**: Encode Rules 13 (Overtaking), 14 (Head-on Situation), and 15 (Crossing Situation) as declarative logic constraints over relative bearing, speed, and aspect vectors.
   3. **PSC Deficiency Vector Ingestion**: Build a normalized ingestion parser for public Tokyo MOU and Paris MOU inspection reports, mapping deficiency codes to statutory ISM/SOLAS/MARPOL warranty clauses.
 - **Exit Gate (Gate 1: Mathematical & Logical Integrity)**:

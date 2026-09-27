@@ -21,6 +21,7 @@ import lancedb
 import polars as pl
 from fastembed import TextEmbedding
 
+from marine_claims_ai.analytics.rule_d_solver import DRYDOCK_APPORTIONMENT_VIEW_SQL
 from marine_claims_ai.paths import DEFAULT_DATASET_DIR, DEFAULT_DUCK_PATH, DEFAULT_LANCE_DIR
 
 EMBED_MODEL = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
@@ -118,7 +119,8 @@ def rows_from_sources(dataset_dir: str) -> list[dict]:
         "benchmark_field3_repair_20packages.json",
     )
     if isinstance(repair, list):
-        concurrent_trades = {"ENG", "VALVE", "SAFE"}
+        # Owners' account / concurrent trades (ENG/VALVE deferred; SAFE/PROP statutory class).
+        concurrent_trades = {"ENG", "VALVE", "SAFE", "PROP"}
         for p in repair:
             trade = p.get("trade_code") or ""
             text = f"{p.get('category', '')} {p.get('name', '')} trade_code={trade}".strip()
@@ -315,34 +317,8 @@ def build_duckdb_analytics(duck_path: str, df: pl.DataFrame, force: bool) -> Non
     try:
         con.register("analytics_df", analytics.to_arrow())
         con.execute("CREATE TABLE line_items AS SELECT * FROM analytics_df")
-        # Convenience view for 50/50 drydock math demos
-        con.execute(
-            """
-            CREATE OR REPLACE VIEW drydock_apportionment AS
-            SELECT
-                id,
-                domain,
-                title,
-                trade_code,
-                cost_jpy,
-                casualty_related,
-                CASE
-                    WHEN domain = 'repair' AND casualty_related THEN cost_jpy
-                    WHEN domain = 'repair' AND NOT casualty_related THEN 0
-                    ELSE NULL
-                END AS insurer_share_jpy,
-                CASE
-                    WHEN domain = 'repair' AND casualty_related THEN 0
-                    WHEN domain = 'repair' AND NOT casualty_related THEN cost_jpy
-                    ELSE NULL
-                END AS owner_share_jpy,
-                CASE
-                    WHEN domain = 'repair' THEN CAST(cost_jpy AS DOUBLE) * 0.5
-                    ELSE NULL
-                END AS drydock_fee_5050_jpy
-            FROM line_items
-            """
-        )
+        # AAA Rule D5 VIEW (default docking_context = casualty_immediate).
+        con.execute(DRYDOCK_APPORTIONMENT_VIEW_SQL)
         counts = con.execute(
             "SELECT domain, COUNT(*) FROM line_items GROUP BY domain ORDER BY domain"
         ).fetchall()
