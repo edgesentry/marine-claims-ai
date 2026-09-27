@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "description": "Gate A Priority 1 thresholds (H&M drydock sorting + AAA Rule D5). Small-corpus principle check before scale (Step 6).",
+  "scale_targets": {
+    "min_vessels": 10,
+    "min_line_items": 2500,
+    "min_bid_notices": 20
+  },
+  "gates": {
+    "min_status_agreement": 0.85,
+    "max_critical_false_accepts": 0,
+    "max_rule_d5_reconciliation_error_jpy": 0,
+    "max_fabricated_line_items": 0,
+    "max_field3_mape_pct": 5.0,
+    "min_cases_with_pdfs": 1
+  },
+  "public_appraisal_config": "config/public_appraisal_eval.json",
+  "critical_exclude_substrings": [
+    "カロリーファイヤー",
+    "プロペラ軸",
+    "減速機",
+    "クラッチ",
+    "汚物処理装置",
+    "主機関",
+    "ピストン"
+  ]
+}
