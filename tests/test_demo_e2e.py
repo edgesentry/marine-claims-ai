@@ -15,24 +15,11 @@ from pathlib import Path
 
 import pytest
 
-from marine_claims_ai.demo import loaders
-from marine_claims_ai.demo.cli import main as cli_main
 from marine_claims_ai.paths import REPO_ROOT
 
 pytestmark = pytest.mark.demo
 
-FIXTURE = REPO_ROOT / "config" / "demo_e2e_claims_analysis_min.json"
 CLI_SCRIPT = REPO_ROOT / "scripts" / "run_demo_cli.py"
-
-
-@pytest.fixture
-def demo_kaiyomaru(monkeypatch: pytest.MonkeyPatch):
-    """Point UC1 loaders at the tracked synthetic fixture."""
-    assert FIXTURE.is_file()
-    loaders.clear_loader_caches()
-    monkeypatch.setattr(loaders, "resolve_kaiyomaru_path", lambda: FIXTURE)
-    yield FIXTURE
-    loaders.clear_loader_caches()
 
 
 def _run_cli(*args: str) -> subprocess.CompletedProcess[str]:
@@ -104,28 +91,8 @@ def test_e2e_cli_uc2_export(tmp_path: Path):
     assert "D5" in md.read_text(encoding="utf-8")
 
 
-def test_e2e_cli_uc1_with_fixture(demo_kaiyomaru: Path, tmp_path: Path):
-    out_md = tmp_path / "survey.md"
-    out_html = tmp_path / "survey.html"
-    rc = cli_main(
-        [
-            "uc1",
-            "--lang",
-            "ja",
-            "--json",
-            "--export-md",
-            str(out_md),
-            "--export-html",
-            str(out_html),
-        ]
-    )
-    assert rc == 0
-    assert out_md.is_file() and "予備" in out_md.read_text(encoding="utf-8")
-    assert out_html.is_file()
-
-
 @pytest.fixture
-def web_client(demo_kaiyomaru: Path):
+def web_client():
     pytest.importorskip("fastapi")
     from fastapi.testclient import TestClient
 
@@ -134,19 +101,11 @@ def web_client(demo_kaiyomaru: Path):
     return TestClient(create_app())
 
 
-def test_e2e_web_uc1_page_and_exports(web_client):
-    r = web_client.get("/uc1")
+def test_e2e_web_home_is_rule_d5(web_client):
+    r = web_client.get("/")
     assert r.status_code == 200
-    assert "pill" in r.text or "EXCLUDED" in r.text or "除外" in r.text
-
-    md = web_client.get("/export/survey.md")
-    assert md.status_code == 200
-    assert "attachment" in md.headers.get("content-disposition", "")
-    assert b"Preliminary" in md.content or "予備".encode() in md.content
-
-    html = web_client.get("/export/survey.html")
-    assert html.status_code == 200
-    assert b"<html" in html.content.lower()
+    assert "Rule D5" in r.text or "按分" in r.text
+    assert web_client.get("/uc1").status_code == 404
 
 
 def test_e2e_web_uc2_partial_and_exports(web_client):
@@ -199,9 +158,9 @@ def test_e2e_web_i18n_cookie_and_static(web_client):
     assert ja.status_code == 200
     assert "按分" in ja.text or "休航" in ja.text
 
-    en = web_client.get("/uc1", cookies={"demo_lang": "en"})
+    en = web_client.get("/uc3", cookies={"demo_lang": "en"})
     assert en.status_code == 200
-    assert "Watertight" in en.text or "topology" in en.text.lower()
+    assert "COLREGS" in en.text or "fault" in en.text.lower()
 
     assert web_client.get("/static/demo.css").status_code == 200
     assert len(web_client.get("/static/vendor/htmx.min.js").content) > 1000

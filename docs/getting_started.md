@@ -28,8 +28,7 @@ uv sync --group demo
 CLI and Web share `marine_claims_ai.demo.ops`. Full design: [executive_demo_cli_and_web.md](executive_demo_cli_and_web.md). Per-tab I/O: [demo_use_cases.md](demo_use_cases.md).
 
 ```bash
-uv run marine-claims-demo uc1 --lang ja --probe-zone machinery
-uv run marine-claims-demo uc2 --dock-days 5 --no-statutory --export-md _data/rule_d5.md
+uv run marine-claims-demo uc2 --lang ja --dock-days 5 --no-statutory --export-md _data/rule_d5.md
 uv run marine-claims-demo list-cases
 uv run marine-claims-demo uc3 --case civil_7 --heading-a 0 --heading-b 180 --bearing-ab 0 --export-md _data/colregs.md
 

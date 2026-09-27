@@ -15,243 +15,25 @@ from marine_claims_ai.analytics import (
     apportion_rule_d,
     predict_fault_ratio,
 )
-from marine_claims_ai.demo.i18n import Lang, role_label, situation_label, status_label, t, zone_label
-from marine_claims_ai.demo.documents import default_uc1_pair, list_pdfs
+from marine_claims_ai.demo import live_analysis
+from marine_claims_ai.demo.documents import label_for_pdf, list_pdfs
+from marine_claims_ai.demo.i18n import Lang, role_label, situation_label, t
 from marine_claims_ai.demo.loaders import (
     load_civil_catalog,
     load_geometries,
     load_jmat_cases,
-    load_kaiyomaru_analysis,
 )
-from marine_claims_ai.demo import live_analysis
 from marine_claims_ai.legal.colregs_engine import (
     OVERTAKING_RELATIVE_BEARING_MAX_DEG,
     OVERTAKING_RELATIVE_BEARING_MIN_DEG,
     EncounterGeometry,
     classify_encounter,
 )
-from marine_claims_ai.ontology.compartments import (
-    COMPARTMENT_EDGES,
-    ISOLATED_NODES,
-    build_compartment_graph,
-    validate_claims_causality,
-)
-
-# Ship-profile-ish layout for NetworkX nodes (x aft←→fwd, y deck↑).
-_NODE_XY: dict[str, tuple[float, float]] = {
-    "hull_forward": (0.85, 0.35),
-    "hull_mid": (0.50, 0.35),
-    "hull_aft": (0.15, 0.35),
-    "deck_forward": (0.85, 0.65),
-    "deck_mid": (0.50, 0.65),
-    "deck_aft": (0.15, 0.65),
-    "superstructure": (0.45, 0.90),
-    "propulsion": (0.08, 0.20),
-    "machinery": (0.50, 0.08),
-}
-
-_ZONE_OPTIONS = (
-    "hull_forward",
-    "hull_mid",
-    "hull_aft",
-    "deck_forward",
-    "deck_mid",
-    "deck_aft",
-    "superstructure",
-    "propulsion",
-    "machinery",
-)
-
-_DAMAGE_DEFAULT = "hull_forward"
-_PROBE_DEFAULT = "machinery"
-
-_PROBE_REASON_KEYS = {
-    "watertight_barrier_violation": "probe_reason_barrier",
-    "beyond_casualty_propagation_limit": "probe_reason_hops",
-    "same_compartment": "probe_reason_same",
-    "adjacent_ok": "probe_reason_adjacent",
-    "path_ok": "probe_reason_adjacent",
-}
-
-
-def _probe_reason_label(reason: str, lang: Lang) -> str:
-    key = _PROBE_REASON_KEYS.get(reason)
-    if key:
-        return t(key, lang)
-    if reason:
-        return t("probe_reason_other", lang)
-    return ""
 
 
 def _doc_options(role: str, lang: Lang) -> list[dict[str, str]]:
     return [{"id": e.id, "label": e.label(lang), "uploaded": e.uploaded} for e in list_pdfs(role=role)]
 
-
-def build_uc1(
-    lang: Lang = "en",
-    *,
-    sample_excluded: int = 40,
-    damage_zone: str = _DAMAGE_DEFAULT,
-    probe_zone: str = _PROBE_DEFAULT,
-    status_filter: str = "all",
-    analysis: dict[str, Any] | None = None,
-    spec_pdf: str | None = None,
-    casualty_pdf: str | None = None,
-) -> dict[str, Any]:
-    raw = analysis
-    if raw is None:
-        raw = load_kaiyomaru_analysis()
-    if raw is None:
-        return {
-            "ok": False,
-            "error": t("data_missing", lang),
-            "spec_options": _doc_options("spec", lang),
-            "casualty_options": _doc_options("casualty", lang),
-            "spec_pdf": spec_pdf or "",
-            "casualty_pdf": casualty_pdf or "",
-        }
-
-    damage_zone = damage_zone if damage_zone in _ZONE_OPTIONS else _DAMAGE_DEFAULT
-    probe_zone = probe_zone if probe_zone in _ZONE_OPTIONS else _PROBE_DEFAULT
-    status_filter = (status_filter or "all").lower()
-
-    summary = raw.get("summary") or {}
-    items = list(raw.get("items") or [])
-    damaged = list((summary.get("casualty_profile") or {}).get("damaged_components") or [])
-
-    covered = [i for i in items if i.get("status") == "COVERED"]
-    apportioned = [i for i in items if "APPORTIONED" in str(i.get("status") or "")]
-    excluded = [i for i in items if "EXCLUDED" in str(i.get("status") or "")]
-    review = [i for i in items if "REVIEW" in str(i.get("status") or "")]
-
-    buckets = {
-        "all": covered + apportioned + review + excluded[:sample_excluded],
-        "covered": covered,
-        "apportioned": apportioned,
-        "excluded": excluded[:sample_excluded],
-        "review": review,
-    }
-    display_items = buckets.get(status_filter, buckets["all"])
-    rows = [
-        {
-            "id": it.get("id") or it.get("num") or "",
-            "description": it.get("description") or it.get("category") or "",
-            "status": it.get("status") or "",
-            "status_label": status_label(str(it.get("status") or ""), lang),
-            "amount": int(it.get("estimated_cost") or 0),
-            "reason": it.get("reason") or "",
-            "css": _status_css(str(it.get("status") or "")),
-        }
-        for it in display_items
-    ]
-
-    probe = validate_claims_causality(damage_zone, probe_zone)
-    reason_code = str(probe.get("reason") or "")
-    g = build_compartment_graph()
-    nodes = []
-    for n in g.nodes:
-        x, y = _NODE_XY.get(n, (0.5, 0.5))
-        if n == damage_zone:
-            kind = "damaged"
-        elif n == probe_zone:
-            kind = "probe"
-        elif n in ISOLATED_NODES:
-            kind = "isolated"
-        else:
-            kind = "normal"
-        nodes.append(
-            {
-                "id": n,
-                "label": zone_label(n, lang),
-                "x": x,
-                "y": y,
-                "kind": kind,
-                "kind_label": t(
-                    {
-                        "damaged": "damaged",
-                        "probe": "probe_node",
-                        "isolated": "isolated",
-                        "normal": "normal",
-                    }[kind],
-                    lang,
-                ),
-            }
-        )
-    edges = [{"source": a, "target": b} for a, b in COMPARTMENT_EDGES]
-    zone_options = [{"id": z, "label": zone_label(z, lang)} for z in _ZONE_OPTIONS]
-
-    d_spec, d_cas = default_uc1_pair()
-    src_spec = spec_pdf or raw.get("source_spec_pdf") or (d_spec.name if d_spec else "")
-    src_cas = casualty_pdf or raw.get("source_casualty_pdf") or (d_cas.name if d_cas else "")
-
-    return {
-        "ok": True,
-        "summary": summary,
-        "n_items": len(items),
-        "claimed": int(summary.get("total_claimed_jpy") or 0),
-        "excluded_jpy": int(summary.get("total_excluded_jpy") or 0),
-        "approved_jpy": int(summary.get("total_approved_jpy") or 0),
-        "rate": summary.get("leakage_prevention_rate_pct"),
-        "damaged_labels": damaged,
-        "counts": {
-            "covered": len(covered),
-            "apportioned": len(apportioned),
-            "excluded": len(excluded),
-            "review": len(review),
-        },
-        "rows": rows,
-        "showing_sample": status_filter in {"all", "excluded"} and len(excluded) > sample_excluded,
-        "graph": {"nodes": nodes, "edges": edges},
-        "items_for_export": items,
-        "summary_for_export": summary,
-        "damage_zone": damage_zone,
-        "probe_zone": probe_zone,
-        "status_filter": status_filter,
-        "zone_options": zone_options,
-        "spec_options": _doc_options("spec", lang),
-        "casualty_options": _doc_options("casualty", lang),
-        "spec_pdf": src_spec,
-        "casualty_pdf": src_cas,
-        "from_document": bool(analysis),
-        "probe": {
-            "valid": bool(probe.get("valid")),
-            "reason": reason_code,
-            "reason_label": _probe_reason_label(reason_code, lang),
-            "path": probe.get("path"),
-            "damage_node": probe.get("damage_node"),
-            "repair_node": probe.get("repair_node"),
-        },
-    }
-
-
-def run_uc1_analyze(
-    lang: Lang = "en",
-    *,
-    spec_pdf: str,
-    casualty_pdf: str,
-    damage_zone: str = _DAMAGE_DEFAULT,
-    probe_zone: str = _PROBE_DEFAULT,
-    status_filter: str = "all",
-) -> dict[str, Any]:
-    live = live_analysis.run_uc1_pipeline(spec_pdf, casualty_pdf, lang=lang)
-    if not live.get("ok"):
-        out = build_uc1(lang, damage_zone=damage_zone, probe_zone=probe_zone, status_filter=status_filter)
-        out["ok"] = False
-        out["error"] = live.get("error")
-        out["spec_pdf"] = spec_pdf
-        out["casualty_pdf"] = casualty_pdf
-        out["spec_options"] = _doc_options("spec", lang)
-        out["casualty_options"] = _doc_options("casualty", lang)
-        return out
-    return build_uc1(
-        lang,
-        damage_zone=damage_zone,
-        probe_zone=probe_zone,
-        status_filter=status_filter,
-        analysis=live["raw"],
-        spec_pdf=live.get("spec_pdf"),
-        casualty_pdf=live.get("casualty_pdf"),
-    )
 
 
 def build_uc2(
@@ -292,6 +74,7 @@ def build_uc2(
         )
         live["spec_options"] = doc_opts
         live["spec_pdf"] = chosen
+        live["spec_pdf_label"] = label_for_pdf(chosen, lang)
         return live
 
     try:
@@ -388,6 +171,7 @@ def build_uc2(
         "result": result,
         "spec_options": doc_opts,
         "spec_pdf": chosen or "",
+        "spec_pdf_label": label_for_pdf(chosen, lang),
         "from_document": False,
     }
 
@@ -441,6 +225,7 @@ def build_uc3(
             live["options"] = options
             live["doc_options"] = doc_opts
             live["doc_pdf"] = doc_pdf
+            live["doc_pdf_label"] = label_for_pdf(doc_pdf, lang)
             return live
         verdict = live["verdict"]
         rel = live["relative_bearing"]
@@ -449,6 +234,7 @@ def build_uc3(
             {
                 "options": options,
                 "doc_options": doc_opts,
+                "doc_pdf_label": label_for_pdf(live.get("doc_pdf") or doc_pdf, lang),
                 "situation_label": situation_label(live["situation"], lang),
                 "role_a_label": role_label(live.get("role_a"), lang),
                 "role_b_label": role_label(live.get("role_b"), lang),
@@ -542,6 +328,7 @@ def build_uc3(
         "options": options,
         "doc_options": doc_opts,
         "doc_pdf": doc_pdf or (doc_opts[0]["id"] if doc_opts else ""),
+        "doc_pdf_label": label_for_pdf(doc_pdf or (doc_opts[0]["id"] if doc_opts else ""), lang),
         "from_document": False,
         "case_id": selected,
         "title": title,

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 import re
 from decimal import Decimal
 from pathlib import Path
@@ -17,78 +16,22 @@ from marine_claims_ai.analytics import (
     apportion_rule_d,
     predict_fault_ratio,
 )
-from marine_claims_ai.appraisal.pipeline import (
-    evaluate_claims_dynamically,
-    extract_casualty_profile,
-    extract_repair_items,
-)
+from marine_claims_ai.appraisal.pipeline import extract_repair_items
 from marine_claims_ai.demo.documents import pdftotext_available, resolve_pdf
 from marine_claims_ai.demo.i18n import Lang, t
-from marine_claims_ai.demo.loaders import clear_loader_caches
+from marine_claims_ai.demo.logging_setup import get_demo_logger
 from marine_claims_ai.ingest.civil_judgment_extractor import extract_from_judgment
 from marine_claims_ai.ingest.jmat_extractor import extract_telemetry
 from marine_claims_ai.ingest.pdf_text import pdf_to_text
 from marine_claims_ai.legal.colregs_engine import EncounterGeometry, classify_encounter
-from marine_claims_ai.paths import DEFAULT_DATASET_DIR
+
+log = get_demo_logger("live_analysis")
 
 
 def require_pdftotext(lang: Lang = "en") -> str | None:
     if pdftotext_available():
         return None
     return t("err_pdftotext", lang)
-
-
-def run_uc1_pipeline(
-    spec_pdf: str | Path,
-    casualty_pdf: str | Path,
-    *,
-    lang: Lang = "en",
-    tag: str = "demo",
-    persist: bool = True,
-) -> dict[str, Any]:
-    """Parse repair-spec + casualty PDFs and evaluate concurrent-repair screening."""
-    err = require_pdftotext(lang)
-    if err:
-        return {"ok": False, "error": err}
-
-    spec = resolve_pdf(spec_pdf)
-    casualty = resolve_pdf(casualty_pdf)
-    if spec is None or casualty is None:
-        return {"ok": False, "error": t("err_pdf_missing", lang)}
-
-    try:
-        profile = extract_casualty_profile(str(casualty))
-        items = extract_repair_items(str(spec))
-        analyzed, summary = evaluate_claims_dynamically(items, profile)
-    except Exception as exc:  # noqa: BLE001 — surface as business message
-        return {"ok": False, "error": t("err_parse_failed", lang) + f" ({type(exc).__name__})"}
-
-    payload = {
-        "summary": summary,
-        "items": analyzed,
-        "source_spec_pdf": spec.name,
-        "source_casualty_pdf": casualty.name,
-    }
-
-    out_path: Path | None = None
-    if persist:
-        DEFAULT_DATASET_DIR.mkdir(parents=True, exist_ok=True)
-        out_path = DEFAULT_DATASET_DIR / f"claims_analysis_{tag}.json"
-        # Also refresh the conventional kaiyomaru cache name when using that pair
-        out_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
-        kaiyo = DEFAULT_DATASET_DIR / "claims_analysis_kaiyomaru.json"
-        kaiyo.write_text(out_path.read_text(encoding="utf-8"), encoding="utf-8")
-        clear_loader_caches()
-
-    return {
-        "ok": True,
-        "raw": payload,
-        "summary": summary,
-        "items": analyzed,
-        "spec_pdf": spec.name,
-        "casualty_pdf": casualty.name,
-        "output_path": str(out_path) if out_path else None,
-    }
 
 
 def repair_items_to_rule_d_lines(

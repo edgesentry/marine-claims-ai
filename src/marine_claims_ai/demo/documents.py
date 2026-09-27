@@ -17,34 +17,36 @@ MAX_UPLOAD_BYTES = 25 * 1024 * 1024
 # Known public demo documents (basename → EN/JA short labels).
 _KNOWN: dict[str, dict[str, str]] = {
     "fukuoka_kaiyomaru_spec.pdf": {
-        "en": "Fukuoka Kaiyo Maru repair specification",
-        "ja": "福岡・開洋丸 修繕仕様書",
+        "en": "Fukuoka Kaiyo Maru — repair specification",
+        "ja": "福岡・開洋丸 — 修繕仕様書",
         "roles": "spec,uc2",
     },
     "sample_drydock_repair_specification.pdf": {
-        "en": "Sample drydock repair specification",
-        "ja": "サンプル入渠修繕仕様書",
+        "en": "Sample drydock — repair specification",
+        "ja": "サンプル入渠 — 修繕仕様書",
         "roles": "spec,uc2",
     },
     "jtsb_cargo_collision_report.pdf": {
-        "en": "JTSB cargo vessel collision report",
-        "ja": "運輸安全委員会・貨物船衝突報告書",
+        "en": "JTSB — cargo vessel collision investigation report",
+        "ja": "運輸安全委員会 — 貨物船衝突 事故調査報告書",
         "roles": "casualty,uc3",
     },
     "jtsb_tanker_bridge_collision_report.pdf": {
-        "en": "JTSB tanker bridge collision report",
-        "ja": "運輸安全委員会・タンカー橋脚衝突報告書",
+        "en": "JTSB — tanker bridge collision investigation report",
+        "ja": "運輸安全委員会 — タンカー橋脚衝突 事故調査報告書",
         "roles": "casualty,uc3",
     },
     "fukuoka_ship_bid_result.pdf": {
-        "en": "Fukuoka ship repair bid result",
-        "ja": "福岡・船舶修繕落札結果",
+        "en": "Fukuoka — ship repair bid / award result",
+        "ja": "福岡 — 船舶修繕 落札結果",
         "roles": "uc2",
     },
+    "parismou_flag_detention_list.pdf": {
+        "en": "Paris MoU — flag detention list (PSC)",
+        "ja": "パリMOU — 旗国別留置リスト（PSC）",
+        "roles": "",  # not used in UC2–3 document pickers
+    },
 }
-
-_DEFAULT_UC1_SPEC = "fukuoka_kaiyomaru_spec.pdf"
-_DEFAULT_UC1_CASUALTY = "jtsb_cargo_collision_report.pdf"
 
 
 @dataclass(frozen=True)
@@ -88,6 +90,31 @@ def resolve_pdf(name_or_path: str | Path | None) -> Path | None:
     return None
 
 
+def _humanize_stem(name: str) -> str:
+    stem = Path(name).stem
+    stem = re.sub(r"[_\-]+", " ", stem).strip()
+    return stem[:120] or name
+
+
+def labels_for_pdf(name: str, *, uploaded: bool = False) -> tuple[str, str]:
+    """Return (en, ja) display labels for a PDF basename."""
+    base = Path(name).name
+    meta = _KNOWN.get(base)
+    if meta:
+        return meta["en"], meta["ja"]
+    human = _humanize_stem(base)
+    if uploaded:
+        return f"Opened file — {human}", f"開いたファイル — {human}"
+    return human, human
+
+
+def label_for_pdf(name: str | None, lang: str = "en", *, uploaded: bool = False) -> str:
+    if not name:
+        return ""
+    en, ja = labels_for_pdf(name, uploaded=uploaded)
+    return ja if lang == "ja" else en
+
+
 def list_pdfs(*, role: str | None = None) -> list[DocEntry]:
     """List discoverable PDFs; optional role filter (spec/casualty/uc2/uc3/any)."""
     found: dict[str, DocEntry] = {}
@@ -96,13 +123,13 @@ def list_pdfs(*, role: str | None = None) -> list[DocEntry]:
         for path in sorted(base.glob("*.pdf")):
             meta = _KNOWN.get(path.name)
             if meta:
-                roles = frozenset(meta["roles"].split(","))
+                roles_raw = (meta.get("roles") or "").strip()
+                roles = frozenset(r for r in roles_raw.split(",") if r) if roles_raw else frozenset()
                 label_en, label_ja = meta["en"], meta["ja"]
             else:
+                # Uploaded / unknown: available in every UC picker; labeled in EN+JA.
                 roles = frozenset({"any", "spec", "casualty", "uc2", "uc3"})
-                stem = path.stem.replace("_", " ")
-                label_en = stem
-                label_ja = path.name
+                label_en, label_ja = labels_for_pdf(path.name, uploaded=uploaded)
             entry = DocEntry(
                 id=path.name,
                 path=path.resolve(),
@@ -111,7 +138,6 @@ def list_pdfs(*, role: str | None = None) -> list[DocEntry]:
                 roles=roles,
                 uploaded=uploaded,
             )
-            # Prefer _data over _inputs / uploads when same basename
             prev = found.get(path.name)
             if prev is None or (not uploaded and prev.uploaded):
                 found[path.name] = entry
@@ -123,10 +149,6 @@ def list_pdfs(*, role: str | None = None) -> list[DocEntry]:
     if role and role != "any":
         entries = [e for e in entries if role in e.roles or "any" in e.roles]
     return sorted(entries, key=lambda e: (e.uploaded, e.label_en.lower()))
-
-
-def default_uc1_pair() -> tuple[Path | None, Path | None]:
-    return resolve_pdf(_DEFAULT_UC1_SPEC), resolve_pdf(_DEFAULT_UC1_CASUALTY)
 
 
 def sanitize_upload_filename(name: str) -> str:

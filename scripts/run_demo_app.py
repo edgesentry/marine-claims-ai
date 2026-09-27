@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Launch the offline FastAPI + HTMX executive demo (Web UI).
 
-For CLI parity (same UC1–3 + exports without a browser), use:
+For CLI parity (Rule D5 + COLREGS without a browser), use:
 
-    uv run python scripts/run_demo_cli.py uc1
+    uv run python scripts/run_demo_cli.py uc2
     uv run python scripts/run_demo_cli.py serve
 """
 

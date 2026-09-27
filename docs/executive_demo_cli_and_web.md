@@ -1,6 +1,8 @@
 # Executive Demo: CLI & Web UI Parity (Issue #54)
 
-Offline interactive demo for the three pitch use cases — watertight topology / owner's work exclusion, AAA Rule D5 apportionment & off-hire, and COLREGS fault evidence — with **English / 日本語** UI strings.
+Offline interactive demo for **AAA Rule D5 apportionment & off-hire** and **COLREGS fault evidence**, with **English / 日本語** UI strings.
+
+Hull-topology / owner's-work exclusion is **not** part of this demo.
 
 Related: [Demo use cases (I/O)](demo_use_cases.md) · [Getting Started](getting_started.md) · [AAA Rule D5](aaa_rule_d5_drydock_apportionment.md) · [COLREGS engine](colregs_encounter_engine.md) · [Public benchmarks](public_benchmarks_and_accuracy_evaluation.md) · [Technical stack](technical_stack.md) · GitHub [Issue #54](https://github.com/edgesentry/marine-claims-AI/issues/54).
 
@@ -11,7 +13,7 @@ Related: [Demo use cases (I/O)](demo_use_cases.md) · [Getting Started](getting_
 | Rule | Detail |
 | :--- | :--- |
 | **One ops layer** | CLI and Web call the same `marine_claims_ai.demo.ops` (run / export / text summary). Do not fork business logic into templates or argparse handlers. |
-| **CLI without demo deps** | `uc1` / `uc2` / `uc3` / `list-cases` need only the core package. FastAPI is required only for `serve`. |
+| **CLI without demo deps** | `uc2` / `uc3` / `list-cases` need only the core package. FastAPI is required only for `serve`. |
 | **Local data under `_data/`** | Default caches: `_data/poc_datasets/`, `_data/marine_claims.duckdb`. Legacy `_inputs/poc_datasets/` is a read fallback. Never commit raw PDFs or extracted JSON. |
 | **Offline Web assets** | HTMX and Chart.js are vendored under `src/marine_claims_ai/demo/static/vendor/` (see `NOTICE`). No CDN at runtime. |
 | **Public metrics only** | Show measured values from local caches / fixtures. Do not hardcode pitch round-numbers or confidential commercial narratives. |
@@ -43,7 +45,7 @@ flowchart TB
   web["app.py FastAPI+HTMX"] --> ops
   ops --> services["services.py"]
   ops --> export["export.py"]
-  services --> engines["compartments / rule_d_solver / colregs / fault_predictor"]
+  services --> engines["rule_d_solver / colregs / fault_predictor"]
   services --> data["_data/poc_datasets + config fixtures"]
 ```
 
@@ -55,19 +57,17 @@ Per-tab **use case / inputs / processing / outputs**: **[demo_use_cases.md](demo
 
 | Command / route | Capability |
 | :--- | :--- |
-| `uc1` / `/uc1` | Repair-spec × casualty PDFs → topology screening + survey export |
-| `uc2` / `/uc2` | Drydock/repair PDF → Rule D5 common dues + off-hire |
+| `uc2` / `/uc2` (home `/`) | Drydock/repair PDF → Rule D5 common dues + off-hire |
 | `uc3` / `/uc3` | Ruling/casualty PDF → COLREGS situation + fault memo |
-| `list-cases` | Print UC3 sample fixture ids |
+| `list-cases` | Print COLREGS sample fixture ids |
 | `serve` | Web UI on `http://127.0.0.1:8765/` |
 
 Shared knobs:
 
-| UC | Flags / controls |
+| Tab | Flags / controls |
 | :--- | :--- |
-| UC1 | `--spec`, `--casualty`, `--analyze`, `--damage-zone`, `--probe-zone`, `--status-filter` |
-| UC2 | `--spec`, `--analyze`, dock/hire/lead/context/`--no-statutory` |
-| UC3 | `--doc`, `--analyze`, `--case`, `--heading-a/b`, `--bearing-ab` |
+| Rule D5 | `--spec`, `--analyze`, dock/hire/lead/context/`--no-statutory` |
+| COLREGS | `--doc`, `--analyze`, `--case`, `--heading-a/b`, `--bearing-ab` |
 
 ---
 
@@ -75,16 +75,16 @@ Shared knobs:
 
 ```bash
 # CLI (core install is enough)
-uv run marine-claims-demo uc1 --lang ja
-uv run marine-claims-demo uc2 --dock-days 5 --export-md _data/rule_d5.md
+uv run marine-claims-demo uc2 --lang ja --dock-days 5 --export-md _data/rule_d5.md
 uv run marine-claims-demo list-cases
 uv run marine-claims-demo uc3 --case civil_7 --export-md _data/colregs.md
-uv run marine-claims-demo uc1 --json
+uv run marine-claims-demo uc2 --json
+uv run marine-claims-demo clear-cache
+# Web: header 「キャッシュクリア」 / POST /demo/clear-cache
+# Diagnosis log (rotating): `_data/logs/demo.log` (also mirrored to the serve terminal)
 
 # Web UI
 uv sync --group demo
-# Ensure _data/poc_datasets/claims_analysis_kaiyomaru.json exists
-# (or legacy _inputs/poc_datasets/ copy)
 uv run marine-claims-demo serve
 # equivalent: uv run python scripts/run_demo_app.py
 ```
@@ -104,7 +104,7 @@ uv run pytest -m demo -q
 
 | Artifact | Location | Notes |
 | :--- | :--- | :--- |
-| Kaiyo Maru analysis JSON | `_data/poc_datasets/claims_analysis_kaiyomaru.json` | Required for UC1; produce via appraisal pipeline / eval, or copy from legacy cache |
+| Public repair / casualty PDFs | `_data/poc_datasets/` (or open into `_data/demo_uploads/`) | Used by live Analyze; never committed |
 | JMAT COLREGS fixtures | `config/jmat_collision_eval.json` | Tracked; offline |
 | Collision geometries | `config/collision_geometries.json` | Tracked |
 | Civil seeds (e.g. case 7) | `config/civil_precedent_catalog.json` → `seeds` | Tracked summaries only |
@@ -128,7 +128,7 @@ When extending the demo:
 ## 7. Definition of Done (Issue #54)
 
 - [x] Interactive app via `uv run python scripts/run_demo_app.py` (or `marine-claims-demo serve`)
-- [x] Three use-case surfaces load real/benchmark data and render visuals
-- [x] Export generates downloadable survey / apportionment drafts (Markdown + printable HTML)
+- [x] Rule D5 + COLREGS surfaces load real/benchmark data and render visuals
+- [x] Export generates downloadable apportionment / COLREGS drafts (Markdown + printable HTML)
 - [x] Local macOS / browser path with no external cloud dependency
-- [x] CLI parity for the same UC1–3 + exports through `marine_claims_ai.demo.ops`
+- [x] CLI parity for the same surfaces through `marine_claims_ai.demo.ops`

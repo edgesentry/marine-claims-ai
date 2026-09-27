@@ -9,17 +9,14 @@ from pathlib import Path
 
 from marine_claims_ai.demo.i18n import Lang
 from marine_claims_ai.demo.ops import (
-    Uc1Params,
     Uc2Params,
     Uc3Params,
-    export_uc1,
+    clear_cache,
     export_uc2,
     export_uc3,
-    format_uc1_summary,
     format_uc2_summary,
     format_uc3_summary,
     list_cases,
-    run_uc1,
     run_uc2,
     run_uc3,
     write_export,
@@ -30,7 +27,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="marine-claims-demo",
         description=(
-            "MarineClaims AI executive demo — same UC1/UC2/UC3 + exports as the Web UI. "
+            "MarineClaims AI executive demo — Rule D5 + COLREGS (same as the Web UI). "
             "Use `serve` for the HTMX app (requires: uv sync --group demo)."
         ),
     )
@@ -40,18 +37,6 @@ def main(argv: list[str] | None = None) -> int:
     p_serve.add_argument("--host", default="127.0.0.1")
     p_serve.add_argument("--port", type=int, default=8765)
     p_serve.add_argument("--reload", action="store_true")
-
-    p1 = sub.add_parser("uc1", help="Topology / owner's work exclusion (Kaiyo Maru)", parents=[_lang_parent()])
-    p1.add_argument("--damage-zone", default="hull_forward")
-    p1.add_argument("--probe-zone", default="machinery")
-    p1.add_argument("--status-filter", default="all", choices=("all", "covered", "apportioned", "excluded", "review"))
-    p1.add_argument("--spec", dest="spec_pdf", default=None, help="Repair specification PDF")
-    p1.add_argument("--casualty", dest="casualty_pdf", default=None, help="Casualty report PDF")
-    p1.add_argument("--analyze", action="store_true", help="Parse PDFs live (requires pdftotext)")
-    p1.add_argument("--export-md", type=Path, help="Write survey Markdown")
-    p1.add_argument("--export-html", type=Path, help="Write printable HTML survey")
-    p1.add_argument("--json", action="store_true", help="Print machine-readable JSON summary")
-    p1.add_argument("--sample-excluded", type=int, default=40)
 
     p2 = sub.add_parser("uc2", help="AAA Rule D5 apportionment + off-hire simulator", parents=[_lang_parent()])
     _add_uc2_params(p2)
@@ -71,16 +56,27 @@ def main(argv: list[str] | None = None) -> int:
     p3.add_argument("--json", action="store_true")
 
     sub.add_parser("list-cases", help="List UC3 fixture case ids", parents=[_lang_parent()])
+    sub.add_parser(
+        "clear-cache",
+        help="Clear demo analysis JSON, PDF page previews, uploads, and in-memory loaders",
+    )
 
     args = parser.parse_args(argv)
     lang: Lang = "ja" if getattr(args, "lang", "en") == "ja" else "en"
 
     if args.cmd == "serve":
         return _serve(args)
+    if args.cmd == "clear-cache":
+        stats = clear_cache()
+        print(
+            "Cleared demo cache: "
+            f"analysis_json={stats['analysis_json']} "
+            f"pdf_pages={stats['pdf_pages']} "
+            f"uploads={stats['uploads']}"
+        )
+        return 0
     if args.cmd == "list-cases":
         return _list_cases(lang)
-    if args.cmd == "uc1":
-        return _cmd_uc1(args, lang)
     if args.cmd == "uc2":
         return _cmd_uc2(args, lang)
     if args.cmd == "uc3":
@@ -115,15 +111,6 @@ def _add_uc2_params(p: argparse.ArgumentParser) -> None:
     p.add_argument("--analyze", action="store_true", help="Parse PDF live")
 
 
-def _uc1_params(args: argparse.Namespace) -> Uc1Params:
-    return Uc1Params(
-        damage_zone=args.damage_zone,
-        probe_zone=args.probe_zone,
-        status_filter=args.status_filter,
-        sample_excluded=args.sample_excluded,
-    )
-
-
 def _uc2_params(args: argparse.Namespace) -> Uc2Params:
     return Uc2Params(
         daily_dock_rate=args.daily_dock_rate,
@@ -155,7 +142,11 @@ def _serve(args: argparse.Namespace) -> int:
     except ImportError:
         print("Web UI deps missing. Install with: uv sync --group demo", file=sys.stderr)
         return 1
+    from marine_claims_ai.demo.logging_setup import DEMO_LOG_PATH, setup_demo_logging
+
+    setup_demo_logging()
     print(f"MarineClaims AI demo → http://{args.host}:{args.port}/")
+    print(f"Demo log file → {DEMO_LOG_PATH}")
     uvicorn.run(
         "marine_claims_ai.demo.app:app",
         host=args.host,
@@ -169,35 +160,6 @@ def _list_cases(lang: Lang) -> int:
     for c in list_cases(lang):
         print(f"{c['id']}\t{c['source']}\t{c['title']}")
     return 0
-
-
-def _cmd_uc1(args: argparse.Namespace, lang: Lang) -> int:
-    try:
-        params = _uc1_params(args)
-        uc1 = run_uc1(
-            lang,
-            params,
-            analyze=bool(args.analyze),
-            spec_pdf=args.spec_pdf,
-            casualty_pdf=args.casualty_pdf,
-        )
-        if not uc1.get("ok"):
-            print(uc1.get("error"), file=sys.stderr)
-            return 1
-        if args.json:
-            print(json.dumps(_uc1_json(uc1), ensure_ascii=False, indent=2))
-        else:
-            print(format_uc1_summary(uc1, lang))
-        if args.export_md:
-            _, body = export_uc1(lang, fmt="md", sample_excluded=args.sample_excluded)
-            print(f"wrote {write_export(args.export_md, body)}")
-        if args.export_html:
-            _, body = export_uc1(lang, fmt="html", sample_excluded=args.sample_excluded)
-            print(f"wrote {write_export(args.export_html, body)}")
-        return 0
-    except FileNotFoundError as exc:
-        print(str(exc), file=sys.stderr)
-        return 1
 
 
 def _cmd_uc2(args: argparse.Namespace, lang: Lang) -> int:
@@ -237,21 +199,6 @@ def _cmd_uc3(args: argparse.Namespace, lang: Lang) -> int:
     except ValueError as exc:
         print(str(exc), file=sys.stderr)
         return 1
-
-
-def _uc1_json(uc1: dict) -> dict:
-    return {
-        "ok": True,
-        "n_items": uc1["n_items"],
-        "claimed": uc1["claimed"],
-        "excluded_jpy": uc1["excluded_jpy"],
-        "approved_jpy": uc1["approved_jpy"],
-        "rate": uc1["rate"],
-        "counts": uc1["counts"],
-        "damage_zone": uc1.get("damage_zone"),
-        "probe_zone": uc1.get("probe_zone"),
-        "probe": uc1.get("probe"),
-    }
 
 
 def _uc2_json(uc2: dict) -> dict:

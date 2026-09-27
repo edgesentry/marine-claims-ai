@@ -9,7 +9,7 @@
     <h2>{{ t('source_docs', lang) }}</h2>
     <form method="post" action="/analyze/uc3" enctype="multipart/form-data" class="doc-form">
       <label>{{ t('doc_uc3', lang) }}
-        <select name="doc_pdf">
+        <select name="doc_pdf" id="uc3-doc-select">
           {% for z in uc3.doc_options %}
           <option value="{{ z.id }}" {% if z.id == uc3.doc_pdf %}selected{% endif %}>{{ z.label }}</option>
           {% endfor %}
@@ -45,12 +45,28 @@
       </label>
       <button type="submit" class="btn">{{ t('analyze_uc3', lang) }}</button>
     </form>
+    <p class="doc-open-inline">
+      <a class="btn secondary doc-open" id="uc3-doc-open"
+         href="/docs/{{ uc3.doc_pdf }}/view">{{ t('open_pdf', lang) }}</a>
+    </p>
+    <script>
+    (function () {
+      const sel = document.getElementById('uc3-doc-select');
+      const open = document.getElementById('uc3-doc-open');
+      if (!sel || !open) return;
+      function sync() {
+        open.href = '/docs/' + encodeURIComponent(sel.value || '') + '/view';
+      }
+      sel.addEventListener('change', sync);
+      sync();
+    })();
+    </script>
   </section>
   <div id="uc3-results">
     {% if not uc3.ok %}
       <div class="error">{{ uc3.error }}</div>
     {% else %}
-      {% if uc3.from_document %}<p class="muted">{{ t('from_document', lang) }} — {{ uc3.doc_pdf }}</p>{% endif %}
+      {% if uc3.from_document %}<p class="muted">{{ t('from_document', lang) }} — {{ uc3.doc_pdf_label or uc3.doc_pdf }}</p>{% endif %}
       {% include "partials/uc3_results.html" %}
     {% endif %}
   </div>

@@ -76,3 +76,57 @@ def clear_loader_caches() -> None:
     load_jmat_cases.cache_clear()
     load_civil_catalog.cache_clear()
     load_geometries.cache_clear()
+
+
+def clear_demo_caches() -> dict[str, int]:
+    """Clear demo analysis JSON, PDF page previews, uploads, and in-memory loaders.
+
+    Does not delete public source PDFs under ``poc_datasets`` / ``_inputs``.
+    """
+    import shutil
+
+    from marine_claims_ai.demo.documents import UPLOAD_DIR
+    from marine_claims_ai.demo.pdf_preview import PREVIEW_DIR
+    from marine_claims_ai.paths import DEFAULT_DATA_DIR, DEFAULT_DATASET_DIR
+
+    removed_json = 0
+    for base in (DEFAULT_DATASET_DIR, LEGACY_DATASET_DIR):
+        if not base.is_dir():
+            continue
+        for path in base.glob("claims_analysis_*.json"):
+            try:
+                path.unlink()
+                removed_json += 1
+            except OSError:
+                pass
+
+    removed_pages = 0
+    if PREVIEW_DIR.is_dir():
+        for child in PREVIEW_DIR.iterdir():
+            try:
+                if child.is_dir():
+                    shutil.rmtree(child)
+                    removed_pages += 1
+                elif child.is_file():
+                    child.unlink()
+                    removed_pages += 1
+            except OSError:
+                pass
+
+    removed_uploads = 0
+    if UPLOAD_DIR.is_dir():
+        for path in UPLOAD_DIR.iterdir():
+            try:
+                if path.is_file():
+                    path.unlink()
+                    removed_uploads += 1
+            except OSError:
+                pass
+
+    clear_loader_caches()
+    DEFAULT_DATA_DIR.mkdir(parents=True, exist_ok=True)
+    return {
+        "analysis_json": removed_json,
+        "pdf_pages": removed_pages,
+        "uploads": removed_uploads,
+    }

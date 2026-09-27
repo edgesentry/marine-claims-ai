@@ -8,31 +8,15 @@ from typing import Any, Literal
 
 from marine_claims_ai.demo import export as export_mod
 from marine_claims_ai.demo.i18n import Lang, t
+from marine_claims_ai.demo.loaders import clear_demo_caches
 from marine_claims_ai.demo.services import (
-    build_uc1,
     build_uc2,
     build_uc3,
     list_uc3_cases,
-    run_uc1_analyze,
 )
 
 ExportFormat = Literal["md", "html"]
 
-
-@dataclass(frozen=True)
-class Uc1Params:
-    damage_zone: str = "hull_forward"
-    probe_zone: str = "machinery"
-    status_filter: str = "all"
-    sample_excluded: int = 40
-
-    def as_kwargs(self) -> dict[str, Any]:
-        return {
-            "damage_zone": self.damage_zone,
-            "probe_zone": self.probe_zone,
-            "status_filter": self.status_filter,
-            "sample_excluded": self.sample_excluded,
-        }
 
 
 @dataclass(frozen=True)
@@ -83,29 +67,6 @@ class Uc3Params:
         }
 
 
-def run_uc1(lang: Lang = "en", params: Uc1Params | None = None, **kwargs: Any) -> dict[str, Any]:
-    if params is None:
-        params = Uc1Params(
-            damage_zone=str(kwargs.get("damage_zone", "hull_forward")),
-            probe_zone=str(kwargs.get("probe_zone", "machinery")),
-            status_filter=str(kwargs.get("status_filter", "all")),
-            sample_excluded=int(kwargs.get("sample_excluded", 40)),
-        )
-    analyze = bool(kwargs.get("analyze"))
-    spec_pdf = kwargs.get("spec_pdf")
-    casualty_pdf = kwargs.get("casualty_pdf")
-    if analyze and spec_pdf and casualty_pdf:
-        return run_uc1_analyze(
-            lang,
-            spec_pdf=str(spec_pdf),
-            casualty_pdf=str(casualty_pdf),
-            damage_zone=params.damage_zone,
-            probe_zone=params.probe_zone,
-            status_filter=params.status_filter,
-        )
-    return build_uc1(lang, **params.as_kwargs(), spec_pdf=spec_pdf, casualty_pdf=casualty_pdf)
-
-
 def run_uc2(lang: Lang = "en", params: Uc2Params | None = None) -> dict[str, Any]:
     p = params or Uc2Params()
     return build_uc2(lang, **p.as_kwargs())
@@ -118,28 +79,14 @@ def run_uc3(lang: Lang = "en", params: Uc3Params | None = None, **kwargs: Any) -
             heading_a_deg=kwargs.get("heading_a_deg"),
             heading_b_deg=kwargs.get("heading_b_deg"),
             true_bearing_a_to_b_deg=kwargs.get("true_bearing_a_to_b_deg"),
+            doc_pdf=kwargs.get("doc_pdf"),
+            analyze=bool(kwargs.get("analyze", False)),
         )
     return build_uc3(lang, **params.as_kwargs())
 
 
 def list_cases(lang: Lang = "en") -> list[dict[str, str]]:
     return list_uc3_cases(lang)
-
-
-def export_uc1(
-    lang: Lang = "en",
-    *,
-    fmt: ExportFormat = "md",
-    sample_excluded: int = 40,
-) -> tuple[dict[str, Any], str]:
-    uc1 = run_uc1(lang, sample_excluded=sample_excluded)
-    if not uc1.get("ok"):
-        raise FileNotFoundError(uc1.get("error") or t("data_missing", lang))
-    if fmt == "html":
-        body = export_mod.survey_html(uc1["summary_for_export"], uc1["items_for_export"], lang)
-    else:
-        body = export_mod.survey_markdown(uc1["summary_for_export"], uc1["items_for_export"], lang)
-    return uc1, body
 
 
 def export_uc2(
@@ -179,36 +126,6 @@ def write_export(path: Path | str, body: str) -> Path:
     return out
 
 
-def format_uc1_summary(uc1: dict[str, Any], lang: Lang = "en") -> str:
-    if not uc1.get("ok"):
-        return str(uc1.get("error") or t("data_missing", lang))
-    probe = uc1.get("probe") or {}
-    probe_txt = t("probe_pass", lang) if probe.get("valid") else t("probe_fail", lang)
-    lines = [
-        t("uc1_title", lang),
-        f"  {t('metric_items', lang)}: {uc1['n_items']}",
-        f"  {t('metric_claimed', lang)}: ¥{uc1['claimed']:,}",
-        f"  {t('metric_excluded', lang)}: ¥{uc1['excluded_jpy']:,}",
-        f"  {t('metric_rate', lang)}: {uc1['rate']}%",
-        f"  {t('damage_zone', lang)}: {uc1.get('damage_zone')} → "
-        f"{t('probe_zone', lang)}: {uc1.get('probe_zone')} — {probe_txt}",
-        f"  counts: covered={uc1['counts']['covered']} "
-        f"apportioned={uc1['counts']['apportioned']} "
-        f"excluded={uc1['counts']['excluded']}",
-    ]
-    sample = uc1.get("rows") or []
-    if sample:
-        lines.append("")
-        lines.append(t("line_items", lang) + ":")
-        for row in sample[:12]:
-            lines.append(
-                f"  [{row['status_label']}] {row['description'][:70]}  ¥{row['amount']:,}"
-            )
-        if len(sample) > 12:
-            lines.append(f"  … ({len(sample) - 12} more in export)")
-    return "\n".join(lines)
-
-
 def format_uc2_summary(uc2: dict[str, Any], lang: Lang = "en") -> str:
     lines = [
         t("uc2_title", lang),
@@ -243,3 +160,8 @@ def format_uc3_summary(uc3: dict[str, Any], lang: Lang = "en") -> str:
     if uc3.get("rule_citations"):
         lines.append(f"  {t('article', lang)}: {'; '.join(uc3['rule_citations'])}")
     return "\n".join(lines)
+
+
+def clear_cache() -> dict[str, int]:
+    """Clear local demo caches (analysis JSON, PDF page images, uploads, loaders)."""
+    return clear_demo_caches()
