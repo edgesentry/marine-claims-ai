@@ -58,6 +58,17 @@ flowchart TD
   - Fast SQL aggregation over itemized shipyard accounts, calculating deductible offsets, trade-discipline subtotals, and total leakage reductions.
   - Direct zero-copy queries over Arrow tables returned by Polars and LanceDB.
 
+### 5. Detailed Database Architecture & Lifecycle Specification
+
+For an in-depth breakdown of database design rationales, internal storage formats, programmatic update pipelines, and query workflows, consult:
+👉 [**Database Architecture, Design Rationales & Lifecycle Management (`database_architecture_and_lifecycle.md`)**](database_architecture_and_lifecycle.md)
+
+| Database | Primary Purpose | Key Architectural Design Intent | Update / Write Workflow | Query / Read Workflow |
+| :--- | :--- | :--- | :--- | :--- |
+| **DuckDB**<br>(`_inputs/*.duckdb`) | • AAA Rule D5 50/50 drydock dues apportionment<br>• Claims leakage & financial audit aggregation | • Embedded C++ in-process (Zero-Server)<br>• Arrow zero-copy memory integration<br>• Zero-Dataset Git Policy compliance | • `scripts/init_duckdb_vector.py --force`<br>• `build_duckdb_analytics()` via Arrow buffer<br>• Compiles `DRYDOCK_APPORTIONMENT_VIEW_SQL` | • `summarize_claims_leakage()` (`read_only=True`)<br>• In-memory dynamic query via `duckdb.connect(":memory:")` |
+| **LanceDB**<br>(`.lancedb/`) | • Dense Vector (384-dim) + BM25 hybrid search<br>• JMAT rulings, PSC flags, repair packages retrieval | • Embedded Rust in-process engine<br>• Tantivy full-text index integration<br>• Cloudflare R2 / S3 native backup sync | • `build_lancedb()` with fastembed MiniLM-L12-v2<br>• `create_table("precedents", mode="overwrite")`<br>• `table.create_index("text", config=FTS())` | • `hybrid_search(query_text, k)`<br>• Vector + BM25 search fused via `RRFReranker()` |
+| **NetworkX**<br>(In-Memory) | • SOLAS watertight bulkhead topology validation<br>• Mechanical exclusion of physical non-causality | • Deterministic graph invariant barrier<br>• Zero-hallucination guarantee on damage spread | • `build_standard_vessel_compartment_graph()`<br>• Instantiates vessel compartments & bulkhead edges | • `nx.has_path(view, impact_node, repair_node)`<br>• Flags disconnected repairs as `EXCLUDED` |
+
 ---
 
 ## 3. Two-Tier System Architecture: Universal Core vs. Jurisdiction Adapters
