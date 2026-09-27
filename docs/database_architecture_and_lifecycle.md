@@ -93,16 +93,16 @@ Rather than adopting traditional client-server relational databases or cloud DB 
 
 ### 3.1 DuckDB: Analytical Relational SQL Engine
 
-#### Primary Responsibilities
+#### DuckDB Primary Responsibilities
 1. **AAA Rule D5 Common Dues Apportionment**: Applies London Association of Average Adjusters (AAA) Rule D5 to divide shared drydocking dues (dock entry/exit, daily lay-dock dues) 50/50 between underwriter and owner when casualty repairs and routine owner maintenance coincide.
 2. **Claims Leakage & Disallowance Aggregation**: High-speed OLAP calculation of discrete casualty expenses, owner-deferred maintenance, statutory class requirements, and disallowed line items.
 
-#### Filesystem Locations
+#### DuckDB Filesystem Locations
 * Persistent local databases: `_inputs/marine_claims.duckdb` (full corpus), `_inputs/marine_claims_thin.duckdb` (CI/test corpus).
 * Dynamic in-memory runtime: `duckdb.connect(":memory:")`.
 * Default path definitions: [`src/marine_claims_ai/paths.py`](../src/marine_claims_ai/paths.py) (`DEFAULT_DUCK_PATH`).
 
-#### Write Pipeline (Update & Table Generation)
+#### DuckDB Write Pipeline (Update & Table Generation)
 DuckDB tables and analytical views are built programmatically without manual database migrations:
 
 * **Entrypoint & Function Location**:
@@ -140,7 +140,7 @@ sequenceDiagram
     DUCK-->>BUILD: Close connection
 ```
 
-#### Read Pipeline (Querying & Financial Summary)
+#### DuckDB Read Pipeline (Querying & Financial Summary)
 Reading occurs exclusively in read-only mode to prevent lock contention:
 
 * **Function Location**: [`src/marine_claims_ai/analytics/apportion.py`](../src/marine_claims_ai/analytics/apportion.py) (`summarize_claims_leakage`)
@@ -154,15 +154,15 @@ Reading occurs exclusively in read-only mode to prevent lock contention:
 
 ### 3.2 LanceDB: Embedded Hybrid Vector & Full-Text Search Engine
 
-#### Primary Responsibilities
+#### LanceDB Primary Responsibilities
 1. **Hybrid Retrieval (Dense Vector + BM25)**: Performs unified semantic search and exact-match keyword querying over JMAT tribunal cases, PSC risk profiles, repair work packages, and civil court precedents.
 2. **Multilingual Terminology Matching**: Resolves domain-specific variations between Japanese and English ship repair terminology (e.g., Japanese shipyard terms vs. English classification society terminology).
 
-#### Filesystem Locations
+#### LanceDB Filesystem Locations
 * Persistent local directories: `.lancedb/precedents.lance` (standard corpus), `.lancedb_thin/precedents.lance` (thin test corpus).
 * Default directory definitions: [`src/marine_claims_ai/paths.py`](../src/marine_claims_ai/paths.py) (`DEFAULT_LANCE_DIR`).
 
-#### Write Pipeline (Embedding & Index Creation)
+#### LanceDB Write Pipeline (Embedding & Index Creation)
 LanceDB datasets are created and indexed through automated vectorization:
 
 * **Entrypoint & Function Location**:
@@ -196,7 +196,7 @@ sequenceDiagram
     LANCE->>FS: Persist inverted indices in _indices/
 ```
 
-#### Read Pipeline (Hybrid Search & Reciprocal Rank Fusion)
+#### LanceDB Read Pipeline (Hybrid Search & Reciprocal Rank Fusion)
 Search queries are processed using hybrid ranking:
 
 * **Function Location**: [`src/marine_claims_ai/index/search.py`](../src/marine_claims_ai/index/search.py) (`hybrid_search`, `embed_query`)
@@ -224,16 +224,16 @@ flowchart LR
 
 ### 3.3 NetworkX: In-Memory Naval Architecture Compartment Graph
 
-#### Primary Responsibilities
+#### NetworkX Primary Responsibilities
 1. **Watertight Bulkhead Invariant Enforcement**: Models the physical topology of vessel spaces according to SOLAS (International Convention for the Safety of Life at Sea) standards.
 2. **Causality Barrier**: Mechanically verifies whether casualty damage at an impact compartment (e.g., forward bulbous bow) can physically propagate across watertight bulkheads (e.g., collision bulkhead) to claimed repair items in aft compartments (e.g., engine room or steering gear flat). If unreachable, items are assigned `EXCLUDED`.
 
-#### Filesystem Locations
+#### NetworkX In-Memory Storage & Module Paths
 * Pure runtime in-memory instance (`networkx.DiGraph`).
 * Ontology definition file: [`src/marine_claims_ai/ontology/compartments.py`](../src/marine_claims_ai/ontology/compartments.py).
 * Causal evaluation module: [`src/marine_claims_ai/analytics/graph_barrier.py`](../src/marine_claims_ai/analytics/graph_barrier.py).
 
-#### Write Pipeline (Graph Instantiation)
+#### NetworkX Write Pipeline (Graph Instantiation)
 The graph is generated dynamically from the structural ontology during runtime initialization:
 
 * **Function Location**: [`src/marine_claims_ai/ontology/compartments.py`](../src/marine_claims_ai/ontology/compartments.py) (`build_standard_vessel_compartment_graph`)
@@ -242,7 +242,7 @@ The graph is generated dynamically from the structural ontology during runtime i
   * Directed edges represent physical connectivity.
   * Edges corresponding to intact transverse watertight bulkheads (Collision Bulkhead, Forward Machinery Bulkhead, Aft Peak Bulkhead) are tagged with structural barrier metadata (`barrier=True`).
 
-#### Read Pipeline (Path Reachability Verification)
+#### NetworkX Read Pipeline (Path Reachability Verification)
 Evaluates whether claim items have an unbroken path of physical causality from the casualty origin:
 
 * **Function Location**: [`src/marine_claims_ai/analytics/graph_barrier.py`](../src/marine_claims_ai/analytics/graph_barrier.py) (`evaluate_damage_propagation`, `verify_damage_causality`)
