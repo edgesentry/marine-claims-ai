@@ -173,8 +173,8 @@ def _export_uc2(lang: Lang, params: Uc2Params, fmt: str, filename: str, media_ty
 def _export_uc3(lang: Lang, case_id: str | None, fmt: str, filename: str, media_type: str) -> Response:
     try:
         _, body = export_uc3(lang, case_id=case_id, fmt=fmt)  # type: ignore[arg-type]
-    except ValueError as exc:
-        return Response(str(exc), status_code=404, media_type="text/plain")
+    except ValueError:
+        return Response("Requested resource was not found.", status_code=404, media_type="text/plain")
     return _download(body, filename, media_type)
 
 
