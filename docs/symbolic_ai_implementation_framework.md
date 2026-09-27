@@ -26,7 +26,7 @@ flowchart LR
     subgraph SYMBOLIC["Symbolic Verification and Reasoning Layer"]
         S1["1. Spatial Topology: Watertight bulkhead connectivity NetworkX"]
         S2["2. Statutory Exclusion: Class survey item exclusion rules"]
-        S3["3. Deterministic Apportionment: AAA Rule D 50/50 fee optimization DuckDB"]
+        S3["3. Deterministic Apportionment: AAA Rule D5 50/50 fee optimization DuckDB"]
         S4["4. Navigational Fault Attribution: COLREGS Rule 13-17 predicate logic"]
         S5["5. Evidentiary Admissibility Engine: Deck/Engine logbook isValid verification"]
     end
@@ -50,7 +50,9 @@ To construct a legally and technically defensible symbolic engine, rules cannot 
 | :--- | :--- | :--- | :--- | :--- |
 | **1** | **Vessel Spatial Topology** | Mechanically prevents attributing bow collision damage to remote compartments (eliminates False Accepts). | ・**SOLAS Convention Chapter II-1** (Watertight bulkhead & collision barrier standards)<br>・**Classification Society Rules** (ClassNK / DNV hull construction rules)<br>・Vessel General Arrangement (GA) and Midship Section drawings | **Undirected Adjacency Graph**<br>(NetworkX: G = (V, E) with isolated machinery nodes) |
 | **2** | **Statutory Periodicity Exclusions** | Disallows routine scheduled overhauls (piston pulls, megger tests) slipped into casualty accounts. | ・**Ship Safety Law & Enforcement Regulations**<br>・**ClassNK Rules Part B Chapter 2** (Mandatory intermediate & special survey items)<br>・Public tender standard drydock repair specifications | **Exclusion Taxonomy & Schemas**<br>(`config/statutory_rules.json` / Pydantic) |
-| **3** | **Common Drydock Fee Apportionment** | Enforces the international 50/50 division of common docking expenses between owner and underwriter. | ・**Association of Average Adjusters (AAA) Rules of Practice Rule D**<br>・**Marine Insurance Act 1906 / 2015**<br>・**Institute Time Clauses - Hulls (ITC-Hulls 1/10/83)** | **MaxSMT Constraints & SQL**<br>(DuckDB deterministic apportionment queries) |
+| **3** | **Common Drydock Fee Apportionment** | Enforces the international 50/50 division of common docking expenses between owner and underwriter. | ・**Association of Average Adjusters (AAA) Rules of Practice Rule D5** (DRY DOCK EXPENSES)<br>・**Marine Insurance Act 1906 / 2015**<br>・**Institute Time Clauses - Hulls (ITC-Hulls 1/10/83)** | **MaxSMT Constraints & SQL**<br>(DuckDB deterministic apportionment queries) |
+
+Clause-level summary and Issue #29 implementation map: [AAA Rule D5 Drydock Apportionment](aaa_rule_d5_drydock_apportionment.md).
 | **4** | **Collision Fault Attribution** | Automates initial liability splits (e.g., 80:20 crossing) based on codified navigational regulations. | ・**COLREGS 1972** (Rules 13 to 17: Overtaking, Head-on, Crossing situations)<br>・**Japan Marine Accident Tribunal (JMAT) Precedent Archive**<br>・Civil Court Collision Fault Assessment Tables | **First-Order Predicate Logic**<br>(Rule-based decision trees with angle/speed inputs) |
 | **5** | **Evidentiary Admissibility** | Verifies whether damage photos, surveyor notes, and logbooks satisfy legal burden of proof. | ・International Marine Surveying Guidelines<br>・Civil Procedure Code on documentary evidence authentication | **Relational Knowledge Graph Nodes**<br>(Graph attributes: `isValid`, `reasonForInvalid`) |
 
@@ -96,8 +98,8 @@ Rules are strictly decoupled from executable code to allow review, audit, and ad
    - Represents compartments as nodes and structural adjacencies as edges.
    - Machinery space is isolated by transverse watertight bulkheads.
    - Evaluated in sub-millisecond execution via `nx.has_path(graph, source, target)`.
-2. **Deterministic Fee Apportionment (`src/marine_claims_ai/analytics/apportion.py`)**:
-   - Implements AAA Rule D as deterministic DuckDB SQL queries. Common drydock dues are apportioned 50/50 when both casualty and owner maintenance work required drydocking.
+2. **Deterministic Fee Apportionment (`src/marine_claims_ai/analytics/rule_d_solver.py`)**:
+   - Implements AAA Rule D5 as deterministic DuckDB SQL queries. Common drydock dues are apportioned 50/50 or 100% to underwriters per D5 ¶1–¶2. See [aaa_rule_d5_drydock_apportionment.md](aaa_rule_d5_drydock_apportionment.md). Aggregation CLI remains in `analytics/apportion.py`.
 3. **COLREGS Predicate Engine**:
    - Calculates relative bearing and heading vectors between encountering vessels.
    - Maps facts directly to formal predicate implications:

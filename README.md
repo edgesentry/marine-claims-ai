@@ -202,6 +202,7 @@ Gates (config): ≥3 runnable cases, critical False Accept = 0, mean status agre
 - [Iterative Knowledge Loop Specification](docs/iterative_knowledge_loop_specification.md)
 - [Open-Core Research & Development Roadmap](docs/research_and_development_roadmap.md)
 - [Symbolic AI Implementation Framework](docs/symbolic_ai_implementation_framework.md)
+- [AAA Rule D5 Drydock Apportionment (Issue #29)](docs/aaa_rule_d5_drydock_apportionment.md)
 - [Public Datasets & Accuracy Evaluation Methodology](docs/public_benchmarks_and_accuracy_evaluation.md)
 - [Prior Research Synthesis](docs/prior_research_synthesis.md)
 - [Benchmark Methodology and Architecture](_inputs/poc_datasets/benchmark_methodology_and_architecture.md)

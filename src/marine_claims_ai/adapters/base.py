@@ -1,7 +1,7 @@
 """
 Typed contracts for Modular Jurisdiction & Regional Tariff Adapters.
 
-Universal open-core engines (COLREGS geometry, AAA Rule D, SOLAS compartment
+Universal open-core engines (COLREGS geometry, AAA Rule D5, SOLAS compartment
 graphs, IMO PSC taxonomy) remain jurisdiction-neutral. Adapters encapsulate
 local precedent catalogs, fairway regulations, seaworthiness legal standards,
 and regional shipyard tariff schedules so markets (Japan / UK / Singapore) can
