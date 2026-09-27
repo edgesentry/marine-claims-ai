@@ -1,8 +1,8 @@
 {
-  "version": 1,
-  "description": "Public casualty×drydock pairs for concurrent-repair appraisal accuracy (Week 1). PDFs stay under gitignored _inputs/poc_datasets/.",
+  "version": 2,
+  "description": "Public casualty×drydock pairs for concurrent-repair appraisal accuracy (Gate A scale). PDFs stay under gitignored _inputs/ / _data/.",
   "metrics_note": "Score item status buckets only (COVERED/APPORTIONED/REVIEW/EXCLUDED). JPY amounts are unit-price heuristics and are not gold.",
-  "gold_note": "Provisional founder gold v1 is assigned by an independent policy module (not pipeline.py). Human edits can be dumped locally via --write-gold-dir.",
+  "gold_note": "Provisional founder gold v1 is assigned by an independent policy module (not pipeline.py). Human edits can be dumped locally via --write-gold-dir under _data/benchmarks/gold/.",
   "cases": [
     {
       "case_id": "bow_sample_drydock",
@@ -23,6 +23,27 @@
       "title": "JTSB tanker bridge collision × public drydock specification",
       "casualty_pdf": "jtsb_tanker_bridge_collision_report.pdf",
       "spec_pdf": "sample_drydock_repair_specification.pdf",
+      "expected_damage_hints": ["外板", "球状船首", "貨物タンク"]
+    },
+    {
+      "case_id": "bow_iwate_riasumaru_design_2022",
+      "title": "JTSB container bow × Iwate Riasu-maru design book (public tender)",
+      "casualty_pdf": "jtsb_cargo_collision_report.pdf",
+      "spec_pdf": "iwate_riasumaru_design_book_2022.pdf",
+      "expected_damage_hints": ["球状船首", "外板"]
+    },
+    {
+      "case_id": "bow_yamagata_chokaimaru_2022",
+      "title": "JTSB container bow × Yamagata Chokai-maru pendock specification",
+      "casualty_pdf": "jtsb_cargo_collision_report.pdf",
+      "spec_pdf": "yamagata_chokaimaru_pendock_spec_2022.pdf",
+      "expected_damage_hints": ["球状船首", "外板"]
+    },
+    {
+      "case_id": "tanker_kaiyomaru_spec",
+      "title": "JTSB tanker bridge × Fukuoka kaiyomaru public repair spec",
+      "casualty_pdf": "jtsb_tanker_bridge_collision_report.pdf",
+      "spec_pdf": "fukuoka_kaiyomaru_spec.pdf",
       "expected_damage_hints": ["外板", "球状船首", "貨物タンク"]
     }
   ],

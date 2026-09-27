@@ -6,11 +6,45 @@ import json
 from pathlib import Path
 from typing import Any
 
-from marine_claims_ai.paths import DEFAULT_DATASET_DIR, REPO_ROOT
+from marine_claims_ai.paths import (
+    DEFAULT_DATASET_DIR,
+    DEFAULT_INPUT_CASUALTIES_DIR,
+    DEFAULT_INPUT_REPAIRS_DIR,
+    LEGACY_DATASET_DIR,
+    REPO_ROOT,
+)
 
 DEFAULT_EVAL_CONFIG = REPO_ROOT / "config" / "public_appraisal_eval.json"
 
 STATUS_BUCKETS = ("COVERED", "APPORTIONED", "REVIEW", "EXCLUDED", "OTHER")
+
+
+def resolve_pdf(name: str, *, dataset_dir: Path | None = None) -> Path | None:
+    """Locate a public PDF across dataset cache and governance repair/casualty dirs."""
+    filename = Path(name).name
+    roots: list[Path] = []
+    if dataset_dir is not None:
+        roots.append(Path(dataset_dir))
+    roots.extend(
+        [
+            DEFAULT_DATASET_DIR,
+            LEGACY_DATASET_DIR,
+            DEFAULT_INPUT_REPAIRS_DIR / "specs",
+            DEFAULT_INPUT_REPAIRS_DIR / "bids",
+            DEFAULT_INPUT_CASUALTIES_DIR / "jtsb",
+            DEFAULT_INPUT_CASUALTIES_DIR,
+        ]
+    )
+    seen: set[Path] = set()
+    for root in roots:
+        resolved = root.resolve() if root.exists() else root
+        if resolved in seen:
+            continue
+        seen.add(resolved)
+        candidate = root / filename
+        if candidate.is_file():
+            return candidate
+    return None
 
 
 def load_eval_config(path: str | Path | None = None) -> dict[str, Any]:
@@ -227,16 +261,16 @@ def run_case_from_pdfs(
         extract_repair_items,
     )
 
-    casualty = dataset_dir / str(case["casualty_pdf"])
-    spec = dataset_dir / str(case["spec_pdf"])
-    if not casualty.is_file() or not spec.is_file():
+    casualty = resolve_pdf(str(case["casualty_pdf"]), dataset_dir=dataset_dir)
+    spec = resolve_pdf(str(case["spec_pdf"]), dataset_dir=dataset_dir)
+    if casualty is None or spec is None or not casualty.is_file() or not spec.is_file():
         return {
             "case_id": case.get("case_id"),
             "title": case.get("title"),
             "skipped": True,
             "reason": "missing_pdf",
-            "casualty_pdf": str(casualty),
-            "spec_pdf": str(spec),
+            "casualty_pdf": str(casualty) if casualty else case.get("casualty_pdf"),
+            "spec_pdf": str(spec) if spec else case.get("spec_pdf"),
         }
 
     profile = extract_casualty_profile(str(casualty))
@@ -256,8 +290,11 @@ def run_case_from_pdfs(
         "total_excluded_jpy": summary.get("total_excluded_jpy"),
         "leakage_prevention_rate_pct": summary.get("leakage_prevention_rate_pct"),
         "pricing_note": summary.get("pricing_note"),
+        "rule_d5_reconciliation_error_jpy": summary.get("rule_d5_reconciliation_error_jpy"),
     }
     result["casualty_profile"] = profile
+    result["spec_pdf_resolved"] = str(spec)
+    result["casualty_pdf_resolved"] = str(casualty)
     return result
 
 
