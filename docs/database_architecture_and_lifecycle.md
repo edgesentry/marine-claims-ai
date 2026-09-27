@@ -3,7 +3,7 @@
 **Target Project**: `marine-claims-ai` (Public Open-Core)  
 **Audience**: Software Architects, Data Engineers, Claims Appraisal Engineers, PoC Technical Leads  
 **Last Updated**: 2026-09-27  
-**Related Documents**: [`technical_stack.md`](technical_stack.md) · [`aaa_rule_d5_drydock_apportionment.md`](aaa_rule_d5_drydock_apportionment.md) · [`symbolic_ai_implementation_framework.md`](symbolic_ai_implementation_framework.md)
+**Related Documents**: [`directory_structure_and_data_governance.md`](directory_structure_and_data_governance.md) · [`technical_stack.md`](technical_stack.md) · [`aaa_rule_d5_drydock_apportionment.md`](aaa_rule_d5_drydock_apportionment.md) · [`symbolic_ai_implementation_framework.md`](symbolic_ai_implementation_framework.md)
 
 ---
 
@@ -15,8 +15,8 @@ The system utilizes two embedded storage engines and one in-memory graph structu
 
 | Database / Engine | Engine Type & Format | Storage Path (Filesystem) | Core Purpose & Responsibilities |
 | :--- | :--- | :--- | :--- |
-| **DuckDB** | In-process columnar OLAP SQL engine (C++) | `_inputs/marine_claims.duckdb`<br>`_inputs/marine_claims_thin.duckdb`<br>In-memory: `:memory:` | • **AAA Rule D5 drydock common dues 50/50 apportionment**<br>• Analytical queries and financial aggregations on `line_items`<br>• Deterministic calculation of Claims Leakage (unwarranted owner expenses) |
-| **LanceDB** | Embedded hybrid vector + full-text search DB (Rust / Lance) | `.lancedb/precedents.lance`<br>`.lancedb_thin/precedents.lance` | • **Hybrid retrieval (Dense Vector + BM25 FTS) across maritime corpora**<br>• Fast retrieval of JMAT tribunal rulings, PSC deficiency flags, repair work packages, and civil court precedents |
+| **DuckDB** | In-process columnar OLAP SQL engine (C++) | `_data/duckdb/marine_claims.duckdb`<br>`_data/duckdb/marine_claims_thin.duckdb`<br>In-memory: `:memory:` | • **AAA Rule D5 drydock common dues 50/50 apportionment**<br>• Analytical queries and financial aggregations on `line_items`<br>• Deterministic calculation of Claims Leakage (unwarranted owner expenses) |
+| **LanceDB** | Embedded hybrid vector + full-text search DB (Rust / Lance) | `_data/lancedb/precedents.lance`<br>`_data/lancedb_thin/precedents.lance` | • **Hybrid retrieval (Dense Vector + BM25 FTS) across maritime corpora**<br>• Fast retrieval of JMAT tribunal rulings, PSC deficiency flags, repair work packages, and civil court precedents |
 | **NetworkX** | In-memory directed topology graph (Python) | Runtime memory (`nx.DiGraph`) | • **Naval architecture watertight bulkhead isolation testing**<br>• Deterministic physical reachability verification (`has_path`) to mechanically reject impossible damage propagation (`EXCLUDED`) |
 
 ```mermaid
@@ -27,8 +27,8 @@ flowchart TD
 
     subgraph STORAGE["2. Embedded Storage Layer (Unified Apache Arrow)"]
         direction TB
-        LANCE[("LanceDB (.lancedb/)<br/>Dense Vectors (384-dim) + BM25 FTS<br/>Precedents & Tariffs Hybrid Retrieval")]
-        DUCK[("DuckDB (_inputs/marine_claims.duckdb)<br/>Columnar OLAP SQL / line_items<br/>AAA Rule D5 50/50 Apportionment View")]
+        LANCE[("LanceDB (_data/lancedb/)<br/>Dense Vectors (384-dim) + BM25 FTS<br/>Precedents & Tariffs Hybrid Retrieval")]
+        DUCK[("DuckDB (_data/duckdb/marine_claims.duckdb)<br/>Columnar OLAP SQL / line_items<br/>AAA Rule D5 50/50 Apportionment View")]
         NX[("NetworkX (In-Memory Graph)<br/>SOLAS Watertight Bulkhead Invariants<br/>Physical Causality Verification")]
     end
 
@@ -61,7 +61,7 @@ Rather than adopting traditional client-server relational databases or cloud DB 
 ### 2. Zero-Dataset Git Policy & Strict Air-Gap Security
 * **Problem**: Marine claims files contain confidential vessel identifiers (IMO numbers, hull names, proprietary charter party terms, owner identities, and contested repair figures). Committing binary databases or sensitive claim dossiers to Git creates severe data leakage risks.
 * **Design Solution**:
-  * Binary database artifacts (`*.duckdb`, `.lancedb/`) are strictly gitignored.
+  * Binary database artifacts under `_data/` (`*.duckdb`, Lance tables) are strictly gitignored.
   * The database state is **100% reproducible and programmatic** (Idempotent Rebuild). Any developer or CI/CD runner can reconstruct the entire index from scratch using automated ingestion scripts ([`scripts/fetch_public_datasets.py`](../scripts/fetch_public_datasets.py) and [`scripts/init_duckdb_vector.py`](../scripts/init_duckdb_vector.py)).
 
 ### 3. Unified Apache Arrow Columnar Standard (Zero-Copy Interoperability)
@@ -98,9 +98,9 @@ Rather than adopting traditional client-server relational databases or cloud DB 
 2. **Claims Leakage & Disallowance Aggregation**: High-speed OLAP calculation of discrete casualty expenses, owner-deferred maintenance, statutory class requirements, and disallowed line items.
 
 #### DuckDB Filesystem Locations
-* Persistent local databases: `_inputs/marine_claims.duckdb` (full corpus), `_inputs/marine_claims_thin.duckdb` (CI/test corpus).
+* Persistent local databases: `_data/duckdb/marine_claims.duckdb` (full corpus), `_data/duckdb/marine_claims_thin.duckdb` (CI/test corpus).
 * Dynamic in-memory runtime: `duckdb.connect(":memory:")`.
-* Default path definitions: [`src/marine_claims_ai/paths.py`](../src/marine_claims_ai/paths.py) (`DEFAULT_DUCK_PATH`).
+* Default path definitions: [`src/marine_claims_ai/paths.py`](../src/marine_claims_ai/paths.py) (`DEFAULT_DUCK_DIR`, `DEFAULT_DUCK_PATH`).
 
 #### DuckDB Write Pipeline (Update & Table Generation)
 DuckDB tables and analytical views are built programmatically without manual database migrations:
@@ -127,7 +127,7 @@ sequenceDiagram
     participant BUILD as build.py (build_duckdb_analytics)
     participant PL as Polars DataFrame
     participant DUCK as DuckDB Engine
-    participant FS as Disk (_inputs/marine_claims.duckdb)
+    participant FS as Disk (_data/duckdb/marine_claims.duckdb)
 
     CLI->>BUILD: build_duckdb_analytics(duck_path, df, force=True)
     BUILD->>PL: Drop vector text column, retain financial fields
@@ -159,8 +159,8 @@ Reading occurs exclusively in read-only mode to prevent lock contention:
 2. **Multilingual Terminology Matching**: Resolves domain-specific variations between Japanese and English ship repair terminology (e.g., Japanese shipyard terms vs. English classification society terminology).
 
 #### LanceDB Filesystem Locations
-* Persistent local directories: `.lancedb/precedents.lance` (standard corpus), `.lancedb_thin/precedents.lance` (thin test corpus).
-* Default directory definitions: [`src/marine_claims_ai/paths.py`](../src/marine_claims_ai/paths.py) (`DEFAULT_LANCE_DIR`).
+* Persistent local directories: `_data/lancedb/precedents.lance` (standard corpus), `_data/lancedb_thin/precedents.lance` (thin test corpus).
+* Default directory definitions: [`src/marine_claims_ai/paths.py`](../src/marine_claims_ai/paths.py) (`DEFAULT_LANCE_DIR`). Legacy `.lancedb/` remains a read fallback (`LEGACY_LANCE_DIR`).
 
 #### LanceDB Write Pipeline (Embedding & Index Creation)
 LanceDB datasets are created and indexed through automated vectorization:
@@ -183,7 +183,7 @@ sequenceDiagram
     participant BUILD as build.py (build_lancedb)
     participant FE as fastembed (MiniLM-L12-v2)
     participant LANCE as LanceDB Engine
-    participant FS as Disk (.lancedb/precedents.lance)
+    participant FS as Disk (_data/lancedb/precedents.lance)
 
     CLI->>BUILD: build_lancedb(lance_dir, df, force=True)
     BUILD->>FE: Encode texts into 384-dim dense vectors
@@ -265,8 +265,8 @@ sequenceDiagram
     participant Script as scripts/init_duckdb_vector.py
     participant Build as index/build.py
     participant Polars as Polars Engine
-    participant Lance as LanceDB (.lancedb/)
-    participant Duck as DuckDB (_inputs/marine_claims.duckdb)
+    participant Lance as LanceDB (_data/lancedb/)
+    participant Duck as DuckDB (_data/duckdb/marine_claims.duckdb)
     participant NX as NetworkX (In-Memory)
     participant Appraise as Appraisal Pipeline
 
@@ -313,9 +313,9 @@ All operations are executed via documented CLI entrypoints without requiring dir
 
 ### 4. Local Snapshot & Off-Machine Disaster Recovery
 * Export DuckDB snapshot to Parquet:
-  * CLI Command: `duckdb _inputs/marine_claims.duckdb "EXPORT DATABASE 'backup/duckdb_snapshot/' (FORMAT PARQUET);"`
+  * CLI Command: `duckdb _data/duckdb/marine_claims.duckdb "EXPORT DATABASE 'backup/duckdb_snapshot/' (FORMAT PARQUET);"`
 * Archive LanceDB index directory:
-  * CLI Command: `tar -czf backup/lancedb_$(date +%Y%m%d).tar.gz .lancedb/`
-* Synchronize local databases and cached datasets to Cloudflare R2 / AWS S3:
+  * CLI Command: `tar -czf backup/lancedb_$(date +%Y%m%d).tar.gz _data/lancedb/`
+* Synchronize local caches to Cloudflare R2 / AWS S3 (raw inputs + derived data separately):
   * CLI Command: `rclone sync _inputs/ r2:marine-claims-backup/_inputs/ --fast-list`
-  * CLI Command: `rclone sync .lancedb/ r2:marine-claims-backup/lancedb/ --fast-list`
+  * CLI Command: `rclone sync _data/ r2:marine-claims-backup/_data/ --fast-list`
