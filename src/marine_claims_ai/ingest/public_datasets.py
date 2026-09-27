@@ -15,6 +15,7 @@ Supported Data Sources:
 from __future__ import annotations
 
 import argparse
+import html
 import json
 import os
 import re
@@ -40,6 +41,142 @@ JMAT_JSON = "benchmark_field1_jmat_cases.json"
 PSC_JSON = "benchmark_field2_psc_flags.json"
 REPAIR_JSON = "benchmark_field3_repair_packages.json"
 
+# CJK share of non-space characters in input_facts. Mojibake from utf-8
+# errors="ignore" on CP932 pages lands near 0.01; readable rulings are ~0.4.
+_FIELD1_MIN_CJK_FRACTION = 0.15
+_FIELD1_CJK_MIN_CHARS = 80
+
+_SHIFT_JIS_LABELS = frozenset(
+    {"shift_jis", "shift-jis", "x-sjis", "sjis", "csshiftjis", "windows-31j", "cp932", "ms932"}
+)
+_EUC_JP_LABELS = frozenset({"euc-jp", "euc_jp", "eucjp"})
+_UTF8_LABELS = frozenset({"utf-8", "utf8"})
+
+_CHARSET_RE = re.compile(r"""charset\s*=\s*["']?\s*([A-Za-z0-9_\-]+)""", re.IGNORECASE)
+_PAREN_OPEN = r"[（(]"
+_PAREN_CLOSE = r"[)）]"
+_FACTS_HEAD_RE = re.compile(
+    rf"理\s*由(?:\s*{_PAREN_OPEN}\s*事\s*実\s*{_PAREN_CLOSE})?"
+)
+_FACTS_END_RE = re.compile(r"（原因）|\(原因\)|原因の考察")
+_CAUSE_HEAD_RE = re.compile(r"（原因）|\(原因\)")
+_SHUBUN_RE = re.compile(r"主\s*文")
+_RIYU_RE = re.compile(r"理\s*由")
+_RULING_END_RE = re.compile(r"指定海難関係人")
+_CJK_RE = re.compile(r"[\u3040-\u30ff\u4e00-\u9fff]")
+
+
+def _declared_charset(data: bytes, content_type: str | None) -> str | None:
+    """HTTP Content-Type charset wins; otherwise the first meta charset in the head."""
+    if content_type:
+        match = _CHARSET_RE.search(content_type)
+        if match:
+            return match.group(1).lower()
+    head = data[:2500].decode("ascii", errors="ignore")
+    match = _CHARSET_RE.search(head)
+    return match.group(1).lower() if match else None
+
+
+def _decode_strict(data: bytes, encodings: list[str]) -> str | None:
+    for enc in encodings:
+        try:
+            return data.decode(enc)
+        except UnicodeDecodeError:
+            continue
+    return None
+
+
+def decode_jmat_html(data: bytes, content_type: str | None = None) -> str:
+    """
+    Decode a JMAT HTML body.
+
+    Shift_JIS-labeled pages on mlit.go.jp include CP932 NEC-row bytes
+    (for example 0x87 0x40 = ①). Strict shift_jis raises; trying cp932 next
+    keeps those characters. The lossy utf-8 fallback uses errors="replace"
+    so U+FFFD remains visible to field1_case_issues.
+    """
+    label = _declared_charset(data, content_type)
+    if label in _SHIFT_JIS_LABELS:
+        order = ["shift_jis", "cp932"]
+    elif label in _EUC_JP_LABELS:
+        order = ["euc-jp", "utf-8"]
+    elif label in _UTF8_LABELS:
+        order = ["utf-8", "shift_jis", "cp932", "euc-jp"]
+    else:
+        order = ["utf-8", "shift_jis", "cp932", "euc-jp"]
+    text = _decode_strict(data, order)
+    if text is not None:
+        return text
+    return data.decode("utf-8", errors="replace")
+
+
+def html_to_jmat_plain(raw_html: str) -> str:
+    text = html.unescape(raw_html)
+    text = re.sub(r"<[^>]+>", " ", text)
+    text = text.replace("\u00a0", " ")
+    text = re.sub(r"&nbsp;", " ", text)
+    return re.sub(r"\s+", " ", text).strip()
+
+
+def extract_jmat_sections(text: str) -> tuple[str, str]:
+    """
+    Return (input_facts, ground_truth_ruling), already length-capped.
+
+    Live major-case pages close 「事実」 with a fullwidth ） and sometimes
+    insert spaces (理 由 / 事 実 / 主 文). Bare 「原因」 is not a section
+    boundary: it appears inside sentences such as 「原因となる」.
+    """
+    facts_match = _FACTS_HEAD_RE.search(text)
+    if facts_match:
+        rest = text[facts_match.end() :]
+        end = _FACTS_END_RE.search(rest)
+        facts = (rest[: end.start()] if end else rest).strip()
+    else:
+        facts = text[:2500]
+
+    cause_match = _CAUSE_HEAD_RE.search(text)
+    if cause_match:
+        rest = text[cause_match.end() :]
+        end = _RULING_END_RE.search(rest)
+        ruling = (rest[: end.start()] if end else rest).strip()
+    else:
+        subun_match = _SHUBUN_RE.search(text)
+        if subun_match:
+            rest = text[subun_match.end() :]
+            end = _RIYU_RE.search(rest)
+            ruling = (rest[: end.start()] if end else rest).strip()
+        else:
+            ruling = facts[-500:]
+    return facts[:4000], ruling[:800]
+
+
+def parse_jmat_case_html(raw: bytes, content_type: str | None = None) -> dict[str, str]:
+    facts, ruling = extract_jmat_sections(html_to_jmat_plain(decode_jmat_html(raw, content_type)))
+    return {"input_facts": facts, "ground_truth_ruling": ruling}
+
+
+def _cjk_fraction(text: str) -> float:
+    chars = [ch for ch in text if not ch.isspace()]
+    if not chars:
+        return 0.0
+    cjk = sum(1 for ch in chars if _CJK_RE.match(ch))
+    return cjk / len(chars)
+
+
+def field1_case_issues(record: dict) -> list[str]:
+    """Return human-readable problems when a Field 1 record looks corrupted."""
+    issues: list[str] = []
+    facts = str(record.get("input_facts") or "")
+    ruling = str(record.get("ground_truth_ruling") or "")
+    blob = facts + ruling
+    if "\ufffd" in blob:
+        issues.append("replacement character U+FFFD")
+    if any(ord(ch) < 32 and ch not in "\t\n\r" for ch in blob):
+        issues.append("C0 control character")
+    if len(facts) > _FIELD1_CJK_MIN_CHARS and _cjk_fraction(facts) < _FIELD1_MIN_CJK_FRACTION:
+        issues.append(f"CJK fraction {_cjk_fraction(facts):.3f} below {_FIELD1_MIN_CJK_FRACTION}")
+    return issues
+
 
 def fetch_field1_jmat(output_dir: str, force: bool = False, limit: int = 0) -> None:
     """
@@ -54,7 +191,8 @@ def fetch_field1_jmat(output_dir: str, force: bool = False, limit: int = 0) -> N
     print(f"[Field 1] Fetching JMAT cases from {JMAT_INDEX_URL}...")
     try:
         with open_url(JMAT_INDEX_URL, timeout=20) as resp:
-            index_html = resp.read().decode("utf-8", errors="ignore")
+            index_type = resp.headers.get("Content-Type")
+            index_html = decode_jmat_html(resp.read(), index_type)
     except Exception as e:
         print(f"[Field 1] [ERROR] Could not fetch JMAT index: {e}")
         return
@@ -70,43 +208,19 @@ def fetch_field1_jmat(output_dir: str, force: bool = False, limit: int = 0) -> N
         print(f"  [{case_id:03d}/{len(matches)}] Fetching: {clean_title}")
         try:
             with open_url(case_url, timeout=20) as cresp:
-                raw_bytes = cresp.read()
-            try:
-                chtml = raw_bytes.decode("shift_jis")
-            except UnicodeDecodeError:
-                try:
-                    chtml = raw_bytes.decode("euc-jp")
-                except UnicodeDecodeError:
-                    chtml = raw_bytes.decode("utf-8", errors="ignore")
-
-            text = re.sub(r"<[^>]+>", " ", chtml)
-            text = re.sub(r"&nbsp;", " ", text)
-            text = re.sub(r"\s+", " ", text)
-
-            facts = ""
-            ruling = ""
-            m_facts = re.search(r"理由\s*\(事実\)(.*?)(?=（原因）|原因|$)", text)
-            if m_facts:
-                facts = m_facts.group(1).strip()
-            else:
-                facts = text[:2500]
-
-            m_ruling = re.search(r"（原因）\s*(.*?)(?=指定海難関係人|$)", text)
-            if m_ruling:
-                ruling = m_ruling.group(1).strip()
-            else:
-                m_subun = re.search(r"主文\s*(.*?)(?=理由|$)", text)
-                ruling = m_subun.group(1).strip() if m_subun else facts[-500:]
-
-            cases.append(
-                {
-                    "case_id": case_id,
-                    "title": clean_title,
-                    "url": case_url,
-                    "input_facts": facts[:4000],
-                    "ground_truth_ruling": ruling[:800],
-                }
-            )
+                content_type = cresp.headers.get("Content-Type")
+                parsed = parse_jmat_case_html(cresp.read(), content_type)
+            record = {
+                "case_id": case_id,
+                "title": clean_title,
+                "url": case_url,
+                "input_facts": parsed["input_facts"],
+                "ground_truth_ruling": parsed["ground_truth_ruling"],
+            }
+            issues = field1_case_issues(record)
+            if issues:
+                print(f"    [WARN] Case {case_id} sanity: {'; '.join(issues)}")
+            cases.append(record)
         except Exception as e:
             print(f"    [WARN] Failed to parse case {case_id}: {e}")
         polite_sleep(0.25)
