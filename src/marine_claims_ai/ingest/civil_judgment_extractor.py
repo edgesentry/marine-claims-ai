@@ -50,10 +50,24 @@ _HOLDING_ANCHORS = (
 
 @dataclass(frozen=True)
 class FaultRatioHit:
+    """
+    A ranked fault-ratio candidate.
+
+    ``ratio`` remains the catalog-compatible ``A:B`` string. Optional side fields
+    bind that pair to vessel names or procedural parties so Issue #44 can vectorize
+    precedents as (own_ship/target_ship) or (plaintiff/defendant) features rather
+    than anonymous percentage pairs.
+    """
+
     ratio: str  # "65:35"
     evidence: str
     method: str
     confidence: float
+    # Labels aligned with ratio sides: side_a → first %, side_b → second %
+    side_a_label: str | None = None  # e.g. "建昌", "しんえい丸", "原告"
+    side_b_label: str | None = None  # e.g. "有漁丸", "金宝丸", "被告"
+    side_a_role: str | None = None  # plaintiff | defendant | primary_cause | vessel
+    side_b_role: str | None = None
 
 
 @dataclass(frozen=True)
@@ -72,6 +86,11 @@ class JudgmentExtraction:
     disallowed_jpy: int | None = None
     yen_hits: list[YenHit] = field(default_factory=list)
     holding_excerpt: str | None = None
+    # Best-hit party binding (mirrors fault_ratio_hits[0] when present)
+    side_a_label: str | None = None
+    side_b_label: str | None = None
+    side_a_role: str | None = None
+    side_b_role: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -230,21 +249,62 @@ _RE_PERCENT = re.compile(
 )
 _RE_PERCENT_LOOSE = re.compile(rf"({_KANJI_INT_TOKEN}|\d{{1,2}})\s*(?:パーセント|％|%)")
 _RE_WARI = re.compile(
+    r"(原告|被告|訴外[^の]{0,8}|[^\s、。]{1,12}?)?(?:の)?"
     r"(?:過失割合|過失|責任)[^。]{0,24}"
     rf"({_KANJI_INT_TOKEN}|\d{{1,2}})\s*割"
     r"(?:と認める|と判示|とする|である|が相当)?"
 )
 _RE_MIDDLE_DOT = re.compile(
-    # 建昌六・五、有漁丸三・五 → 65:35
+    # 建昌六・五、有漁丸三・五 → 65:35 with vessel labels
     r"(?:責任割合|過失割合)[^。]{0,48}?"
-    r"[^\s、,]{1,16}?"
+    r"([^\s、,]{1,16}?)"
     r"([〇零一二三四五六七八九十\d]{1,2})\s*[・･]\s*"
     r"([〇零一二三四五六七八九十\d])"
     r"[、,]"
-    r"[^\s、,]{1,16}?"
+    r"([^\s、,]{1,16}?)"
     r"([〇零一二三四五六七八九十\d]{1,2})\s*[・･]\s*"
     r"([〇零一二三四五六七八九十\d])"
 )
+_RE_COMPACT_NAMED = re.compile(
+    # 責任割合を建昌65・有漁丸35と判示
+    r"(?:を|、|は)"
+    r"([^\s\d：:対／/・･、,]{1,16}?)"
+    r"(\d{1,2})\s*[・･]\s*"
+    r"([^\s\d：:対／/・･、,]{0,16}?)"
+    r"(\d{1,2})(?!\d)"
+)
+
+_PARTY_ROLES = {
+    "原告": "plaintiff",
+    "被告": "defendant",
+    "控訴人": "appellant",
+    "被控訴人": "appellee",
+}
+
+
+def _role_for_label(label: str | None) -> str | None:
+    if not label:
+        return None
+    for key, role in _PARTY_ROLES.items():
+        if key in label:
+            return role
+    if re.search(r"(丸|船|艦)$", label) or len(label) >= 2:
+        return "vessel"
+    return None
+
+
+def _clean_side_label(raw: str | None) -> str | None:
+    if not raw:
+        return None
+    label = raw.strip(" 　、。のはをがに")
+    label = re.sub(r"^(?:両船の|その|前記の|本件の|責任割合を?|過失割合を?)", "", label)
+    label = label.strip(" 　、。のをは")
+    if not label or len(label) > 16:
+        return None
+    # Reject pure particles / ratio vocabulary
+    if label in {"責任割合", "過失割合", "割合", "は", "を", "が"}:
+        return None
+    return label
 
 
 def extract_fault_ratios(text: str) -> list[FaultRatioHit]:
@@ -252,17 +312,35 @@ def extract_fault_ratios(text: str) -> list[FaultRatioHit]:
     text = normalize_judgment_text(text)
     hits: list[FaultRatioHit] = []
 
-    def add(a: int, b: int, evidence: str, method: str, confidence: float) -> None:
+    def add(
+        a: int,
+        b: int,
+        evidence: str,
+        method: str,
+        confidence: float,
+        *,
+        side_a_label: str | None = None,
+        side_b_label: str | None = None,
+        side_a_role: str | None = None,
+        side_b_role: str | None = None,
+    ) -> None:
         ratio = _ratio_str(a, b)
-        if ratio:
-            hits.append(
-                FaultRatioHit(
-                    ratio=ratio,
-                    evidence=evidence.strip()[:160],
-                    method=method,
-                    confidence=confidence,
-                )
+        if not ratio:
+            return
+        la = _clean_side_label(side_a_label)
+        lb = _clean_side_label(side_b_label)
+        hits.append(
+            FaultRatioHit(
+                ratio=ratio,
+                evidence=evidence.strip()[:160],
+                method=method,
+                confidence=confidence,
+                side_a_label=la,
+                side_b_label=lb,
+                side_a_role=side_a_role or _role_for_label(la),
+                side_b_role=side_b_role or _role_for_label(lb),
             )
+        )
 
     for m in _RE_ARABIC_PAIR.finditer(text):
         add(int(m.group(1)), int(m.group(2)), m.group(0), "arabic_pair", 0.95)
@@ -273,17 +351,38 @@ def extract_fault_ratios(text: str) -> list[FaultRatioHit]:
             add(a, b, m.group(0), "kanji_pair", 0.95)
 
     for m in _RE_MIDDLE_DOT.finditer(text):
-        a_whole = parse_kanji_int(m.group(1))
-        a_frac = parse_kanji_int(m.group(2))
-        b_whole = parse_kanji_int(m.group(3))
-        b_frac = parse_kanji_int(m.group(4))
-        if None not in (a_whole, a_frac, b_whole, b_frac):
-            add(a_whole * 10 + a_frac, b_whole * 10 + b_frac, m.group(0), "middle_dot_tenths", 0.92)
+        a_whole = parse_kanji_int(m.group(2))
+        a_frac = parse_kanji_int(m.group(3))
+        b_whole = parse_kanji_int(m.group(5))
+        b_frac = parse_kanji_int(m.group(6))
+        if (
+            a_whole is not None
+            and a_frac is not None
+            and b_whole is not None
+            and b_frac is not None
+        ):
+            add(
+                a_whole * 10 + a_frac,
+                b_whole * 10 + b_frac,
+                m.group(0),
+                "middle_dot_tenths",
+                0.92,
+                side_a_label=m.group(1),
+                side_b_label=m.group(4),
+            )
 
     for m in _RE_NAMED_TENTHS.finditer(text):
         a, b = parse_kanji_int(m.group(2)), parse_kanji_int(m.group(4))
         if a is not None and b is not None:
-            add(a, b, m.group(0), "named_tenths", 0.88)
+            add(
+                a,
+                b,
+                m.group(0),
+                "named_tenths",
+                0.88,
+                side_a_label=m.group(1),
+                side_b_label=m.group(3),
+            )
 
     for m in _RE_PERCENT.finditer(text):
         pct = parse_kanji_int(m.group(1))
@@ -291,7 +390,20 @@ def extract_fault_ratios(text: str) -> list[FaultRatioHit]:
             ratio = _single_percent_ratio(pct)
             if ratio:
                 a_s, b_s = ratio.split(":")
-                add(int(a_s), int(b_s), m.group(0), "labeled_percent", 0.9)
+                # Try vessel/party name immediately before the percent clause
+                prefix = text[max(0, m.start() - 24) : m.start()]
+                name_m = re.search(r"([^\s、。]{2,12})(?:の)?責任割合\s*$", prefix)
+                side_a = name_m.group(1) if name_m else None
+                add(
+                    int(a_s),
+                    int(b_s),
+                    m.group(0),
+                    "labeled_percent",
+                    0.9,
+                    side_a_label=side_a,
+                    side_a_role=_role_for_label(side_a) if side_a else "primary_share",
+                    side_b_role="residual_share",
+                )
 
     for m in _RE_PERCENT_LOOSE.finditer(text):
         window = text[max(0, m.start() - 40) : m.end() + 10]
@@ -302,24 +414,65 @@ def extract_fault_ratios(text: str) -> list[FaultRatioHit]:
             ratio = _single_percent_ratio(pct)
             if ratio:
                 a_s, b_s = ratio.split(":")
-                add(int(a_s), int(b_s), window.strip(), "context_percent", 0.85)
+                name_m = re.search(r"([^\s、。]{2,12})(?:の)?責任割合", window)
+                side_a = name_m.group(1) if name_m else None
+                add(
+                    int(a_s),
+                    int(b_s),
+                    window.strip(),
+                    "context_percent",
+                    0.85,
+                    side_a_label=side_a,
+                    side_a_role=_role_for_label(side_a) if side_a else "primary_share",
+                    side_b_role="residual_share",
+                )
 
     for m in _RE_WARI.finditer(text):
-        wari = parse_kanji_int(m.group(1))
+        wari = parse_kanji_int(m.group(2))
         if wari is not None and 1 <= wari <= 9:
             ratio = _single_percent_ratio(wari * 10)
             if ratio:
                 a_s, b_s = ratio.split(":")
-                add(int(a_s), int(b_s), m.group(0), "wari", 0.8)
+                party = m.group(1)
+                add(
+                    int(a_s),
+                    int(b_s),
+                    m.group(0),
+                    "wari",
+                    0.8,
+                    side_a_label=party or "原告",
+                    side_b_label="相手方",
+                    side_a_role=_role_for_label(party) or "plaintiff",
+                    side_b_role="counterparty",
+                )
 
-    # 建昌65・有漁丸35 / 65・35 (optional ship name between sides)
-    for m in re.finditer(
-        r"(\d{1,2})\s*[・･]\s*(?:[^\d\s：:対／/]{0,16})?(\d{1,2})(?!\d)",
-        text,
-    ):
+    for m in _RE_COMPACT_NAMED.finditer(text):
         window = text[max(0, m.start() - 24) : m.end() + 8]
-        if re.search(r"(責任|過失|割合|按分|判示)", window):
-            add(int(m.group(1)), int(m.group(2)), window, "compact_dot", 0.87)
+        if not re.search(r"(責任|過失|割合|按分|判示)", window):
+            continue
+        la, lb = m.group(1), m.group(3)
+        # Require at least one non-empty vessel/party token
+        if not (la or lb):
+            continue
+        add(
+            int(m.group(2)),
+            int(m.group(4)),
+            window,
+            "compact_dot",
+            0.87,
+            side_a_label=la or None,
+            side_b_label=lb or None,
+        )
+
+    # Bare 65・35 without names (fallback if compact_named missed)
+    if not any(h.method == "compact_dot" for h in hits):
+        for m in re.finditer(
+            r"(\d{1,2})\s*[・･]\s*(\d{1,2})(?!\d)",
+            text,
+        ):
+            window = text[max(0, m.start() - 24) : m.end() + 8]
+            if re.search(r"(責任|過失|割合|按分|判示)", window):
+                add(int(m.group(1)), int(m.group(2)), window, "compact_dot", 0.87)
 
     if not any(h.confidence >= 0.85 for h in hits):
         for m in _RE_ARABIC_PAIR_LOOSE.finditer(text):
@@ -329,7 +482,14 @@ def extract_fault_ratios(text: str) -> list[FaultRatioHit]:
 
     if re.search(r"主因", text) and re.search(r"一因", text):
         hits.append(
-            FaultRatioHit(ratio="70:30", evidence="主因/一因", method="shuin_ichin", confidence=0.65)
+            FaultRatioHit(
+                ratio="70:30",
+                evidence="主因/一因",
+                method="shuin_ichin",
+                confidence=0.65,
+                side_a_role="primary_cause",
+                side_b_role="secondary_cause",
+            )
         )
     elif re.search(r"によって発生", text) and re.search(r"一因", text):
         hits.append(
@@ -338,16 +498,26 @@ def extract_fault_ratios(text: str) -> list[FaultRatioHit]:
                 evidence="によって発生+一因",
                 method="hassei_ichin",
                 confidence=0.6,
+                side_a_role="primary_cause",
+                side_b_role="secondary_cause",
             )
         )
 
     hits.sort(key=lambda h: (-h.confidence, h.ratio))
+    # Prefer hits that carry side labels when ratios tie
+    hits.sort(key=lambda h: (-h.confidence, 0 if h.side_a_label else 1, h.ratio))
     seen: set[str] = set()
     unique: list[FaultRatioHit] = []
     for h in hits:
-        if h.ratio not in seen:
-            seen.add(h.ratio)
+        key = h.ratio
+        if key not in seen:
+            seen.add(key)
             unique.append(h)
+        elif h.side_a_label and not any(
+            u.ratio == key and u.side_a_label for u in unique
+        ):
+            # Replace anonymous same-ratio hit with labeled one
+            unique = [h if u.ratio == key else u for u in unique]
     return unique
 
 
@@ -452,7 +622,12 @@ def extract_from_judgment(text: str) -> JudgmentExtraction:
     hits = extract_fault_ratios(text)
     result.fault_ratio_hits = hits
     if hits:
-        result.fault_ratio = hits[0].ratio
+        best = hits[0]
+        result.fault_ratio = best.ratio
+        result.side_a_label = best.side_a_label
+        result.side_b_label = best.side_b_label
+        result.side_a_role = best.side_a_role
+        result.side_b_role = best.side_b_role
 
     yen_hits = extract_yen_amounts(text)
     result.yen_hits = yen_hits

@@ -10,6 +10,7 @@ from marine_claims_ai.benchmarks.civil_extractor_eval import (
 )
 from marine_claims_ai.ingest.civil_judgment_extractor import (
     best_fault_ratio,
+    extract_fault_ratios,
     extract_from_judgment,
     extract_negligence_holding,
     parse_kanji_int,
@@ -60,18 +61,42 @@ def test_arabic_and_kanji_fault_pairs():
 def test_middle_dot_and_named_tenths():
     text = "両船の責任割合は、建昌六・五、有漁丸三・五である。"
     assert best_fault_ratio(text) == "65:35"
+    hit = extract_fault_ratios(text)[0]
+    assert hit.side_a_label == "建昌"
+    assert hit.side_b_label == "有漁丸"
+    assert hit.side_a_role == "vessel"
+    assert hit.side_b_role == "vessel"
+
     text2 = "その責任割合はしんえい丸八、金宝丸二である。"
     assert best_fault_ratio(text2) == "80:20"
+    hit2 = extract_fault_ratios(text2)[0]
+    assert hit2.side_a_label == "しんえい丸"
+    assert hit2.side_b_label == "金宝丸"
 
 
 def test_percent_and_wari():
     assert best_fault_ratio("建昌の責任割合は前記のとおり六五パーセントである。") == "65:35"
     assert best_fault_ratio("責任割合を七五％と認定した。") == "75:25"
     assert best_fault_ratio("原告の過失割合を三割と認めるのが相当である。") == "30:70"
+    wari = extract_from_judgment("原告の過失割合を三割と認めるのが相当である。")
+    assert wari.side_a_label == "原告"
+    assert wari.side_a_role == "plaintiff"
+    assert wari.side_b_role == "counterparty"
 
 
-def test_shuin_ichin_and_hassei_fallback():
-    assert best_fault_ratio("本件はAが主因でありBが一因をなす。") == "70:30"
+def test_compact_named_party_binding():
+    text = "責任割合を建昌65・有漁丸35と判示。"
+    out = extract_from_judgment(text)
+    assert out.fault_ratio == "65:35"
+    assert out.side_a_label == "建昌"
+    assert out.side_b_label == "有漁丸"
+
+
+def test_shuin_ichin_roles():
+    hits = extract_fault_ratios("本件はAが主因でありBが一因をなす。")
+    assert hits[0].ratio == "70:30"
+    assert hits[0].side_a_role == "primary_cause"
+    assert hits[0].side_b_role == "secondary_cause"
     text = (
         "本件衝突は、見張り不十分によって発生したが、"
         "協力動作をとらなかったことも一因をなすものである。"

@@ -179,7 +179,9 @@ Raw Japanese maritime civil judgments (courts.go.jp PDFs/HTML) encode contributo
 | Tenths / named vessels | `建昌六・五、有漁丸三・五`; `しんえい丸八、金宝丸二` | `65:35` / `80:20` |
 | Compact catalog style | `建昌65・有漁丸35` | `65:35` |
 | Wari (割) | `原告の過失割合を三割と認める` | `30:70` |
-| Cause fallback | `主因`+`一因`, or `によって発生`+`一因` | `70:30` (conventional) |
+| Cause fallback | `主因`+`一因`, or `によって発生`+`一因` | `70:30` (conventional); roles `primary_cause` / `secondary_cause` |
+
+**Party / vessel binding (Issue #44 prep):** `FaultRatioHit` and `JudgmentExtraction` expose optional `side_a_label` / `side_b_label` (e.g. 建昌 / 有漁丸, 原告) and `side_a_role` / `side_b_role` (`vessel`, `plaintiff`, `defendant`, `primary_cause`, …) aligned with the `A:B` ratio sides. Catalog-facing `fault_ratio` remains the anonymous `A:B` string for backward compatibility.
 | Claimed yen | Label `請求額` / `請求金額` / `損害額合計` / … + Arabic or kanji `円` | int JPY |
 | Awarded yen | Label `認容額` / `認容` / `支払を命じ` / … | int JPY |
 | Disallowed yen | Label `棄却` / `否認` / `減額` / … | int JPY |
