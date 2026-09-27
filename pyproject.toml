@@ -16,6 +16,7 @@ dependencies = [
     "fastembed>=0.4.0",
     "networkx>=3.2",
     "certifi>=2024.0.0",
+    "pydantic>=2",
 ]
 
 [project.scripts]
@@ -32,6 +33,7 @@ dev = [
     "ruff>=0.8.0",
     "pymarkdownlnt>=0.9.0",
     "pytest>=8.0.0",
+    "pyright>=1.1.414",
 ]
 
 [tool.setuptools.packages.find]
