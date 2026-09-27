@@ -134,6 +134,16 @@ uv run python scripts/ci/verify_civil_catalog.py --mode content
 
 Entries that only point at `https://www.courts.go.jp/` are skipped (no document to compare).
 
+Automated fault-ratio / yen extraction from raw judgment text (Issue #43):
+
+```bash
+# Offline fixtures vs gold patterns (≥90% gate; Zero-Dataset safe)
+uv run python scripts/validate_civil_judgment_extractor.py --mode offline
+
+# Local cached PDFs/HTML vs catalog gold (evidenced fields only)
+uv run python scripts/validate_civil_judgment_extractor.py --mode local
+```
+
 ### 2. Rebuild Local Indexes (Polars → LanceDB + DuckDB)
 
 ```bash

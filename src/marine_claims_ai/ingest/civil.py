@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
+from marine_claims_ai.ingest.civil_judgment_extractor import extract_from_judgment
 from marine_claims_ai.ingest.download import download_url, polite_sleep
 from marine_claims_ai.ingest.jtsb import apply_limit
 from marine_claims_ai.ingest.pdf_text import pdf_to_text
@@ -88,17 +89,6 @@ def real_dod_status(stats: dict[str, int]) -> dict[str, bool]:
     }
 
 
-def _parse_yen_token(token: str) -> int:
-    return int(token.replace(",", ""))
-
-
-def _first_yen_near(text: str, label_pat: str) -> int | None:
-    m = re.search(label_pat + r"[^\d]{0,24}([0-9]{1,3}(?:,[0-9]{3})+)円", text)
-    if m:
-        return _parse_yen_token(m.group(1))
-    return None
-
-
 def enrich_from_text(
     record: dict[str, Any],
     text: str,
@@ -109,45 +99,19 @@ def enrich_from_text(
     if not text:
         return record
     out = dict(record)
+    extracted = extract_from_judgment(text)
 
-    if not out.get("fault_ratio"):
-        m_ratio = re.search(
-            r"(?:過失割合|責任割合)[^\d]{0,24}(\d{1,2})\s*[:：対]\s*(\d{1,2})",
-            text,
-        )
-        if not m_ratio:
-            m_ratio = re.search(r"(\d{1,2})\s*[:：対]\s*(\d{1,2})", text)
-        if m_ratio:
-            out["fault_ratio"] = f"{m_ratio.group(1)}:{m_ratio.group(2)}"
-        else:
-            m_pct = re.search(r"(?:過失割合|責任割合)[^\d]{0,24}(\d{1,2})\s*[％%]", text)
-            if m_pct:
-                a = int(m_pct.group(1))
-                out["fault_ratio"] = f"{a}:{100 - a}"
-            elif re.search(r"主因", text) and re.search(r"一因", text):
-                out["fault_ratio"] = "70:30"
+    if not out.get("fault_ratio") and extracted.fault_ratio:
+        out["fault_ratio"] = extracted.fault_ratio
 
-    if out.get("claimed_repair_jpy") is None:
-        claimed = _first_yen_near(text, r"(?:請求額|請求金額|損害額合計|請求の趣旨)")
-        if claimed is not None:
-            out["claimed_repair_jpy"] = claimed
+    if out.get("claimed_repair_jpy") is None and extracted.claimed_repair_jpy is not None:
+        out["claimed_repair_jpy"] = extracted.claimed_repair_jpy
 
-    if out.get("awarded_damages_jpy") is None:
-        awarded = _first_yen_near(text, r"(?:認容額|認容|支払を命じ|損害賠償金)")
-        if awarded is not None:
-            out["awarded_damages_jpy"] = awarded
+    if out.get("awarded_damages_jpy") is None and extracted.awarded_damages_jpy is not None:
+        out["awarded_damages_jpy"] = extracted.awarded_damages_jpy
 
-    if out.get("disallowed_jpy") is None:
-        disallowed = _first_yen_near(text, r"(?:棄却|否認|排除|認めない)")
-        if disallowed is not None:
-            out["disallowed_jpy"] = disallowed
-
-    if out.get("awarded_damages_jpy") is None and out.get("claimed_repair_jpy") is None:
-        amounts = [
-            _parse_yen_token(x) for x in re.findall(r"([0-9]{1,3}(?:,[0-9]{3})+)円", text)
-        ]
-        if amounts:
-            out["awarded_damages_jpy"] = max(amounts)
+    if out.get("disallowed_jpy") is None and extracted.disallowed_jpy is not None:
+        out["disallowed_jpy"] = extracted.disallowed_jpy
 
     compact = re.sub(r"\s+", " ", text)[:3500]
     if compact:
