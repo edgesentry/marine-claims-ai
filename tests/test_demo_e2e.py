@@ -21,7 +21,7 @@ from marine_claims_ai.paths import REPO_ROOT
 
 pytestmark = pytest.mark.demo
 
-FIXTURE = Path(__file__).resolve().parent / "fixtures" / "demo" / "claims_analysis_min.json"
+FIXTURE = REPO_ROOT / "config" / "demo_e2e_claims_analysis_min.json"
 CLI_SCRIPT = REPO_ROOT / "scripts" / "run_demo_cli.py"
 
 

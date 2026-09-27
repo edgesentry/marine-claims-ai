@@ -12,8 +12,18 @@ from marine_claims_ai.ci.leak_check import (
 def test_json_allowlist_only_config():
     assert is_json_allowed("config/benchmark_rules.json") is True
     assert is_json_allowed("config/nested/rules.json") is True
+    assert is_json_allowed("config/demo_e2e_claims_analysis_min.json") is True
     assert is_json_allowed("datasets/benchmark.json") is False
     assert is_json_allowed("src/marine_claims_ai/foo.py") is False
+
+
+def test_html_allowlist_demo_templates_only():
+    from marine_claims_ai.ci.leak_check import is_html_allowed
+
+    assert is_html_allowed("src/marine_claims_ai/demo/templates/uc1.html") is True
+    assert is_html_allowed("src/marine_claims_ai/demo/templates/partials/uc2_results.html") is True
+    assert is_html_allowed("_inputs/poc_datasets/page.html") is False
+    assert is_html_allowed("docs/note.html") is False
 
 
 def test_banned_tracked_files():
@@ -23,12 +33,16 @@ def test_banned_tracked_files():
         "secret.pdf",
         "data/leak.json",
         "notes.csv",
+        "src/marine_claims_ai/demo/templates/uc1.html",
+        "scraped/case.html",
     ]
     violations = check_banned_tracked_files(tracked)
     assert any("secret.pdf" in v for v in violations)
     assert any("leak.json" in v for v in violations)
     assert any("notes.csv" in v for v in violations)
+    assert any("scraped/case.html" in v for v in violations)
     assert not any("benchmark_rules.json" in v for v in violations)
+    assert not any("demo/templates/uc1.html" in v for v in violations)
 
 
 def test_scan_line_detects_private_paths_and_secrets():
