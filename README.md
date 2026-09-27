@@ -34,6 +34,7 @@ Agent constraints: **[AGENTS.md](AGENTS.md)**
 | :--- | :--- |
 | [Getting Started](docs/getting_started.md) | Install, ingest, indexes, benchmarks, pipeline |
 | [Executive Demo (Issue #54)](docs/executive_demo_cli_and_web.md) | CLI / Web parity |
+| [Demo Use Cases](docs/demo_use_cases.md) | Per-tab use case / input / process / output |
 | [Technical Stack](docs/technical_stack.md) | Architecture |
 | [Public Benchmarks & Accuracy](docs/public_benchmarks_and_accuracy_evaluation.md) | Evaluation methodology |
 | [AAA Rule D5](docs/aaa_rule_d5_drydock_apportionment.md) | Drydock apportionment |

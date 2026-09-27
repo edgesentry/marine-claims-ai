@@ -93,8 +93,39 @@ def test_demo_http_routes():
     if home.status_code == 200 and "data_missing" in home.text.lower():
         pass  # page still renders error state
     assert home.status_code == 200
+    assert "analyze" in home.text.lower() or "査定" in home.text or "書類" in home.text
     assert client.get("/uc2").status_code == 200
     assert client.get("/uc3").status_code == 200
-    assert client.get("/partials/uc2").status_code == 200
+    assert client.get("/partials/uc1").status_code == 200
+    assert client.get("/partials/uc2?include_statutory=1").status_code == 200
+    assert client.get("/partials/uc3?case_id=civil_7&heading_a_deg=0&heading_b_deg=180&true_bearing_a_to_b_deg=0").status_code == 200
     r = client.get("/set-lang?lang=ja&next=/uc1")
     assert r.status_code in (303, 307, 200)
+
+
+def test_interactive_conditions_change_outputs():
+    """Condition knobs must change engine outputs (demo pitch requirement)."""
+    uc2_50 = run_uc2("en", Uc2Params(include_statutory=True, docking_context="casualty_immediate"))
+    uc2_100 = run_uc2("en", Uc2Params(include_statutory=False, docking_context="casualty_immediate"))
+    assert uc2_50["rule"] != uc2_100["rule"] or uc2_50["insurer_common"] != uc2_100["insurer_common"]
+    assert uc2_50["insurer_common"] + uc2_50["owner_common"] == uc2_50["dock_total"]
+    assert uc2_100["owner_common"] == 0 or "100" in str(uc2_100["rule"]).upper()
+
+    uc3_base = run_uc3("en", case_id="civil_7")
+    uc3_head = run_uc3(
+        "en",
+        case_id="civil_7",
+        heading_a_deg=0,
+        heading_b_deg=180,
+        true_bearing_a_to_b_deg=0,
+    )
+    assert uc3_base["situation"] != uc3_head["situation"] or uc3_head["overrides_applied"] is True
+    assert uc3_head["situation"] == "head_on"
+
+    uc1 = run_uc1("en", damage_zone="hull_forward", probe_zone="machinery")
+    if uc1.get("ok"):
+        assert uc1["probe"]["valid"] is False
+        near = run_uc1("en", damage_zone="hull_forward", probe_zone="hull_mid")
+        assert near["probe"]["valid"] is True
+        assert "NetworkX" not in (uc1.get("probe") or {}).get("reason_label", "")
+

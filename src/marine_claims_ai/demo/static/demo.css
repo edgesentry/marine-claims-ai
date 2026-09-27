@@ -99,6 +99,19 @@ h1 { font-size: 1.45rem; margin: 0 0 0.4rem; font-weight: 650; }
   letter-spacing: 0.04em;
 }
 
+.chart-box {
+  position: relative;
+  width: 100%;
+  max-width: 360px;
+  height: 200px;
+  margin: 0 auto;
+}
+.chart-box canvas {
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
+}
+
 .metrics {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -218,4 +231,86 @@ th { color: var(--muted); font-weight: 550; font-size: 0.78rem; }
   background: color-mix(in srgb, var(--danger) 18%, transparent);
   padding: 0.85rem 1rem;
   border-radius: 8px;
+}
+
+.explain {
+  margin: 0 0 1.1rem;
+  padding: 0.95rem 1rem;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--panel) 70%, transparent);
+}
+.explain-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.85rem;
+}
+@media (max-width: 900px) {
+  .explain-grid { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 560px) {
+  .explain-grid { grid-template-columns: 1fr; }
+}
+.explain h3 {
+  margin: 0 0 0.35rem;
+  font-size: 0.72rem;
+  font-weight: 650;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.explain p {
+  margin: 0;
+  font-size: 0.86rem;
+  line-height: 1.45;
+  color: var(--ink);
+}
+.explain-docs { margin: 0.75rem 0 0; font-size: 0.8rem; }
+
+.control-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.85rem;
+}
+@media (max-width: 800px) {
+  .control-row { grid-template-columns: 1fr; }
+}
+.controls label.check {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.controls label.check input { width: auto; margin: 0; }
+
+.doc-form input[type=file] {
+  display: block;
+  margin-top: 0.45rem;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+.doc-form .btn { margin-top: 0.5rem; }
+
+.probe {
+  margin: 0 0 1rem;
+  padding: 0.7rem 0.9rem;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  font-size: 0.9rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem 0.75rem;
+  align-items: baseline;
+}
+.probe.ok {
+  border-color: color-mix(in srgb, var(--ok) 55%, var(--line));
+  background: color-mix(in srgb, var(--ok) 14%, transparent);
+}
+.probe.bad {
+  border-color: color-mix(in srgb, var(--danger) 55%, var(--line));
+  background: color-mix(in srgb, var(--danger) 14%, transparent);
+}
+.probe code {
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  color: var(--muted);
 }

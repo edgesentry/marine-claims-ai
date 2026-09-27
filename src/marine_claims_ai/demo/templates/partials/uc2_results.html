@@ -52,11 +52,11 @@
 
   <div class="actions">
     <a class="btn"
-       href="/export/apportionment.md?daily_dock_rate={{ uc2.daily_dock_rate }}&dock_days={{ uc2.dock_days }}&hire_rate={{ uc2.hire_rate }}&legacy_lead_days={{ uc2.legacy_lead_days }}&ai_lead_minutes={{ uc2.ai_lead_minutes }}">
+       href="/export/apportionment.md?daily_dock_rate={{ uc2.daily_dock_rate }}&dock_days={{ uc2.dock_days }}&hire_rate={{ uc2.hire_rate }}&legacy_lead_days={{ uc2.legacy_lead_days }}&ai_lead_minutes={{ uc2.ai_lead_minutes }}&docking_context={{ uc2.docking_context }}&include_statutory={% if uc2.include_statutory %}1{% else %}0{% endif %}">
       {{ t('export_apportion_md', lang) }}
     </a>
     <a class="btn secondary"
-       href="/export/apportionment.html?daily_dock_rate={{ uc2.daily_dock_rate }}&dock_days={{ uc2.dock_days }}&hire_rate={{ uc2.hire_rate }}&legacy_lead_days={{ uc2.legacy_lead_days }}&ai_lead_minutes={{ uc2.ai_lead_minutes }}">
+       href="/export/apportionment.html?daily_dock_rate={{ uc2.daily_dock_rate }}&dock_days={{ uc2.dock_days }}&hire_rate={{ uc2.hire_rate }}&legacy_lead_days={{ uc2.legacy_lead_days }}&ai_lead_minutes={{ uc2.ai_lead_minutes }}&docking_context={{ uc2.docking_context }}&include_statutory={% if uc2.include_statutory %}1{% else %}0{% endif %}">
       {{ t('export_apportion_html', lang) }}
     </a>
   </div>

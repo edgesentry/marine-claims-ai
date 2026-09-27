@@ -152,7 +152,8 @@ def test_e2e_web_uc1_page_and_exports(web_client):
 def test_e2e_web_uc2_partial_and_exports(web_client):
     page = web_client.get("/uc2")
     assert page.status_code == 200
-    assert "hx-get" in page.text and "/partials/uc2" in page.text
+    assert "/analyze/uc2" in page.text
+    assert "spec_pdf" in page.text or "doc_uc2" in page.text.lower() or "入渠" in page.text
 
     partial = web_client.get(
         "/partials/uc2",
@@ -162,6 +163,7 @@ def test_e2e_web_uc2_partial_and_exports(web_client):
             "hire_rate": 4_000_000,
             "legacy_lead_days": 21,
             "ai_lead_minutes": 15,
+            "include_statutory": "1",
         },
     )
     assert partial.status_code == 200

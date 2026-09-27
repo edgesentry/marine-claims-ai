@@ -2,115 +2,78 @@
 {% block content %}
 <h1>{{ t('uc1_title', lang) }}</h1>
 <p class="lead">{{ t('uc1_lead', lang) }}</p>
+{% with prefix='uc1' %}{% include "partials/explain_box.html" %}{% endwith %}
+
+<section class="panel controls">
+  <h2>{{ t('source_docs', lang) }}</h2>
+  <form method="post" action="/analyze/uc1" enctype="multipart/form-data" class="doc-form">
+    <div class="control-row">
+      <label>{{ t('doc_spec', lang) }}
+        <select name="spec_pdf">
+          {% for z in uc1.spec_options %}
+          <option value="{{ z.id }}" {% if z.id == uc1.spec_pdf %}selected{% endif %}>{{ z.label }}</option>
+          {% endfor %}
+        </select>
+        <input type="file" name="spec_file" accept="application/pdf,.pdf">
+      </label>
+      <label>{{ t('doc_casualty', lang) }}
+        <select name="casualty_pdf">
+          {% for z in uc1.casualty_options %}
+          <option value="{{ z.id }}" {% if z.id == uc1.casualty_pdf %}selected{% endif %}>{{ z.label }}</option>
+          {% endfor %}
+        </select>
+        <input type="file" name="casualty_file" accept="application/pdf,.pdf">
+      </label>
+    </div>
+    <input type="hidden" name="damage_zone" value="{{ uc1.damage_zone or 'hull_forward' }}">
+    <input type="hidden" name="probe_zone" value="{{ uc1.probe_zone or 'machinery' }}">
+    <input type="hidden" name="status_filter" value="{{ uc1.status_filter or 'all' }}">
+    <button type="submit" class="btn">{{ t('analyze_docs', lang) }}</button>
+  </form>
+</section>
 
 {% if not uc1.ok %}
   <div class="error">{{ uc1.error }}</div>
 {% else %}
-  <div class="metrics">
-    <div class="metric"><div class="label">{{ t('metric_items', lang) }}</div><div class="value">{{ uc1.n_items }}</div></div>
-    <div class="metric"><div class="label">{{ t('metric_claimed', lang) }}</div><div class="value">¥{{ '{:,}'.format(uc1.claimed) }}</div></div>
-    <div class="metric"><div class="label">{{ t('metric_excluded', lang) }}</div><div class="value">¥{{ '{:,}'.format(uc1.excluded_jpy) }}</div></div>
-    <div class="metric"><div class="label">{{ t('metric_rate', lang) }}</div><div class="value">{{ uc1.rate }}%</div></div>
-  </div>
+{% if uc1.from_document %}<p class="muted">{{ t('from_document', lang) }} —
+  {{ uc1.spec_pdf }} · {{ uc1.casualty_pdf }}</p>{% endif %}
 
-  <div class="grid-2">
-    <section class="panel">
-      <h2>{{ t('compartment_graph', lang) }}</h2>
-      <canvas id="compartmentChart" height="280"></canvas>
-      <p class="muted" style="margin-top:0.75rem;font-size:0.82rem">
-        {{ t('damaged', lang) }}: {{ uc1.damaged_labels | join(', ') }}
-      </p>
-    </section>
-    <section class="panel">
-      <h2>{{ t('line_items', lang) }}</h2>
-      {% if uc1.showing_sample %}<p class="muted">{{ t('show_sample', lang) }}</p>{% endif %}
-      <div class="table-scroll">
-        <table>
-          <thead>
-            <tr>
-              <th>{{ t('status', lang) }}</th>
-              <th>{{ t('description', lang) }}</th>
-              <th class="num">{{ t('amount', lang) }}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for row in uc1.rows %}
-            <tr>
-              <td><span class="pill {{ row.css }}">{{ row.status_label }}</span></td>
-              <td>{{ row.description[:90] }}{% if row.reason %}<div class="muted" style="font-size:0.75rem">{{ row.reason[:100] }}</div>{% endif %}</td>
-              <td class="num">{{ '{:,}'.format(row.amount) }}</td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-      <div class="actions">
-        <a class="btn" href="/export/survey.md">{{ t('export_survey_md', lang) }}</a>
-        <a class="btn secondary" href="/export/survey.html">{{ t('export_survey_html', lang) }}</a>
-      </div>
-    </section>
+<section class="panel controls"
+  hx-get="/partials/uc1"
+  hx-trigger="change"
+  hx-include="this"
+  hx-target="#uc1-results"
+  hx-swap="innerHTML">
+  <h2>{{ t('try_conditions', lang) }}</h2>
+  <div class="control-row">
+    <label>{{ t('damage_zone', lang) }}
+      <select name="damage_zone">
+        {% for z in uc1.zone_options %}
+        <option value="{{ z.id }}" {% if z.id == uc1.damage_zone %}selected{% endif %}>{{ z.label }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>{{ t('probe_zone', lang) }}
+      <select name="probe_zone">
+        {% for z in uc1.zone_options %}
+        <option value="{{ z.id }}" {% if z.id == uc1.probe_zone %}selected{% endif %}>{{ z.label }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>{{ t('status_filter', lang) }}
+      <select name="status_filter">
+        <option value="all" {% if uc1.status_filter == 'all' %}selected{% endif %}>{{ t('filter_all', lang) }}</option>
+        <option value="covered" {% if uc1.status_filter == 'covered' %}selected{% endif %}>{{ t('status_covered', lang) }}</option>
+        <option value="apportioned" {% if uc1.status_filter == 'apportioned' %}selected{% endif %}>{{ t('status_apportioned', lang) }}</option>
+        <option value="excluded" {% if uc1.status_filter == 'excluded' %}selected{% endif %}>{{ t('status_excluded', lang) }}</option>
+        <option value="review" {% if uc1.status_filter == 'review' %}selected{% endif %}>{{ t('status_review', lang) }}</option>
+      </select>
+    </label>
   </div>
-{% endif %}
-{% endblock %}
+</section>
 
-{% block scripts %}
-{% if uc1.ok %}
-<script>
-document.addEventListener('DOMContentLoaded', () => {
-  const graph = {{ uc1.graph | tojson }};
-  const color = { damaged: '#c45c4a', isolated: '#7a8794', normal: '#2f9e8b' };
-  const ctx = document.getElementById('compartmentChart');
-  const points = graph.nodes.map(n => ({
-    x: n.x, y: n.y, label: n.label, kind: n.kind
-  }));
-  const edgeSegs = [];
-  const byId = Object.fromEntries(graph.nodes.map(n => [n.id, n]));
-  for (const e of graph.edges) {
-    const a = byId[e.source], b = byId[e.target];
-    if (!a || !b) continue;
-    edgeSegs.push({ x: a.x, y: a.y });
-    edgeSegs.push({ x: b.x, y: b.y });
-    edgeSegs.push({ x: NaN, y: NaN });
-  }
-  new Chart(ctx, {
-    type: 'scatter',
-    data: {
-      datasets: [
-        {
-          label: 'edges',
-          data: edgeSegs,
-          showLine: true,
-          borderColor: '#35506a',
-          pointRadius: 0,
-          borderWidth: 1.5,
-          spanGaps: false,
-        },
-        ...['damaged','isolated','normal'].map(kind => ({
-          label: kind,
-          data: points.filter(p => p.kind === kind),
-          backgroundColor: color[kind],
-          pointRadius: 10,
-          pointHoverRadius: 12,
-        })),
-      ]
-    },
-    options: {
-      responsive: true,
-      plugins: {
-        legend: { display: false },
-        tooltip: {
-          callbacks: {
-            label: (c) => c.raw.label || ''
-          }
-        }
-      },
-      scales: {
-        x: { min: 0, max: 1, display: false },
-        y: { min: 0, max: 1, display: false }
-      }
-    }
-  });
-});
-</script>
+<div id="uc1-results">
+  {% include "partials/uc1_results.html" %}
+</div>
 {% endif %}
 {% endblock %}

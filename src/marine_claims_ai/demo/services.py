@@ -16,19 +16,26 @@ from marine_claims_ai.analytics import (
     predict_fault_ratio,
 )
 from marine_claims_ai.demo.i18n import Lang, role_label, situation_label, status_label, t, zone_label
+from marine_claims_ai.demo.documents import default_uc1_pair, list_pdfs
 from marine_claims_ai.demo.loaders import (
     load_civil_catalog,
     load_geometries,
     load_jmat_cases,
     load_kaiyomaru_analysis,
 )
+from marine_claims_ai.demo import live_analysis
 from marine_claims_ai.legal.colregs_engine import (
     OVERTAKING_RELATIVE_BEARING_MAX_DEG,
     OVERTAKING_RELATIVE_BEARING_MIN_DEG,
     EncounterGeometry,
     classify_encounter,
 )
-from marine_claims_ai.ontology.compartments import COMPARTMENT_EDGES, ISOLATED_NODES, build_compartment_graph
+from marine_claims_ai.ontology.compartments import (
+    COMPARTMENT_EDGES,
+    ISOLATED_NODES,
+    build_compartment_graph,
+    validate_claims_causality,
+)
 
 # Ship-profile-ish layout for NetworkX nodes (x aft←→fwd, y deck↑).
 _NODE_XY: dict[str, tuple[float, float]] = {
@@ -43,25 +50,88 @@ _NODE_XY: dict[str, tuple[float, float]] = {
     "machinery": (0.50, 0.08),
 }
 
+_ZONE_OPTIONS = (
+    "hull_forward",
+    "hull_mid",
+    "hull_aft",
+    "deck_forward",
+    "deck_mid",
+    "deck_aft",
+    "superstructure",
+    "propulsion",
+    "machinery",
+)
+
 _DAMAGE_DEFAULT = "hull_forward"
+_PROBE_DEFAULT = "machinery"
+
+_PROBE_REASON_KEYS = {
+    "watertight_barrier_violation": "probe_reason_barrier",
+    "beyond_casualty_propagation_limit": "probe_reason_hops",
+    "same_compartment": "probe_reason_same",
+    "adjacent_ok": "probe_reason_adjacent",
+    "path_ok": "probe_reason_adjacent",
+}
 
 
-def build_uc1(lang: Lang = "en", *, sample_excluded: int = 40) -> dict[str, Any]:
-    raw = load_kaiyomaru_analysis()
+def _probe_reason_label(reason: str, lang: Lang) -> str:
+    key = _PROBE_REASON_KEYS.get(reason)
+    if key:
+        return t(key, lang)
+    if reason:
+        return t("probe_reason_other", lang)
+    return ""
+
+
+def _doc_options(role: str, lang: Lang) -> list[dict[str, str]]:
+    return [{"id": e.id, "label": e.label(lang), "uploaded": e.uploaded} for e in list_pdfs(role=role)]
+
+
+def build_uc1(
+    lang: Lang = "en",
+    *,
+    sample_excluded: int = 40,
+    damage_zone: str = _DAMAGE_DEFAULT,
+    probe_zone: str = _PROBE_DEFAULT,
+    status_filter: str = "all",
+    analysis: dict[str, Any] | None = None,
+    spec_pdf: str | None = None,
+    casualty_pdf: str | None = None,
+) -> dict[str, Any]:
+    raw = analysis
     if raw is None:
-        return {"ok": False, "error": t("data_missing", lang)}
+        raw = load_kaiyomaru_analysis()
+    if raw is None:
+        return {
+            "ok": False,
+            "error": t("data_missing", lang),
+            "spec_options": _doc_options("spec", lang),
+            "casualty_options": _doc_options("casualty", lang),
+            "spec_pdf": spec_pdf or "",
+            "casualty_pdf": casualty_pdf or "",
+        }
+
+    damage_zone = damage_zone if damage_zone in _ZONE_OPTIONS else _DAMAGE_DEFAULT
+    probe_zone = probe_zone if probe_zone in _ZONE_OPTIONS else _PROBE_DEFAULT
+    status_filter = (status_filter or "all").lower()
 
     summary = raw.get("summary") or {}
     items = list(raw.get("items") or [])
     damaged = list((summary.get("casualty_profile") or {}).get("damaged_components") or [])
-    damage_node = _DAMAGE_DEFAULT
 
     covered = [i for i in items if i.get("status") == "COVERED"]
     apportioned = [i for i in items if "APPORTIONED" in str(i.get("status") or "")]
     excluded = [i for i in items if "EXCLUDED" in str(i.get("status") or "")]
     review = [i for i in items if "REVIEW" in str(i.get("status") or "")]
 
-    display_items = covered + apportioned + review + excluded[:sample_excluded]
+    buckets = {
+        "all": covered + apportioned + review + excluded[:sample_excluded],
+        "covered": covered,
+        "apportioned": apportioned,
+        "excluded": excluded[:sample_excluded],
+        "review": review,
+    }
+    display_items = buckets.get(status_filter, buckets["all"])
     rows = [
         {
             "id": it.get("id") or it.get("num") or "",
@@ -75,11 +145,20 @@ def build_uc1(lang: Lang = "en", *, sample_excluded: int = 40) -> dict[str, Any]
         for it in display_items
     ]
 
+    probe = validate_claims_causality(damage_zone, probe_zone)
+    reason_code = str(probe.get("reason") or "")
     g = build_compartment_graph()
     nodes = []
     for n in g.nodes:
         x, y = _NODE_XY.get(n, (0.5, 0.5))
-        kind = "isolated" if n in ISOLATED_NODES else ("damaged" if n == damage_node else "normal")
+        if n == damage_zone:
+            kind = "damaged"
+        elif n == probe_zone:
+            kind = "probe"
+        elif n in ISOLATED_NODES:
+            kind = "isolated"
+        else:
+            kind = "normal"
         nodes.append(
             {
                 "id": n,
@@ -87,10 +166,23 @@ def build_uc1(lang: Lang = "en", *, sample_excluded: int = 40) -> dict[str, Any]
                 "x": x,
                 "y": y,
                 "kind": kind,
-                "kind_label": t(kind if kind != "normal" else "normal", lang),
+                "kind_label": t(
+                    {
+                        "damaged": "damaged",
+                        "probe": "probe_node",
+                        "isolated": "isolated",
+                        "normal": "normal",
+                    }[kind],
+                    lang,
+                ),
             }
         )
     edges = [{"source": a, "target": b} for a, b in COMPARTMENT_EDGES]
+    zone_options = [{"id": z, "label": zone_label(z, lang)} for z in _ZONE_OPTIONS]
+
+    d_spec, d_cas = default_uc1_pair()
+    src_spec = spec_pdf or raw.get("source_spec_pdf") or (d_spec.name if d_spec else "")
+    src_cas = casualty_pdf or raw.get("source_casualty_pdf") or (d_cas.name if d_cas else "")
 
     return {
         "ok": True,
@@ -108,11 +200,58 @@ def build_uc1(lang: Lang = "en", *, sample_excluded: int = 40) -> dict[str, Any]
             "review": len(review),
         },
         "rows": rows,
-        "showing_sample": len(excluded) > sample_excluded,
+        "showing_sample": status_filter in {"all", "excluded"} and len(excluded) > sample_excluded,
         "graph": {"nodes": nodes, "edges": edges},
         "items_for_export": items,
         "summary_for_export": summary,
+        "damage_zone": damage_zone,
+        "probe_zone": probe_zone,
+        "status_filter": status_filter,
+        "zone_options": zone_options,
+        "spec_options": _doc_options("spec", lang),
+        "casualty_options": _doc_options("casualty", lang),
+        "spec_pdf": src_spec,
+        "casualty_pdf": src_cas,
+        "from_document": bool(analysis),
+        "probe": {
+            "valid": bool(probe.get("valid")),
+            "reason": reason_code,
+            "reason_label": _probe_reason_label(reason_code, lang),
+            "path": probe.get("path"),
+            "damage_node": probe.get("damage_node"),
+            "repair_node": probe.get("repair_node"),
+        },
     }
+
+
+def run_uc1_analyze(
+    lang: Lang = "en",
+    *,
+    spec_pdf: str,
+    casualty_pdf: str,
+    damage_zone: str = _DAMAGE_DEFAULT,
+    probe_zone: str = _PROBE_DEFAULT,
+    status_filter: str = "all",
+) -> dict[str, Any]:
+    live = live_analysis.run_uc1_pipeline(spec_pdf, casualty_pdf, lang=lang)
+    if not live.get("ok"):
+        out = build_uc1(lang, damage_zone=damage_zone, probe_zone=probe_zone, status_filter=status_filter)
+        out["ok"] = False
+        out["error"] = live.get("error")
+        out["spec_pdf"] = spec_pdf
+        out["casualty_pdf"] = casualty_pdf
+        out["spec_options"] = _doc_options("spec", lang)
+        out["casualty_options"] = _doc_options("casualty", lang)
+        return out
+    return build_uc1(
+        lang,
+        damage_zone=damage_zone,
+        probe_zone=probe_zone,
+        status_filter=status_filter,
+        analysis=live["raw"],
+        spec_pdf=live.get("spec_pdf"),
+        casualty_pdf=live.get("casualty_pdf"),
+    )
 
 
 def build_uc2(
@@ -123,12 +262,42 @@ def build_uc2(
     hire_rate: int = 4_000_000,
     legacy_lead_days: int = 21,
     ai_lead_minutes: int = 15,
+    docking_context: str = DockingContext.CASUALTY_IMMEDIATE.value,
+    include_statutory: bool = True,
+    spec_pdf: str | None = None,
+    analyze: bool = False,
 ) -> dict[str, Any]:
     daily_dock_rate = max(100_000, min(daily_dock_rate, 5_000_000))
     dock_days = max(1, min(dock_days, 30))
     hire_rate = max(100_000, min(hire_rate, 20_000_000))
     legacy_lead_days = max(1, min(legacy_lead_days, 60))
     ai_lead_minutes = max(1, min(ai_lead_minutes, 24 * 60))
+
+    doc_opts = _doc_options("uc2", lang)
+    if not doc_opts:
+        doc_opts = _doc_options("spec", lang)
+    chosen = spec_pdf or (doc_opts[0]["id"] if doc_opts else None)
+
+    if analyze and chosen:
+        live = live_analysis.run_uc2_from_pdf(
+            chosen,
+            lang=lang,
+            daily_dock_rate=daily_dock_rate,
+            dock_days=dock_days,
+            hire_rate=hire_rate,
+            legacy_lead_days=legacy_lead_days,
+            ai_lead_minutes=ai_lead_minutes,
+            docking_context=docking_context,
+            include_statutory=include_statutory,
+        )
+        live["spec_options"] = doc_opts
+        live["spec_pdf"] = chosen
+        return live
+
+    try:
+        ctx = DockingContext(docking_context)
+    except ValueError:
+        ctx = DockingContext.CASUALTY_IMMEDIATE
 
     dock_total = Decimal(daily_dock_rate) * Decimal(dock_days)
     lines = [
@@ -146,22 +315,27 @@ def build_uc2(
             necessity=OwnerNecessity.DEFERRED,
             title="Piston overhaul (owner)",
         ),
-        RepairLineItem(
-            id="safe-1",
-            trade_code="SAFE-01",
-            cost=Decimal("550000"),
-            title="Statutory survey item",
-        ),
+    ]
+    if include_statutory:
+        lines.append(
+            RepairLineItem(
+                id="safe-1",
+                trade_code="SAFE-01",
+                cost=Decimal("550000"),
+                title="Statutory survey item",
+            )
+        )
+    lines.append(
         RepairLineItem(
             id="dock-1",
             trade_code="DOCK-01",
             cost=dock_total,
             title="Entering / leaving / lay dues",
-        ),
-    ]
+        )
+    )
     result = apportion_rule_d(
         lines,
-        docking_context=DockingContext.CASUALTY_IMMEDIATE,
+        docking_context=ctx,
         dock_fee=DockFeeBreakdown(
             method=DockFeeMethod.DAILY_LAY,
             currency="JPY",
@@ -173,11 +347,7 @@ def build_uc2(
 
     ai_days = ai_lead_minutes / (60.0 * 24.0)
     days_saved = max(0.0, float(legacy_lead_days) - ai_days)
-    # Pitch heuristic: ~3 calendar days of off-hire avoided when lead time collapses.
-    effective_saved = min(days_saved, float(legacy_lead_days))
-    # Cap presentation to docking-relevant savings (default narrative ≈ 3 days).
-    offhire_days = min(3.0, effective_saved) if effective_saved >= 3 else effective_saved
-    offhire_jpy = int(offhire_days * hire_rate)
+    offhire_jpy = int(days_saved * hire_rate)
 
     gantt = [
         {"lane": t("lane_casualty", lang), "start": 0, "days": max(2, dock_days - 1), "css": "casualty"},
@@ -192,6 +362,8 @@ def build_uc2(
         "hire_rate": hire_rate,
         "legacy_lead_days": legacy_lead_days,
         "ai_lead_minutes": ai_lead_minutes,
+        "docking_context": ctx.value,
+        "include_statutory": include_statutory,
         "dock_total": int(dock_total),
         "insurer_common": int(result.insurer_common_share),
         "owner_common": int(result.owner_common_share),
@@ -211,9 +383,12 @@ def build_uc2(
             for ln in result.lines
         ],
         "gantt": gantt,
-        "days_saved": round(offhire_days, 2),
+        "days_saved": round(days_saved, 2),
         "offhire_jpy": offhire_jpy,
         "result": result,
+        "spec_options": doc_opts,
+        "spec_pdf": chosen or "",
+        "from_document": False,
     }
 
 
@@ -241,10 +416,59 @@ def list_uc3_cases(lang: Lang = "en") -> list[dict[str, str]]:
     return cases
 
 
-def build_uc3(lang: Lang = "en", *, case_id: str | None = None) -> dict[str, Any]:
+def build_uc3(
+    lang: Lang = "en",
+    *,
+    case_id: str | None = None,
+    heading_a_deg: float | None = None,
+    heading_b_deg: float | None = None,
+    true_bearing_a_to_b_deg: float | None = None,
+    doc_pdf: str | None = None,
+    analyze: bool = False,
+) -> dict[str, Any]:
+    doc_opts = _doc_options("uc3", lang)
     options = list_uc3_cases(lang)
+
+    if analyze and doc_pdf:
+        live = live_analysis.run_uc3_from_pdf(
+            doc_pdf,
+            lang=lang,
+            heading_a_deg=heading_a_deg,
+            heading_b_deg=heading_b_deg,
+            true_bearing_a_to_b_deg=true_bearing_a_to_b_deg,
+        )
+        if not live.get("ok"):
+            live["options"] = options
+            live["doc_options"] = doc_opts
+            live["doc_pdf"] = doc_pdf
+            return live
+        verdict = live["verdict"]
+        rel = live["relative_bearing"]
+        rad = math.radians(rel)
+        live.update(
+            {
+                "options": options,
+                "doc_options": doc_opts,
+                "situation_label": situation_label(live["situation"], lang),
+                "role_a_label": role_label(live.get("role_a"), lang),
+                "role_b_label": role_label(live.get("role_b"), lang),
+                "radar": {
+                    "target_x": round(math.sin(rad), 4),
+                    "target_y": round(math.cos(rad), 4),
+                    "overtaking_min": OVERTAKING_RELATIVE_BEARING_MIN_DEG,
+                    "overtaking_max": OVERTAKING_RELATIVE_BEARING_MAX_DEG,
+                },
+            }
+        )
+        return live
+
     if not options:
-        return {"ok": False, "error": "No COLREGS fixtures found."}
+        return {
+            "ok": False,
+            "error": t("err_no_colregs_cases", lang),
+            "doc_options": doc_opts,
+            "options": [],
+        }
     selected = case_id or options[0]["id"]
     if selected not in {o["id"] for o in options}:
         selected = options[0]["id"]
@@ -262,7 +486,6 @@ def build_uc3(lang: Lang = "en", *, case_id: str | None = None) -> dict[str, Any
             facts = str(civil.get("input_facts") or "")
             ruling = str(civil.get("holding") or "")
             catalog_fault = str(civil.get("fault_ratio") or "70:30")
-            # Crossing-ish geometry consistent with public Tokyo Bay narrative.
             geometry = EncounterGeometry(
                 heading_a_deg=30,
                 heading_b_deg=300,
@@ -289,12 +512,27 @@ def build_uc3(lang: Lang = "en", *, case_id: str | None = None) -> dict[str, Any
             range_nm=1.0,
         )
 
+    overrides_applied = any(v is not None for v in (heading_a_deg, heading_b_deg, true_bearing_a_to_b_deg))
+    if overrides_applied:
+        geometry = EncounterGeometry(
+            heading_a_deg=float(heading_a_deg if heading_a_deg is not None else geometry.heading_a_deg),
+            heading_b_deg=float(heading_b_deg if heading_b_deg is not None else geometry.heading_b_deg),
+            true_bearing_a_to_b_deg=float(
+                true_bearing_a_to_b_deg
+                if true_bearing_a_to_b_deg is not None
+                else geometry.true_bearing_a_to_b_deg
+            ),
+            speed_a_kn=geometry.speed_a_kn,
+            speed_b_kn=geometry.speed_b_kn,
+            range_nm=geometry.range_nm,
+        )
+        catalog_fault = None
+
     verdict = classify_encounter(geometry)
     prediction = predict_fault_ratio(facts or ruling or title, geometry=geometry)
     fault_ratio = catalog_fault or prediction.fault_ratio
 
     rel = verdict.relative_bearing_a_to_b_deg
-    # Plot target on unit circle: 0° ahead = top of scope.
     rad = math.radians(rel)
     tx = math.sin(rad)
     ty = math.cos(rad)
@@ -302,6 +540,9 @@ def build_uc3(lang: Lang = "en", *, case_id: str | None = None) -> dict[str, Any
     return {
         "ok": True,
         "options": options,
+        "doc_options": doc_opts,
+        "doc_pdf": doc_pdf or (doc_opts[0]["id"] if doc_opts else ""),
+        "from_document": False,
         "case_id": selected,
         "title": title,
         "facts": facts,
@@ -323,6 +564,7 @@ def build_uc3(lang: Lang = "en", *, case_id: str | None = None) -> dict[str, Any
             "overtaking_max": OVERTAKING_RELATIVE_BEARING_MAX_DEG,
         },
         "geometry": geometry.model_dump(),
+        "overrides_applied": overrides_applied,
         "verdict": verdict,
     }
 

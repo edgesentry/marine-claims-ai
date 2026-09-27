@@ -26,11 +26,12 @@ Any autonomous or semi-autonomous AI agent operating in this codebase MUST stric
 - Do not introduce proprietary insurer-specific policy riders, custom warranty interpretation heuristics, or private legacy system API connectors into this repository.
 
 ## 3. Executive demo (CLI + Web)
-When changing or extending the Issue #54 executive demo, follow **[docs/executive_demo_cli_and_web.md](docs/executive_demo_cli_and_web.md)**:
+When changing or extending the Issue #54 executive demo, follow **[docs/executive_demo_cli_and_web.md](docs/executive_demo_cli_and_web.md)** and the per-tab I/O write-up **[docs/demo_use_cases.md](docs/demo_use_cases.md)**:
 - Keep CLI and Web on the shared `marine_claims_ai.demo.ops` layer (no duplicated UC logic).
 - Prefer local caches under `_data/`; never commit demo datasets.
 - Keep EN/JA strings in `demo/i18n.py`; do not embed confidential pitch narratives or hard-coded commercial metrics.
 - Vendor offline front-end assets; do not introduce CDN runtime dependencies for the demo.
+- Each Web tab should surface use case / inputs / processing / outputs (see `partials/explain_box.html`) and keep interactive conditions wired through ops params.
 
 Install / ingest / eval how-tos for humans and agents: **[docs/getting_started.md](docs/getting_started.md)**.
 

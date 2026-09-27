@@ -2,25 +2,57 @@
 {% block content %}
 <h1>{{ t('uc3_title', lang) }}</h1>
 <p class="lead">{{ t('uc3_lead', lang) }}</p>
+{% with prefix='uc3' %}{% include "partials/explain_box.html" %}{% endwith %}
 
 <div class="grid-2">
   <section class="panel controls">
-    <h2>{{ t('select_case', lang) }}</h2>
-    <label>{{ t('select_case', lang) }}
-      <select name="case_id"
-              hx-get="/partials/uc3"
-              hx-trigger="change"
-              hx-target="#uc3-results"
-              hx-include="this"
-              hx-swap="innerHTML">
-        {% for opt in uc3.options %}
-        <option value="{{ opt.id }}" {% if opt.id == uc3.case_id %}selected{% endif %}>{{ opt.title }}</option>
-        {% endfor %}
-      </select>
-    </label>
+    <h2>{{ t('source_docs', lang) }}</h2>
+    <form method="post" action="/analyze/uc3" enctype="multipart/form-data" class="doc-form">
+      <label>{{ t('doc_uc3', lang) }}
+        <select name="doc_pdf">
+          {% for z in uc3.doc_options %}
+          <option value="{{ z.id }}" {% if z.id == uc3.doc_pdf %}selected{% endif %}>{{ z.label }}</option>
+          {% endfor %}
+        </select>
+        <input type="file" name="doc_file" accept="application/pdf,.pdf">
+      </label>
+      <label>{{ t('select_sample_case', lang) }}
+        <select name="case_id">
+          <option value="">—</option>
+          {% for opt in uc3.options %}
+          <option value="{{ opt.id }}" {% if opt.id == uc3.case_id and not uc3.from_document %}selected{% endif %}>{{ opt.title }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <p class="muted">{{ t('geometry_override', lang) }}</p>
+      <label>{{ t('heading_a', lang) }}
+        <span class="control-val" id="v-ha">{{ uc3.geometry.heading_a_deg if uc3.geometry else 0 }}</span>
+        <input type="range" name="heading_a_deg" min="0" max="359" step="1"
+               value="{{ (uc3.geometry.heading_a_deg if uc3.geometry else 0)|int }}"
+               oninput="document.getElementById('v-ha').textContent=this.value">
+      </label>
+      <label>{{ t('heading_b', lang) }}
+        <span class="control-val" id="v-hb">{{ uc3.geometry.heading_b_deg if uc3.geometry else 0 }}</span>
+        <input type="range" name="heading_b_deg" min="0" max="359" step="1"
+               value="{{ (uc3.geometry.heading_b_deg if uc3.geometry else 0)|int }}"
+               oninput="document.getElementById('v-hb').textContent=this.value">
+      </label>
+      <label>{{ t('bearing_ab', lang) }}
+        <span class="control-val" id="v-brg">{{ uc3.geometry.true_bearing_a_to_b_deg if uc3.geometry else 0 }}</span>
+        <input type="range" name="true_bearing_a_to_b_deg" min="0" max="359" step="1"
+               value="{{ (uc3.geometry.true_bearing_a_to_b_deg if uc3.geometry else 0)|int }}"
+               oninput="document.getElementById('v-brg').textContent=this.value">
+      </label>
+      <button type="submit" class="btn">{{ t('analyze_uc3', lang) }}</button>
+    </form>
   </section>
   <div id="uc3-results">
-    {% include "partials/uc3_results.html" %}
+    {% if not uc3.ok %}
+      <div class="error">{{ uc3.error }}</div>
+    {% else %}
+      {% if uc3.from_document %}<p class="muted">{{ t('from_document', lang) }} — {{ uc3.doc_pdf }}</p>{% endif %}
+      {% include "partials/uc3_results.html" %}
+    {% endif %}
   </div>
 </div>
 {% endblock %}

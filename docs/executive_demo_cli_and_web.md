@@ -2,7 +2,7 @@
 
 Offline interactive demo for the three pitch use cases — watertight topology / owner's work exclusion, AAA Rule D5 apportionment & off-hire, and COLREGS fault evidence — with **English / 日本語** UI strings.
 
-Related: [Getting Started](getting_started.md) · [AAA Rule D5](aaa_rule_d5_drydock_apportionment.md) · [COLREGS engine](colregs_encounter_engine.md) · [Public benchmarks](public_benchmarks_and_accuracy_evaluation.md) · [Technical stack](technical_stack.md) · GitHub [Issue #54](https://github.com/edgesentry/marine-claims-AI/issues/54).
+Related: [Demo use cases (I/O)](demo_use_cases.md) · [Getting Started](getting_started.md) · [AAA Rule D5](aaa_rule_d5_drydock_apportionment.md) · [COLREGS engine](colregs_encounter_engine.md) · [Public benchmarks](public_benchmarks_and_accuracy_evaluation.md) · [Technical stack](technical_stack.md) · GitHub [Issue #54](https://github.com/edgesentry/marine-claims-AI/issues/54).
 
 ---
 
@@ -51,15 +51,23 @@ flowchart TB
 
 ## 3. Use cases
 
+Per-tab **use case / inputs / processing / outputs**: **[demo_use_cases.md](demo_use_cases.md)**. Web UI: **list or open a business PDF → Analyze** (live `pdftotext` + engines). Screen copy uses business language only.
+
 | Command / route | Capability |
 | :--- | :--- |
-| `uc1` / `/uc1` | Kaiyo Maru cached analysis + compartment graph + Preliminary Survey export |
-| `uc2` / `/uc2` | Rule D5 50/50 common dues, Gantt, off-hire slider params, apportionment export |
-| `uc3` / `/uc3` | JMAT fixtures + civil seed `civil_7` (あたご・清徳丸 70:30), radar scope, COLREGS memo export |
-| `list-cases` | Print UC3 case ids |
-| `serve` / `run_demo_app.py` | Web UI on `http://127.0.0.1:8765/` |
+| `uc1` / `/uc1` | Repair-spec × casualty PDFs → topology screening + survey export |
+| `uc2` / `/uc2` | Drydock/repair PDF → Rule D5 common dues + off-hire |
+| `uc3` / `/uc3` | Ruling/casualty PDF → COLREGS situation + fault memo |
+| `list-cases` | Print UC3 sample fixture ids |
+| `serve` | Web UI on `http://127.0.0.1:8765/` |
 
-UC2 knobs (identical in CLI flags and Web query/sliders): `--daily-dock-rate`, `--dock-days`, `--hire-rate`, `--legacy-lead-days`, `--ai-lead-minutes`.
+Shared knobs:
+
+| UC | Flags / controls |
+| :--- | :--- |
+| UC1 | `--spec`, `--casualty`, `--analyze`, `--damage-zone`, `--probe-zone`, `--status-filter` |
+| UC2 | `--spec`, `--analyze`, dock/hire/lead/context/`--no-statutory` |
+| UC3 | `--doc`, `--analyze`, `--case`, `--heading-a/b`, `--bearing-ab` |
 
 ---
 

@@ -1,0 +1,94 @@
+<div class="metrics">
+  <div class="metric"><div class="label">{{ t('metric_items', lang) }}</div><div class="value">{{ uc1.n_items }}</div></div>
+  <div class="metric"><div class="label">{{ t('metric_claimed', lang) }}</div><div class="value">¥{{ '{:,}'.format(uc1.claimed) }}</div></div>
+  <div class="metric"><div class="label">{{ t('metric_excluded', lang) }}</div><div class="value">¥{{ '{:,}'.format(uc1.excluded_jpy) }}</div></div>
+  <div class="metric"><div class="label">{{ t('metric_rate', lang) }}</div><div class="value">{{ uc1.rate }}%</div></div>
+</div>
+
+<div class="probe {% if uc1.probe.valid %}ok{% else %}bad{% endif %}">
+  <strong>{{ t('causality_probe', lang) }}:</strong>
+  {{ uc1.damage_zone }} → {{ uc1.probe_zone }} —
+  {% if uc1.probe.valid %}{{ t('probe_pass', lang) }}{% else %}{{ t('probe_fail', lang) }}{% endif %}
+  {% if uc1.probe.reason_label %}<span class="muted">{{ uc1.probe.reason_label }}</span>{% endif %}
+  {% if uc1.probe.path %}<span class="muted">path: {{ uc1.probe.path | join(' → ') }}</span>{% endif %}
+</div>
+
+<div class="grid-2">
+  <section class="panel">
+    <h2>{{ t('compartment_graph', lang) }}</h2>
+    <div class="chart-box">
+      <canvas id="compartmentChart"></canvas>
+    </div>
+    <p class="muted" style="margin-top:0.5rem;font-size:0.82rem">
+      {{ t('damaged', lang) }}: {{ uc1.damaged_labels | join(', ') }}
+    </p>
+  </section>
+  <section class="panel">
+    <h2>{{ t('line_items', lang) }}</h2>
+    {% if uc1.showing_sample %}<p class="muted">{{ t('show_sample', lang) }}</p>{% endif %}
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>{{ t('status', lang) }}</th>
+            <th>{{ t('description', lang) }}</th>
+            <th class="num">{{ t('amount', lang) }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in uc1.rows %}
+          <tr>
+            <td><span class="pill {{ row.css }}">{{ row.status_label }}</span></td>
+            <td>{{ row.description[:90] }}{% if row.reason %}<div class="muted" style="font-size:0.75rem">{{ row.reason[:100] }}</div>{% endif %}</td>
+            <td class="num">{{ '{:,}'.format(row.amount) }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="actions">
+      <a class="btn" href="/export/survey.md">{{ t('export_survey_md', lang) }}</a>
+      <a class="btn secondary" href="/export/survey.html">{{ t('export_survey_html', lang) }}</a>
+    </div>
+  </section>
+</div>
+
+<script>
+(function() {
+  const graph = {{ uc1.graph | tojson }};
+  const color = { damaged: '#c45c4a', isolated: '#7a8794', normal: '#2f9e8b', probe: '#c9a227' };
+  const ctx = document.getElementById('compartmentChart');
+  if (!ctx || typeof Chart === 'undefined') return;
+  if (ctx._chart) { ctx._chart.destroy(); }
+  const points = graph.nodes.map(n => ({ x: n.x, y: n.y, label: n.label, kind: n.kind }));
+  const edgeSegs = [];
+  const byId = Object.fromEntries(graph.nodes.map(n => [n.id, n]));
+  for (const e of graph.edges) {
+    const a = byId[e.source], b = byId[e.target];
+    if (!a || !b) continue;
+    edgeSegs.push({ x: a.x, y: a.y });
+    edgeSegs.push({ x: b.x, y: b.y });
+    edgeSegs.push({ x: NaN, y: NaN });
+  }
+  ctx._chart = new Chart(ctx, {
+    type: 'scatter',
+    data: {
+      datasets: [
+        { label: 'edges', data: edgeSegs, showLine: true, borderColor: '#35506a', pointRadius: 0, borderWidth: 1.5, spanGaps: false },
+        ...['damaged','probe','isolated','normal'].map(kind => ({
+          label: kind,
+          data: points.filter(p => p.kind === kind),
+          backgroundColor: color[kind],
+          pointRadius: 8,
+        })),
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false }, tooltip: { callbacks: { label: (c) => c.raw.label || '' } } },
+      scales: { x: { min: 0, max: 1, display: false }, y: { min: 0, max: 1, display: false } }
+    }
+  });
+})();
+</script>
