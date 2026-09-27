@@ -259,6 +259,6 @@ flowchart TD
 #### Architectural Guarantee Against Technical Debt
 
 By enforcing this strict boundary:
-1. **Zero Core Logic Rewrite**: The core Python and Rust modules (`ontology/compartments.py`, `legal/colregs_engine.py`, `analytics/rule_d_solver.py`) remain completely untouched when deploying to international markets.
+1. **Zero Core Logic Rewrite**: The core calculation and constraint engines (`ontology/compartments.py`, `legal/colregs_engine.py`, `analytics/rule_d_solver.py`) remain completely untouched when deploying to international markets.
 2. **Configuration-Driven Adaptation**: Adapting to a new maritime cluster (e.g., Singapore or London) requires only populating an external jurisdiction vector table in LanceDB and supplying local shipyard tariff schedules in YAML.
 3. **Reproducible Proof of Concept**: Validating the universal core against Japanese open-access judicial records proves the soundness of the underlying COLREGS and SOLAS logic, ensuring instantaneous credibility when presenting to international marine underwriters.
