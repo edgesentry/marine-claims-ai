@@ -47,7 +47,7 @@ flowchart TD
 ### 3. Physical Constraint Validation: NetworkX
 - **Role**: Deterministic graph traversal engine encoding naval architecture spatial hierarchies and watertight boundaries.
 - **Key Capabilities**:
-  - Models the vessel as a directed graph ($G = (V, E)$), where nodes represent ship compartments/components and edges represent physical connectivity and watertight bulkheads.
+  - Models the vessel as a directed graph (G = (V, E)), where nodes represent ship compartments/components and edges represent physical connectivity and watertight bulkheads.
   - **Zero-Hallucination Barrier**: Mechanically verifies whether physical casualty damage (e.g., forward bulbous bow abrasion) can propagate to claim repair items across watertight bulkheads (`nx.has_path(G, source, target)`).
   - Instantly filters out ungrounded causal links proposed by generative models before financial calculation.
 
