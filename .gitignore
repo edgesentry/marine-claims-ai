@@ -2,6 +2,7 @@
 .DS_Store
 
 # Local input & dataset directories (Raw PDFs, HTMLs, and extracted JSONs)
+_data/
 _inputs/
 datasets/
 data/

@@ -5,7 +5,7 @@ Rebuild local open-core indexes from cached public JSON.
 Pipeline (see docs/technical_stack.md):
   Polars normalize → LanceDB hybrid index (vector + BM25) → DuckDB analytical tables
 
-Binary artifacts under _inputs/ and .lancedb/ are gitignored and never committed.
+Binary artifacts under _data/ (and legacy _inputs/) and .lancedb/ are gitignored and never committed.
 """
 
 from __future__ import annotations

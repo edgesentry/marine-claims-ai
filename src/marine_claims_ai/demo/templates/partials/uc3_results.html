@@ -1,0 +1,53 @@
+<section class="panel">
+  <h2>{{ uc3.title }}</h2>
+  <div class="metrics" style="grid-template-columns:repeat(2,1fr)">
+    <div class="metric"><div class="label">{{ t('situation', lang) }}</div><div class="value">{{ uc3.situation_label }}</div></div>
+    <div class="metric"><div class="label">{{ t('fault_ratio', lang) }}</div><div class="value">{{ uc3.fault_ratio }}</div></div>
+    <div class="metric"><div class="label">{{ t('role_a', lang) }}</div><div class="value">{{ uc3.role_a_label }}</div></div>
+    <div class="metric"><div class="label">{{ t('role_b', lang) }}</div><div class="value">{{ uc3.role_b_label }}</div></div>
+  </div>
+  <p class="muted">{{ t('article', lang) }}:
+    {% for c in uc3.rule_citations %}<code style="margin-right:0.35rem">{{ c }}</code>{% else %}—{% endfor %}
+  </p>
+
+  <h2 style="margin-top:0.75rem">{{ t('radar_title', lang) }}</h2>
+  <div class="radar-wrap">
+    {% set ox = 150 %}
+    {% set oy = 150 %}
+    {% set r = 120 %}
+    {% set tx = ox + uc3.radar.target_x * r %}
+    {% set ty = oy - uc3.radar.target_y * r %}
+    <svg viewBox="0 0 300 300" role="img" aria-label="radar">
+      <circle cx="150" cy="150" r="120" fill="#0a1620" stroke="#35506a" stroke-width="1.5"/>
+      <circle cx="150" cy="150" r="80" fill="none" stroke="#243b4f" stroke-width="1"/>
+      <circle cx="150" cy="150" r="40" fill="none" stroke="#243b4f" stroke-width="1"/>
+      <line x1="150" y1="30" x2="150" y2="270" stroke="#243b4f"/>
+      <line x1="30" y1="150" x2="270" y2="150" stroke="#243b4f"/>
+      {# overtaking sector approx as arc wedge #}
+      <path d="M 150 150 L {{ 150 + (r * (0.0)) }} {{ 150 - r }} A {{ r }} {{ r }} 0 1 1 {{ 150 - r * 0.92 }} {{ 150 + r * 0.38 }} Z"
+            fill="rgba(201,162,39,0.12)" stroke="none"/>
+      <circle cx="150" cy="150" r="7" fill="#2f9e8b"/>
+      <text x="158" y="146" fill="#9bb0c3" font-size="10">{{ t('own_vessel', lang) }}</text>
+      <line x1="150" y1="150" x2="{{ tx }}" y2="{{ ty }}" stroke="#c45c4a" stroke-width="2"/>
+      <circle cx="{{ tx }}" cy="{{ ty }}" r="7" fill="#c45c4a"/>
+      <text x="{{ tx + 8 }}" y="{{ ty + 4 }}" fill="#f0b4aa" font-size="10">{{ t('target_vessel', lang) }}</text>
+      <text x="140" y="24" fill="#9bb0c3" font-size="10">0°</text>
+      <text x="8" y="154" fill="#9bb0c3" font-size="10">270°</text>
+      <text x="268" y="154" fill="#9bb0c3" font-size="10">90°</text>
+    </svg>
+  </div>
+  <p class="muted" style="font-size:0.82rem;text-align:center">
+    {{ t('overtaking_sector', lang) }} · {{ t('head_on_band', lang) }} ·
+    bearing {{ uc3.relative_bearing }}°
+  </p>
+
+  <h2>{{ t('facts', lang) }}</h2>
+  <p style="white-space:pre-wrap;font-size:0.9rem">{{ uc3.facts or '—' }}</p>
+  <h2>{{ t('ruling', lang) }}</h2>
+  <p style="white-space:pre-wrap;font-size:0.9rem">{{ uc3.ruling or '—' }}</p>
+
+  <div class="actions">
+    <a class="btn" href="/export/colregs.md?case_id={{ uc3.case_id }}">{{ t('export_survey_md', lang) }}</a>
+    <a class="btn secondary" href="/export/colregs.html?case_id={{ uc3.case_id }}">{{ t('export_survey_html', lang) }}</a>
+  </div>
+</section>

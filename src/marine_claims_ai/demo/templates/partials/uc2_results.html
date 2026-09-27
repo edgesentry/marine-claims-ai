@@ -1,0 +1,63 @@
+<section class="panel">
+  <h2>{{ t('common_dues', lang) }}</h2>
+  <div class="metrics" style="grid-template-columns:repeat(2,1fr)">
+    <div class="metric"><div class="label">{{ t('insurer_share', lang) }}</div><div class="value">¥{{ '{:,}'.format(uc2.insurer_common) }}</div></div>
+    <div class="metric"><div class="label">{{ t('owner_share', lang) }}</div><div class="value">¥{{ '{:,}'.format(uc2.owner_common) }}</div></div>
+  </div>
+  <p class="muted">{{ t('rule_label', lang) }}: <code>{{ uc2.rule }}</code> · {{ t('common_dues', lang) }} ¥{{ '{:,}'.format(uc2.dock_total) }}</p>
+
+  <h2 style="margin-top:1rem">{{ t('gantt_title', lang) }}</h2>
+  <div class="gantt">
+    {% set span = uc2.dock_days if uc2.dock_days > 0 else 1 %}
+    {% for bar in uc2.gantt %}
+    <div class="gantt-row">
+      <div class="gantt-lane">{{ bar.lane }}</div>
+      <div class="gantt-track">
+        <div class="gantt-bar {{ bar.css }}"
+             style="left:{{ (bar.start / span) * 100 }}%;width:{{ (bar.days / span) * 100 }}%"></div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <h2 style="margin-top:1rem">{{ t('offhire_title', lang) }}</h2>
+  <div class="metrics" style="grid-template-columns:repeat(2,1fr)">
+    <div class="metric"><div class="label">{{ t('days_saved', lang) }}</div><div class="value">{{ uc2.days_saved }}</div></div>
+    <div class="metric"><div class="label">{{ t('offhire_saved', lang) }}</div><div class="value">¥{{ '{:,}'.format(uc2.offhire_jpy) }}</div></div>
+  </div>
+
+  <div class="table-scroll" style="max-height:220px;margin-top:0.75rem">
+    <table>
+      <thead>
+        <tr>
+          <th>ID</th><th>{{ t('description', lang) }}</th>
+          <th class="num">{{ t('amount', lang) }}</th>
+          <th class="num">{{ t('insurer_share', lang) }}</th>
+          <th class="num">{{ t('owner_share', lang) }}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in uc2.line_rows %}
+        <tr>
+          <td>{{ row.id }}</td>
+          <td>{{ row.title }}</td>
+          <td class="num">{{ '{:,}'.format(row.cost) }}</td>
+          <td class="num">{{ '{:,}'.format(row.insurer) }}</td>
+          <td class="num">{{ '{:,}'.format(row.owner) }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="actions">
+    <a class="btn"
+       href="/export/apportionment.md?daily_dock_rate={{ uc2.daily_dock_rate }}&dock_days={{ uc2.dock_days }}&hire_rate={{ uc2.hire_rate }}&legacy_lead_days={{ uc2.legacy_lead_days }}&ai_lead_minutes={{ uc2.ai_lead_minutes }}">
+      {{ t('export_apportion_md', lang) }}
+    </a>
+    <a class="btn secondary"
+       href="/export/apportionment.html?daily_dock_rate={{ uc2.daily_dock_rate }}&dock_days={{ uc2.dock_days }}&hire_rate={{ uc2.hire_rate }}&legacy_lead_days={{ uc2.legacy_lead_days }}&ai_lead_minutes={{ uc2.ai_lead_minutes }}">
+      {{ t('export_apportion_html', lang) }}
+    </a>
+  </div>
+</section>

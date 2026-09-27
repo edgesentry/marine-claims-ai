@@ -29,6 +29,7 @@ marine-claims-compartments = "marine_claims_ai.ontology.compartments:main"
 marine-claims-eval-retrieval = "marine_claims_ai.benchmarks.retrieval_scale:main"
 marine-claims-civil-coverage = "marine_claims_ai.benchmarks.civil_coverage:main"
 marine-claims-validate-civil-extractor = "marine_claims_ai.benchmarks.civil_extractor_eval:main"
+marine-claims-demo = "marine_claims_ai.demo.cli:main"
 
 [dependency-groups]
 dev = [
@@ -38,9 +39,21 @@ dev = [
     "pyright>=1.1.414",
     "pip-licenses>=5.0.0",
 ]
+demo = [
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.32.0",
+    "jinja2>=3.1.0",
+    "python-multipart>=0.0.12",
+]
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+marine_claims_ai = [
+    "demo/templates/**/*.html",
+    "demo/static/**/*",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

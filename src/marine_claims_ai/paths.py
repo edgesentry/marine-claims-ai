@@ -8,9 +8,12 @@ from pathlib import Path
 PACKAGE_ROOT = Path(__file__).resolve().parent
 REPO_ROOT = PACKAGE_ROOT.parents[1]
 
-DEFAULT_DATASET_DIR = REPO_ROOT / "_inputs" / "poc_datasets"
+DEFAULT_DATA_DIR = REPO_ROOT / "_data"
+DEFAULT_DATASET_DIR = DEFAULT_DATA_DIR / "poc_datasets"
 DEFAULT_LANCE_DIR = REPO_ROOT / ".lancedb"
-DEFAULT_DUCK_PATH = REPO_ROOT / "_inputs" / "marine_claims.duckdb"
+DEFAULT_DUCK_PATH = DEFAULT_DATA_DIR / "marine_claims.duckdb"
+# Legacy cache path (pre-_data migration); loaders may fall back when present.
+LEGACY_DATASET_DIR = REPO_ROOT / "_inputs" / "poc_datasets"
 DEFAULT_CONFIG_PATH = REPO_ROOT / "config" / "benchmark_rules.json"
 DEFAULT_NEGATIVE_PATTERN_PATH = REPO_ROOT / "config" / "negative_pattern_library.json"
 DEFAULT_CIVIL_CATALOG_PATH = REPO_ROOT / "config" / "civil_precedent_catalog.json"

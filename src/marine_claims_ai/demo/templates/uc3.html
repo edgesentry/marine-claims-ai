@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>{{ t('uc3_title', lang) }}</h1>
+<p class="lead">{{ t('uc3_lead', lang) }}</p>
+
+<div class="grid-2">
+  <section class="panel controls">
+    <h2>{{ t('select_case', lang) }}</h2>
+    <label>{{ t('select_case', lang) }}
+      <select name="case_id"
+              hx-get="/partials/uc3"
+              hx-trigger="change"
+              hx-target="#uc3-results"
+              hx-include="this"
+              hx-swap="innerHTML">
+        {% for opt in uc3.options %}
+        <option value="{{ opt.id }}" {% if opt.id == uc3.case_id %}selected{% endif %}>{{ opt.title }}</option>
+        {% endfor %}
+      </select>
+    </label>
+  </section>
+  <div id="uc3-results">
+    {% include "partials/uc3_results.html" %}
+  </div>
+</div>
+{% endblock %}
