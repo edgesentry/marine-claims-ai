@@ -73,6 +73,7 @@ flowchart TD
 ### Stage 1: Externalized Rule Schemas (`config/`)
 Rules are strictly decoupled from executable code to allow review, audit, and adjustment by senior average adjusters and maritime lawyers without redeploying binaries:
 - **Example (`config/statutory_rules.json`)**:
+
   ```json
   {
     "statutory_exclusions": [
@@ -97,6 +98,7 @@ Rules are strictly decoupled from executable code to allow review, audit, and ad
 3. **COLREGS Predicate Engine**:
    - Calculates relative bearing and heading vectors between encountering vessels.
    - Maps facts directly to formal predicate implications:
+
      ```text
      PowerDriven(A) and PowerDriven(B) and Crossing(A, B) and BearingStarboard(A, B)
      => GiveWay(A) and StandOn(B)

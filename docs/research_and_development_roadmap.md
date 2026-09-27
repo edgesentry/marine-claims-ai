@@ -52,9 +52,9 @@ Development follows a strict dependency order: each stage delivers an independen
 ```mermaid
 flowchart TD
     D0["Stage 0: Core Hardening & In-Process Architecture\nNetworkX Watertight Topology Graph\nPolars Composite Filtering Engine\nLloyd's-Standard Survey Report Generator CLI"] --> D1["Stage 1: Mathematical Apportionment & Legal Logic Engine\nDuckDB Analytical SQL for AAA Rule D 50/50 Allocation\nCOLREGS First-Order Predicate Logic Formulation\nParis and Tokyo MOU Inspection Vector Pipeline"]
-    
+
     D1 --> D2["Stage 2: Multi-Source Public Ground Truth Benchmark Suite\nSynthetic & Public Casualty Specification Corpus\nIndexed JMAT Marine Casualty Precedent Catalog\nAutomated CI/CD Regression Evaluation Harness"]
-    
+
     D2 --> D3["Stage 3: Offline Embedded Edge MoE SLM Execution\nLocal Quantized Small Language Model Inference (Sub-10B)\nZero-Cloud Data Leakage Architecture\nFew-Shot Structured JSON Schema Guarantee"]
 ```
 
@@ -63,48 +63,48 @@ flowchart TD
 ## 3. Stage Specifications, Prerequisites & Open-Core Deliverables
 
 ### Stage 0: Core Hardening & In-Process Architecture
-* **Objective**: Establish the bedrock data structures and topological validation logic to eliminate parsing hallucinations and physical spatial false positives.
-* **Prerequisites**: Baseline Python environment, sample unstructured drydock repair specifications, and vessel general arrangement drawings.
-* **Key Deliverables**:
+- **Objective**: Establish the bedrock data structures and topological validation logic to eliminate parsing hallucinations and physical spatial false positives.
+- **Prerequisites**: Baseline Python environment, sample unstructured drydock repair specifications, and vessel general arrangement drawings.
+- **Key Deliverables**:
   1. **Watertight Spatial Graph**: Formally integrate `ontology/compartments.py` into the appraisal pipeline. Ensure physical watertight bulkheads reject causal links across non-adjacent compartments (e.g., Bow collision damage cannot justify Engine Room overhaul items).
   2. **Composite Discipline Filtering**: Enforce dual-attribute classification (`Discipline: Hull/Deck/Machinery` × `Compartment Location`), replacing naive keyword matching.
   3. **In-Process Arrow Memory Pipeline**: Standardize tabular data flow on Polars and DuckDB, maintaining zero-copy memory transfers without database server overhead.
   4. **Lloyd's-Standard Survey Report Generator**: Build a CLI export module producing publication-grade English preliminary survey reports formatted according to international average adjusting standards (`--export-report`).
-* **Exit Gate (Gate 0: Core Stability)**:
+- **Exit Gate (Gate 0: Core Stability)**:
   - 100% deterministic spatial rejection across all tested cross-bulkhead test pairs.
   - Zero-copy pipeline execution completing in under 3 seconds per specification.
   - Formatted preliminary survey report exported in clean Markdown.
 
 ### Stage 1: Mathematical Apportionment & Legal Logic Engine
-* **Objective**: Codify international adjusting rules and maritime traffic regulations into mathematically auditable, deterministic solvers.
-* **Prerequisites**: Completion of Stage 0; formal statutory rules text (AAA Rule D, COLREGS 1972, Tokyo/Paris MOU deficiency action codes).
-* **Key Deliverables**:
+- **Objective**: Codify international adjusting rules and maritime traffic regulations into mathematically auditable, deterministic solvers.
+- **Prerequisites**: Completion of Stage 0; formal statutory rules text (AAA Rule D, COLREGS 1972, Tokyo/Paris MOU deficiency action codes).
+- **Key Deliverables**:
   1. **Deterministic 50/50 Apportionment Engine**: Formalize dock dues, pumping, and general yard services into DuckDB analytical SQL expressions that divide shared costs strictly in accordance with Rule D when owner repairs are immediately necessary for seaworthiness.
   2. **COLREGS Predicate Logic Rules**: Encode Rules 13 (Overtaking), 14 (Head-on Situation), and 15 (Crossing Situation) as declarative logic constraints over relative bearing, speed, and aspect vectors.
   3. **PSC Deficiency Vector Ingestion**: Build a normalized ingestion parser for public Tokyo MOU and Paris MOU inspection reports, mapping deficiency codes to statutory ISM/SOLAS/MARPOL warranty clauses.
-* **Exit Gate (Gate 1: Mathematical & Logical Integrity)**:
+- **Exit Gate (Gate 1: Mathematical & Logical Integrity)**:
   - Exact dual-apportionment mathematical reconciliation on synthetic multi-item drydock invoices.
   - 100% formal logical consistency on synthetic collision encounter geometries without heuristic LLM drift.
 
 ### Stage 2: Multi-Source Public Ground Truth Benchmark Suite
-* **Objective**: Assemble a standardized, public, reproducible evaluation benchmark to measure precision, recall, and legal reasoning accuracy across maritime claim domains.
-* **Prerequisites**: Completion of Stage 1; public domain access to JTSB marine accident reports, JMAT published decisions, and open drydock tenders.
-* **Key Deliverables**:
+- **Objective**: Assemble a standardized, public, reproducible evaluation benchmark to measure precision, recall, and legal reasoning accuracy across maritime claim domains.
+- **Prerequisites**: Completion of Stage 1; public domain access to JTSB marine accident reports, JMAT published decisions, and open drydock tenders.
+- **Key Deliverables**:
   1. **Open Repair Specification Dataset**: Curate and synthesize 20+ diverse drydock specifications (bulk carrier, container, tanker, LNG) with verified ground-truth labels for casualty, wear & tear, and routine class survey items.
   2. **JMAT Decision Catalog**: Index 50+ published marine tribunal rulings with verified fault ratios, navigational geometries, and legal rationale vectors in LanceDB.
   3. **Automated CI/CD Evaluation Harness**: Implement an automated test runner executing end-to-end appraisal against the ground-truth suite, measuring precision, recall, and false-accept rates on every pull request.
-* **Exit Gate (Gate 2: Benchmark Reproducibility)**:
+- **Exit Gate (Gate 2: Benchmark Reproducibility)**:
   - Public test suite running deterministically in GitHub Actions CI.
   - Classification precision ≥ 90% and severe false accepts = 0 on the public benchmark corpus.
 
 ### Stage 3: Offline Embedded Edge MoE SLM Execution
-* **Objective**: Guarantee complete data privacy and offline operational capability by executing extraction and reasoning via quantized small language models running locally in-process.
-* **Prerequisites**: Completion of Stage 2; quantized sub-10B parameter model weights (e.g., Qwen 2.5 MoE, Llama 3.2 3B).
-* **Key Deliverables**:
+- **Objective**: Guarantee complete data privacy and offline operational capability by executing extraction and reasoning via quantized small language models running locally in-process.
+- **Prerequisites**: Completion of Stage 2; quantized sub-10B parameter model weights (e.g., Qwen 2.5 MoE, Llama 3.2 3B).
+- **Key Deliverables**:
   1. **Local Model Runtime**: Implement in-process inference connectors utilizing llama.cpp or ONNX Runtime, eliminating any requirement for external cloud API calls.
   2. **Few-Shot Schema Enforcer**: Formulate 3-shot domain-specific prompt exemplars that guarantee strict Pydantic JSON serialization from local SLMs.
   3. **Zero-Cloud Air-Gapped Validation**: Validate that the entire engine functions identically in an air-gapped environment with internet access disabled.
-* **Exit Gate (Gate 3: Offline Operational Readiness)**:
+- **Exit Gate (Gate 3: Offline Operational Readiness)**:
   - 100% offline test execution with zero external network socket requests.
   - Schema adherence rate of 100% across all benchmark extraction tasks.
   - End-to-end local inference latency under 15 seconds per repair specification.
