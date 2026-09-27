@@ -25,17 +25,17 @@ flowchart TD
     end
 
     subgraph P2["Phase 2: Structured Triplet Mining"]
-        S2["Gemini 3.8 Flash Extraction<br>[Damage Zone] - [Causality] - [Work Item]"]
+        S2["Gemini 3.8 Flash Extraction: Damage Zone to Causality to Work Item"]
     end
 
     subgraph P3["Phase 3: Ontological Constraint Validation"]
-        S3["Ship Structure Hierarchy Check<br>Physical Boundary & Periodicity Rules"]
+        S3["Ship Structure Hierarchy Check\nPhysical Boundary and Periodicity Rules"]
     end
 
     subgraph P4["Phase 4: Multi-Tier Verification Gates"]
-        V1["Gate 1: Extraction Accuracy (F1 >= 90%)"]
-        V2["Gate 2: Engineering Validity (Violations = 0.0%)"]
-        V3["Gate 3: Judicial Consistency (MAPE <= 5.0%)"]
+        V1["Gate 1: Extraction Accuracy: F1 at least 90%"]
+        V2["Gate 2: Engineering Validity: Violations 0.0%"]
+        V3["Gate 3: Judicial Consistency: MAPE up to 5.0%"]
     end
 
     subgraph P5["Phase 5: Rules Engine & Vector DB Update"]

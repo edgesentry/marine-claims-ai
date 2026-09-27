@@ -200,5 +200,8 @@ Gates (config): ≥3 runnable cases, critical False Accept = 0, mean status agre
 
 - [Technical Stack Architecture](docs/technical_stack.md)
 - [Iterative Knowledge Loop Specification](docs/iterative_knowledge_loop_specification.md)
+- [Open-Core Research & Development Roadmap](docs/research_and_development_roadmap.md)
+- [Symbolic AI Implementation Framework](docs/symbolic_ai_implementation_framework.md)
+- [Prior Research Synthesis](docs/prior_research_synthesis.md)
 - [Benchmark Methodology and Architecture](_inputs/poc_datasets/benchmark_methodology_and_architecture.md)
 - [Benchmark Validation Report](_inputs/poc_datasets/3fields_benchmark_validation_report.md)
