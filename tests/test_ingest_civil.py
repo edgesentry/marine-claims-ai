@@ -71,7 +71,7 @@ def test_enrich_does_not_overwrite_seed_values():
 
 def test_enrich_main_cause_fallback():
     seed = {"fault_ratio": None, "input_facts": "x"}
-    out = enrich_from_text(seed, "本件はAが主因でありBが一因をなす。")
+    out = enrich_from_text(seed, "本件衝突の主因はAにあり、Bの過失も一因をなす。")
     assert out["fault_ratio"] == "70:30"
 
 

@@ -93,7 +93,7 @@ def test_compact_named_party_binding():
 
 
 def test_shuin_ichin_roles():
-    hits = extract_fault_ratios("本件はAが主因でありBが一因をなす。")
+    hits = extract_fault_ratios("本件衝突の主因はAにあり、Bの過失も一因をなす。")
     assert hits[0].ratio == "70:30"
     assert hits[0].side_a_role == "primary_cause"
     assert hits[0].side_b_role == "secondary_cause"
@@ -102,6 +102,13 @@ def test_shuin_ichin_roles():
         "協力動作をとらなかったことも一因をなすものである。"
     )
     assert best_fault_ratio(text) == "70:30"
+
+
+def test_shuin_ichin_ignores_non_negligence_context():
+    # Machinery / weather causes must not trigger the conventional 70:30 fallback.
+    text = "事故の主因は機関トラブルであり、天候も一因であった。"
+    assert best_fault_ratio(text) is None
+    assert extract_fault_ratios(text) == []
 
 
 def test_monetary_labeled_extraction():

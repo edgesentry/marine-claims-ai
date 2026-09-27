@@ -307,6 +307,22 @@ def _clean_side_label(raw: str | None) -> str | None:
     return label
 
 
+_CAUSE_CONTEXT = re.compile(r"(過失|責任|航行|航法|衝突|海難|見張り|避航|寄与)")
+
+
+def _cause_pair_in_negligence_context(text: str, anchors: tuple[str, ...]) -> bool:
+    """True when all anchors appear and the span between them (±40 chars) has legal/nav context."""
+    positions: list[tuple[int, int]] = []
+    for anchor in anchors:
+        m = re.search(re.escape(anchor), text)
+        if not m:
+            return False
+        positions.append((m.start(), m.end()))
+    start = max(0, min(p[0] for p in positions) - 40)
+    end = min(len(text), max(p[1] for p in positions) + 40)
+    return bool(_CAUSE_CONTEXT.search(text[start:end]))
+
+
 def extract_fault_ratios(text: str) -> list[FaultRatioHit]:
     """Return ranked fault-ratio candidates from judgment text."""
     text = normalize_judgment_text(text)
@@ -480,7 +496,9 @@ def extract_fault_ratios(text: str) -> list[FaultRatioHit]:
             if re.search(r"(過失|責任|割合)", window):
                 add(int(m.group(1)), int(m.group(2)), window, "loose_arabic", 0.7)
 
-    if re.search(r"主因", text) and re.search(r"一因", text):
+    # Conventional 70:30 only when 主因/一因 (or 発生+一因) sit near negligence /
+    # navigation vocabulary — avoids non-fault prose like 「主因は機関トラブル…一因は天候」.
+    if _cause_pair_in_negligence_context(text, ("主因", "一因")):
         hits.append(
             FaultRatioHit(
                 ratio="70:30",
@@ -491,7 +509,7 @@ def extract_fault_ratios(text: str) -> list[FaultRatioHit]:
                 side_b_role="secondary_cause",
             )
         )
-    elif re.search(r"によって発生", text) and re.search(r"一因", text):
+    elif _cause_pair_in_negligence_context(text, ("によって発生", "一因")):
         hits.append(
             FaultRatioHit(
                 ratio="70:30",
