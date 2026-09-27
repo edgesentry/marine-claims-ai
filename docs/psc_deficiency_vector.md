@@ -93,7 +93,12 @@ contrib(d) = category_base(prefix) × ACTION_CODE_SEVERITY(action)
 score = Σ contrib(d)
 ```
 
-- `repeat_mult = 1.5` when the same critical system appears in a prior inspection window; else `1.0`.
+- `repeat_mult = 1.5` when the same critical system appears in a prior inspection within
+  `lookback_months` (default **24**) of the current inspection date; else `1.0`.
+  - Anchor date = latest parseable `inspection_date` among current deficiencies.
+  - Dated priors outside `[anchor − lookback_months, anchor]` are ignored for repeat matching.
+  - Priors with missing/unparseable dates still count (filter applies only when a date is present).
+  - If the current inspection has no parseable date, date filtering is skipped and all priors count.
 - `cic_mult` defaults to `1.0`; regional Concentrated Inspection Campaign weights inject via `cic_weights: dict[str, float]` (prefix → multiplier) without hardcoding Tokyo vs Paris priorities in the core.
 
 The report also exposes: `detention_present`, `repeat_critical_flags`, convention citations, and a list of `NormalizedDeficiency` rows convertible to adapter `PSCDeficiency` for `evaluate_seaworthiness_warranty`.
@@ -114,7 +119,8 @@ The report also exposes: `detention_present`, `repeat_critical_flags`, conventio
 
 ```text
 parse_inspection_record(raw) → list[NormalizedDeficiency]
-score_seaworthiness(deficiencies, *, prior=None, mou_id=None, cic_weights=None)
+score_seaworthiness(deficiencies, *, prior=None, mou_id=None, cic_weights=None,
+                    lookback_months=24)
   → SeaworthinessRiskReport
 to_adapter_deficiencies(deficiencies) → list[PSCDeficiency]
 ```

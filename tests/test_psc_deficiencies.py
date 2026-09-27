@@ -185,6 +185,95 @@ def test_score_seaworthiness_empty():
     assert report.deficiencies == []
 
 
+def test_repeat_lookback_in_window_boosts():
+    """Prior critical hit within 24 months applies repeat_mult = 1.5."""
+    current = [
+        NormalizedDeficiency(
+            code="15109",
+            action_code="30",
+            description="ISM repeat",
+            inspection_date="2024-06-15",
+            critical_system="ism",
+            severity_weight=1.0,
+            category_weight=1.0,
+        )
+    ]
+    prior = [
+        NormalizedDeficiency(
+            code="15150",
+            action_code="17",
+            description="ISM prior",
+            inspection_date="2023-06-01",  # ~12.5 months before
+            critical_system="ism",
+            severity_weight=0.5,
+            category_weight=1.0,
+        )
+    ]
+    report = score_seaworthiness(current, prior=prior)
+    assert report.deficiencies[0].is_repeat_critical is True
+    assert report.repeat_critical_flags == ["ism"]
+    assert report.defect_score == pytest.approx(1.5)
+
+
+def test_repeat_lookback_out_of_window_no_boost():
+    """Stale prior outside the default 24-month window must not inflate the score."""
+    current = [
+        NormalizedDeficiency(
+            code="15109",
+            action_code="30",
+            description="ISM current",
+            inspection_date="2024-06-15",
+            critical_system="ism",
+            severity_weight=1.0,
+            category_weight=1.0,
+        )
+    ]
+    prior = [
+        NormalizedDeficiency(
+            code="15150",
+            action_code="17",
+            description="ISM stale",
+            inspection_date="2021-06-01",  # ~36 months before
+            critical_system="ism",
+            severity_weight=0.5,
+            category_weight=1.0,
+        )
+    ]
+    report = score_seaworthiness(current, prior=prior)
+    assert report.deficiencies[0].is_repeat_critical is False
+    assert report.repeat_critical_flags == []
+    assert report.defect_score == pytest.approx(1.0)
+
+
+def test_repeat_lookback_missing_prior_date_still_counts():
+    """Prior without a date still counts when the current inspection is dated."""
+    current = [
+        NormalizedDeficiency(
+            code="04102",
+            action_code="17",
+            description="Emergency fire pump",
+            inspection_date="2024-06-15",
+            critical_system="emergency_fire_pump",
+            severity_weight=0.5,
+            category_weight=1.0,
+        )
+    ]
+    prior = [
+        NormalizedDeficiency(
+            code="04102",
+            action_code="17",
+            description="Emergency fire pump prior",
+            inspection_date=None,
+            critical_system="emergency_fire_pump",
+            severity_weight=0.5,
+            category_weight=1.0,
+        )
+    ]
+    report = score_seaworthiness(current, prior=prior)
+    assert report.deficiencies[0].is_repeat_critical is True
+    assert report.defect_score == pytest.approx(0.75)  # 1.0 * 0.5 * 1.5
+
+
 def test_normalized_deficiency_is_frozen_extra_forbid():
     d = NormalizedDeficiency(code="10104", action_code="16", description="Gyro")
     with pytest.raises(Exception):

@@ -10,7 +10,9 @@ See ``docs/psc_deficiency_vector.md`` and Issue #31.
 
 from __future__ import annotations
 
+import calendar
 import json
+from datetime import date
 from pathlib import Path
 from typing import Any, Iterable, Mapping, Sequence
 
@@ -18,6 +20,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from marine_claims_ai.adapters.base import PSCDeficiency
 from marine_claims_ai.ontology.psc import (
+    DEFAULT_LOOKBACK_MONTHS,
     REPEAT_MULTIPLIER,
     action_severity,
     category_base_weight,
@@ -152,10 +155,72 @@ def parse_inspection_record(raw: Mapping[str, Any]) -> list[NormalizedDeficiency
     return out
 
 
-def _prior_critical_systems(prior: Sequence[NormalizedDeficiency] | None) -> set[str]:
+def _parse_iso_date(text: str | None) -> date | None:
+    """Parse ``YYYY-MM-DD`` (optionally with time suffix); return None if missing/invalid."""
+    if not text:
+        return None
+    raw = str(text).strip()
+    if not raw:
+        return None
+    # Accept "2024-06-15" or "2024-06-15T12:00:00"
+    day = raw[:10]
+    try:
+        return date.fromisoformat(day)
+    except ValueError:
+        return None
+
+
+def _subtract_months(d: date, months: int) -> date:
+    """Subtract calendar months, clamping the day to the target month's last day."""
+    if months < 0:
+        raise ValueError("months must be non-negative")
+    year = d.year
+    month = d.month - months
+    while month <= 0:
+        month += 12
+        year -= 1
+    last_day = calendar.monthrange(year, month)[1]
+    return date(year, month, min(d.day, last_day))
+
+
+def _anchor_inspection_date(deficiencies: Sequence[NormalizedDeficiency]) -> date | None:
+    """Latest parseable inspection_date among current deficiencies, or None."""
+    dates = [_parse_iso_date(d.inspection_date) for d in deficiencies]
+    present = [x for x in dates if x is not None]
+    return max(present) if present else None
+
+
+def _prior_critical_systems(
+    prior: Sequence[NormalizedDeficiency] | None,
+    *,
+    anchor: date | None = None,
+    lookback_months: int = DEFAULT_LOOKBACK_MONTHS,
+) -> set[str]:
+    """
+    Collect critical-system ids from ``prior``, optionally windowed by date.
+
+    When ``anchor`` is set, dated priors outside ``[anchor - lookback_months, anchor]``
+    are excluded. Priors with missing/unparseable dates still count (filter applies
+    only when a date is present). When ``anchor`` is None, all priors count.
+    """
     if not prior:
         return set()
-    return {d.critical_system for d in prior if d.critical_system}
+    if anchor is None:
+        return {d.critical_system for d in prior if d.critical_system}
+
+    window_start = _subtract_months(anchor, lookback_months)
+    out: set[str] = set()
+    for d in prior:
+        if not d.critical_system:
+            continue
+        prior_date = _parse_iso_date(d.inspection_date)
+        if prior_date is None:
+            # Missing date: keep prior behavior (count as in-window).
+            out.add(d.critical_system)
+            continue
+        if window_start <= prior_date <= anchor:
+            out.add(d.critical_system)
+    return out
 
 
 def _cic_multiplier(prefix: str | None, cic_weights: Mapping[str, float] | None) -> float:
@@ -174,14 +239,25 @@ def score_seaworthiness(
     prior: Sequence[NormalizedDeficiency] | None = None,
     mou_id: str | None = None,
     cic_weights: Mapping[str, float] | None = None,
+    lookback_months: int = DEFAULT_LOOKBACK_MONTHS,
 ) -> SeaworthinessRiskReport:
     """
     Aggregate a compound Seaworthiness Defect Score.
 
     ``contrib = category_base × action_severity × repeat_mult × cic_mult``
-    with ``repeat_mult = 1.5`` when the same critical system appeared in ``prior``.
+    with ``repeat_mult = 1.5`` when the same critical system appeared in ``prior``
+    within ``lookback_months`` of the current inspection date (default 24).
+
+    Lookback filtering uses the latest parseable ``inspection_date`` among
+    ``deficiencies`` as the anchor. Dated priors outside
+    ``[anchor - lookback_months, anchor]`` are ignored for repeat matching.
+    Priors with missing/unparseable dates still count. If no current date is
+    available, date filtering is skipped and all priors count.
     """
-    prior_systems = _prior_critical_systems(prior)
+    anchor = _anchor_inspection_date(deficiencies)
+    prior_systems = _prior_critical_systems(
+        prior, anchor=anchor, lookback_months=lookback_months
+    )
     scored: list[NormalizedDeficiency] = []
     total = 0.0
     repeat_flags: list[str] = []
@@ -280,6 +356,7 @@ def score_fixture_case(
     case: Mapping[str, Any],
     *,
     cic_weights: Mapping[str, float] | None = None,
+    lookback_months: int = DEFAULT_LOOKBACK_MONTHS,
 ) -> SeaworthinessRiskReport:
     """Parse and score one fixture case, optionally applying prior inspection rows."""
     current = parse_inspection_record(case.get("inspection") or case)
@@ -293,4 +370,5 @@ def score_fixture_case(
         prior=prior,
         mou_id=_first_str(case, "mou_id") or None,
         cic_weights=weights,
+        lookback_months=lookback_months,
     )

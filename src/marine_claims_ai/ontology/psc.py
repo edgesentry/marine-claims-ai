@@ -202,6 +202,7 @@ CRITICAL_SYSTEM_KEYWORDS: Final[tuple[tuple[str, str], ...]] = (
 )
 
 REPEAT_MULTIPLIER: Final[float] = 1.5
+DEFAULT_LOOKBACK_MONTHS: Final[int] = 24
 
 # Prefer full MOU 4–5 digit codes over leading item indexes ("Item 12: 04102").
 _CODE_LONG = re.compile(r"(?<!\d)(\d{4,5})(?!\d)")
