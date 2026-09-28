@@ -662,28 +662,79 @@ def extract_from_judgment(text: str) -> JudgmentExtraction:
     return result
 
 
+def parse_fault_ratio_parts(ratio: str | None) -> tuple[int, int] | None:
+    """Parse ``A:B`` fault-ratio string into integer percents (must sum to 100)."""
+    if not ratio or not isinstance(ratio, str):
+        return None
+    text = ratio.strip().translate(_FULLWIDTH)
+    m = re.fullmatch(r"(\d{1,3})\s*[:：]\s*(\d{1,3})", text)
+    if not m:
+        return None
+    a, b = int(m.group(1)), int(m.group(2))
+    if a < 0 or b < 0 or a + b != 100:
+        return None
+    return a, b
+
+
+def fault_ratio_within_pts(
+    extracted: str | None,
+    gold: str | None,
+    *,
+    max_pts: int = 10,
+) -> bool:
+    """
+    True when both ratios parse and the absolute gap on side A is ≤ ``max_pts``.
+
+    Example: ``70:30`` vs ``65:35`` → |70-65| = 5 ≤ 10 → True.
+    Exact string match is not required.
+    """
+    left = parse_fault_ratio_parts(extracted)
+    right = parse_fault_ratio_parts(gold)
+    if left is None or right is None:
+        return False
+    return abs(left[0] - right[0]) <= int(max_pts)
+
+
 def extraction_matches_gold(
     extracted: JudgmentExtraction,
     gold: dict[str, Any],
     *,
     require_yen: bool = False,
+    fault_ratio_tolerance_pts: int | None = None,
 ) -> dict[str, Any]:
     """
     Compare extraction to a civil_precedent_catalog seed.
 
-    Fault ratio: exact string match on ``A:B``.
+    Fault ratio: exact string match on ``A:B`` by default.
+    When ``fault_ratio_tolerance_pts`` is set (e.g. 10), a ratio within that
+    many percentage points on side A also counts as ``fault_ratio_ok``.
     Yen: exact match when gold field is an int; None gold fields are ignored.
     Unlabeled yen hits that equal the gold amount also count as a match.
+
+    Always reports ``fault_ratio_within_10pt`` when gold has a fault_ratio
+    (Gate A / A7 soft metric), independent of the exact-match gate.
     """
     report: dict[str, Any] = {
         "fault_ratio_ok": None,
+        "fault_ratio_within_10pt": None,
         "claimed_ok": None,
         "awarded_ok": None,
         "disallowed_ok": None,
     }
     gold_fr = gold.get("fault_ratio")
     if gold_fr:
-        report["fault_ratio_ok"] = extracted.fault_ratio == gold_fr
+        exact = extracted.fault_ratio == gold_fr
+        within_10 = fault_ratio_within_pts(extracted.fault_ratio, gold_fr, max_pts=10)
+        report["fault_ratio_within_10pt"] = within_10
+        if fault_ratio_tolerance_pts is not None:
+            report["fault_ratio_ok"] = fault_ratio_within_pts(
+                extracted.fault_ratio,
+                gold_fr,
+                max_pts=int(fault_ratio_tolerance_pts),
+            )
+        else:
+            report["fault_ratio_ok"] = exact
+        report["fault_ratio_exact"] = exact
         report["fault_ratio_extracted"] = extracted.fault_ratio
         report["fault_ratio_gold"] = gold_fr
 
@@ -702,7 +753,11 @@ def extraction_matches_gold(
         elif require_yen:
             report[field_name] = False
 
-    checks = [v for k, v in report.items() if k.endswith("_ok") and v is not None]
+    checks = [
+        v
+        for k, v in report.items()
+        if k.endswith("_ok") and v is not None
+    ]
     report["all_ok"] = bool(checks) and all(checks)
     report["scored_fields"] = len(checks)
     report["passed_fields"] = sum(1 for v in checks if v)

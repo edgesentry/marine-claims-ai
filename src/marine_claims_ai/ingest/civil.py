@@ -22,8 +22,11 @@ DEFAULT_SYNTHETIC_CATALOG = REPO_ROOT / "config" / "civil_synthetic_benchmarks.j
 NON_SYNTHETIC = frozenset({"court_pdf", "published_holding"})
 
 # Honest floors after separating portal stubs / models from real lane.
-REAL_DOD_FAULT_RATIO = 30
+# REAL_DOD_* = ingest sanity floor; GATE_A_SCALE_* = Issue #59 corpus targets.
+REAL_DOD_FAULT_RATIO = 60
 REAL_DOD_YEN = 4
+GATE_A_SCALE_TARGET_FAULT_RATIO = 60
+GATE_A_SCALE_TARGET_CIVIL_CASES = 60
 
 
 def has_concrete_document_url(url: str) -> bool:
@@ -80,10 +83,23 @@ def catalog_stats(seeds: list[dict[str, Any]]) -> dict[str, int]:
     }
 
 
-def real_dod_status(stats: dict[str, int]) -> dict[str, bool]:
+def real_dod_status(
+    stats: dict[str, int],
+    *,
+    fault_ratio_floor: int | None = None,
+    yen_floor: int | None = None,
+) -> dict[str, bool]:
+    """
+    Check corpus floors.
+
+    Defaults use ``REAL_DOD_*`` ingest sanity thresholds. Pass
+    ``fault_ratio_floor=GATE_A_SCALE_TARGET_FAULT_RATIO`` for Gate A scale.
+    """
+    fr_floor = REAL_DOD_FAULT_RATIO if fault_ratio_floor is None else int(fault_ratio_floor)
+    y_floor = REAL_DOD_YEN if yen_floor is None else int(yen_floor)
     return {
-        "fault_ratio": stats["non_synthetic_with_fault_ratio"] >= REAL_DOD_FAULT_RATIO,
-        "yen": stats["non_synthetic_with_yen"] >= REAL_DOD_YEN,
+        "fault_ratio": stats["non_synthetic_with_fault_ratio"] >= fr_floor,
+        "yen": stats["non_synthetic_with_yen"] >= y_floor,
         "concrete_url": stats.get("non_synthetic_with_concrete_url", 0)
         >= stats.get("non_synthetic", 0),
     }

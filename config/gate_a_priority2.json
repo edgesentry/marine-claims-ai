@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "description": "Gate A Priority 2 thresholds (COLREGS A5/A6 + civil A7). Zero-tolerance on role inversions; scale targets from Issue #59.",
+  "scale_targets": {
+    "min_jmat_cases": 100,
+    "min_overtaking": 25,
+    "min_head_on": 25,
+    "min_crossing": 50,
+    "min_civil_cases": 60
+  },
+  "gates": {
+    "min_situation_agreement": 0.9,
+    "max_critical_role_inversions": 0,
+    "min_extraction_rate": 0.9,
+    "min_civil_extraction_accuracy": 0.9,
+    "min_fault_ratio_within_10pt": 0.8
+  },
+  "jmat_collision_config": "config/jmat_collision_eval.json",
+  "civil_catalog": "config/civil_precedent_catalog.json"
+}
