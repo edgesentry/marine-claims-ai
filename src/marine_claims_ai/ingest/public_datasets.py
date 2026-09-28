@@ -30,7 +30,13 @@ from marine_claims_ai.ingest.civil import (
 from marine_claims_ai.ingest.download import download_url, open_url, polite_sleep
 from marine_claims_ai.ingest.jtsb import apply_limit, fetch_jtsb_collisions
 from marine_claims_ai.ingest.repair_tenders import fetch_repair_tenders
-from marine_claims_ai.paths import DEFAULT_DATASET_DIR, DEFAULT_INPUT_REPAIRS_DIR
+from marine_claims_ai.paths import (
+    DEFAULT_BENCHMARK_DIR,
+    DEFAULT_DATASET_DIR,
+    DEFAULT_INPUT_CIVIL_COURT_DIR,
+    DEFAULT_INPUT_JMAT_DIR,
+    DEFAULT_INPUT_REPAIRS_DIR,
+)
 
 # Back-compat for tests / callers that imported seeds from this module.
 CIVIL_COURT_SEEDS = load_catalog()
@@ -183,6 +189,9 @@ def fetch_field1_jmat(output_dir: str, force: bool = False, limit: int = 0) -> N
     """
     Fetches major marine collision & accident cases from MLIT JMAT.
     limit<=0 means the full major-case index (currently ~30 entries).
+
+    Writes the structured JSON to ``output_dir`` and mirrors a copy under
+    ``_inputs/casualties/jmat/`` and ``_data/benchmarks/`` (3-tier layout).
     """
     dest_json = os.path.join(output_dir, JMAT_JSON)
     if os.path.exists(dest_json) and os.path.getsize(dest_json) > 0 and not force:
@@ -227,9 +236,18 @@ def fetch_field1_jmat(output_dir: str, force: bool = False, limit: int = 0) -> N
         polite_sleep(0.25)
 
     if cases:
+        payload = json.dumps(cases, ensure_ascii=False, indent=2)
         with open(dest_json, "w", encoding="utf-8") as f:
-            json.dump(cases, f, ensure_ascii=False, indent=2)
+            f.write(payload)
         print(f"[Field 1] [OK] Successfully saved {len(cases)} cases to {dest_json}")
+        for mirror in (DEFAULT_INPUT_JMAT_DIR, DEFAULT_BENCHMARK_DIR):
+            try:
+                mirror.mkdir(parents=True, exist_ok=True)
+                mirror_path = mirror / JMAT_JSON
+                mirror_path.write_text(payload, encoding="utf-8")
+                print(f"[Field 1] [OK] Mirrored -> {mirror_path}")
+            except OSError as e:
+                print(f"[Field 1] [WARN] Could not mirror to {mirror}: {e}")
 
 
 def fetch_field2_psc(output_dir: str, force: bool = False, limit: int = 0) -> None:
@@ -374,7 +392,12 @@ def main() -> None:
         print()
 
     if args.field in ["4", "all"]:
-        fetch_field4_civil_courts(args.dest_dir, force=args.force, limit=args.limit)
+        # Prefer 3-tier civil_court cache; keep dest-dir as primary JSON home.
+        civil_dest = args.dest_dir
+        if args.dest_dir == str(DEFAULT_DATASET_DIR):
+            DEFAULT_INPUT_CIVIL_COURT_DIR.mkdir(parents=True, exist_ok=True)
+            civil_dest = str(DEFAULT_INPUT_CIVIL_COURT_DIR)
+        fetch_field4_civil_courts(civil_dest, force=args.force, limit=args.limit)
         print()
 
     if args.field in ["jtsb", "all"]:

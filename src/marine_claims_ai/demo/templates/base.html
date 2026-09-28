@@ -4,6 +4,12 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{{ t('app_title', lang) }}</title>
+  <link rel="manifest" href="/manifest.webmanifest">
+  <meta name="theme-color" content="#0f172a">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="icon" type="image/svg+xml" href="/static/icons/icon.svg">
+  <link rel="apple-touch-icon" href="/static/icons/icon.svg">
   <link rel="stylesheet" href="/static/demo.css">
   <script src="/static/vendor/htmx.min.js" defer></script>
   <script src="/static/vendor/chart.umd.min.js" defer></script>
@@ -15,19 +21,79 @@
     e.stopPropagation();
     window.location.assign(a.href);
   }, true);
+
+  // Progressive Web App (PWA) Service Worker Registration & Install Prompt
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('/sw.js', { scope: '/' })
+        .then((reg) => {
+          console.log('[PWA] Service Worker registered:', reg.scope);
+        })
+        .catch((err) => {
+          console.warn('[PWA] Service Worker registration failed:', err);
+        });
+    });
+  }
+
+  let deferredPwaPrompt = null;
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredPwaPrompt = e;
+    const btn = document.getElementById('pwa-install-btn');
+    if (btn) btn.style.display = 'inline-flex';
+  });
+
+  window.addEventListener('appinstalled', () => {
+    deferredPwaPrompt = null;
+    const btn = document.getElementById('pwa-install-btn');
+    if (btn) btn.style.display = 'none';
+    console.log('[PWA] Application installed');
+  });
+
+  function triggerPwaInstall() {
+    if (!deferredPwaPrompt) return;
+    deferredPwaPrompt.prompt();
+    deferredPwaPrompt.userChoice.then((choice) => {
+      deferredPwaPrompt = null;
+      const btn = document.getElementById('pwa-install-btn');
+      if (btn) btn.style.display = 'none';
+    });
+  }
+
+  function updatePwaOnlineStatus() {
+    const indicator = document.getElementById('pwa-offline-indicator');
+    if (!indicator) return;
+    if (navigator.onLine) {
+      indicator.style.display = 'none';
+    } else {
+      indicator.style.display = 'inline-flex';
+    }
+  }
+  window.addEventListener('online', updatePwaOnlineStatus);
+  window.addEventListener('offline', updatePwaOnlineStatus);
+  document.addEventListener('DOMContentLoaded', updatePwaOnlineStatus);
   </script>
 </head>
 <body>
   <header class="topbar">
-    <div>
-      <div class="brand">{{ t('app_title', lang) }}</div>
+    <div class="brand-group">
+      <div class="brand">
+        <img src="/static/icons/icon.svg" class="brand-logo" alt="Logo" width="24" height="24">
+        {{ t('app_title', lang) }}
+      </div>
       <div class="badge">{{ t('offline_badge', lang) }}</div>
+      <div id="pwa-offline-indicator" class="badge warning" style="display:none;">
+        ⚡ {{ t('pwa_offline_active', lang) }}
+      </div>
     </div>
     <nav class="nav">
       <a href="/uc2" class="{{ 'active' if active == 'uc2' else '' }}">{{ t('nav_uc2', lang) }}</a>
       <a href="/uc3" class="{{ 'active' if active == 'uc3' else '' }}">{{ t('nav_uc3', lang) }}</a>
     </nav>
     <div class="lang">
+      <button id="pwa-install-btn" type="button" class="btn secondary pwa-install" style="display:none;" onclick="triggerPwaInstall();">
+        📥 {{ t('pwa_install_btn', lang) }}
+      </button>
       <form method="post" action="/demo/clear-cache" class="cache-clear-form"
             onsubmit="return confirm({{ t('clear_cache_confirm', lang)|tojson }});">
         {# Never return to /analyze/* (POST-only) — clear-cache would 405 on GET. #}

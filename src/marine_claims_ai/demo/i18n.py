@@ -28,6 +28,18 @@ MESSAGES: dict[str, dict[Lang, str]] = {
         "en": "Offline-ready · local engines only",
         "ja": "オフライン対応 · ローカルエンジンのみ",
     },
+    "pwa_install_btn": {
+        "en": "Install App",
+        "ja": "アプリをインストール",
+    },
+    "pwa_installed_badge": {
+        "en": "PWA App",
+        "ja": "PWA アプリ",
+    },
+    "pwa_offline_active": {
+        "en": "Offline mode active (cached)",
+        "ja": "オフラインモード稼働中（キャッシュ表示）",
+    },
     "err_pdftotext": {
         "en": "A PDF text extraction tool (pdftotext) is required on this computer.",
         "ja": "このコンピュータに PDF の文字を読み取るツール（pdftotext）が必要です。",

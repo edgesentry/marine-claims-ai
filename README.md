@@ -39,6 +39,8 @@ Agent constraints: **[AGENTS.md](AGENTS.md)**
 | [Public Benchmarks & Accuracy](docs/public_benchmarks_and_accuracy_evaluation.md) | Evaluation methodology |
 | [AAA Rule D5](docs/aaa_rule_d5_drydock_apportionment.md) | Drydock apportionment |
 | [COLREGS Encounter Engine](docs/colregs_encounter_engine.md) | Rules 13–15 |
+| [Gate A Priority 1](docs/gate_a_priority1_eval.md) | H&M drydock A1–A4, A8 |
+| [Gate A Priority 2](docs/gate_a_priority2_eval.md) | COLREGS A5/A6 + civil A7 |
 | [Symbolic AI Framework](docs/symbolic_ai_implementation_framework.md) | Deterministic core |
 | [Database Lifecycle](docs/database_architecture_and_lifecycle.md) | LanceDB / DuckDB |
 | [R&D Roadmap](docs/research_and_development_roadmap.md) | Stages |

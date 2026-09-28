@@ -13,6 +13,8 @@ from marine_claims_ai.ingest.civil_judgment_extractor import (
     extract_fault_ratios,
     extract_from_judgment,
     extract_negligence_holding,
+    fault_ratio_within_pts,
+    parse_fault_ratio_parts,
     parse_kanji_int,
     parse_yen_token,
 )
@@ -150,5 +152,63 @@ def test_offline_snippet_suite_meets_dod():
     report = evaluate_offline_snippets(OFFLINE_GOLD_SNIPPETS)
     assert report["total"] >= 8
     assert report["accuracy"] >= 0.90, report
+    assert report["fault_ratio_within_10pt_rate"] >= 0.80, report
     failed = [r for r in report["results"] if not r["ok"]]
     assert failed == [], failed
+
+
+@pytest.mark.parametrize(
+    ("ratio", "expected"),
+    [
+        ("70:30", (70, 30)),
+        ("65:35", (65, 35)),
+        ("８０：２０", (80, 20)),
+        ("50:50", (50, 50)),
+        ("bad", None),
+        ("70:40", None),
+        (None, None),
+    ],
+)
+def test_parse_fault_ratio_parts(ratio: str | None, expected: tuple[int, int] | None):
+    assert parse_fault_ratio_parts(ratio) == expected
+
+
+@pytest.mark.parametrize(
+    ("extracted", "gold", "ok"),
+    [
+        ("70:30", "70:30", True),
+        ("70:30", "65:35", True),  # 5pt
+        ("70:30", "60:40", True),  # 10pt
+        ("70:30", "55:45", False),  # 15pt
+        ("80:20", "70:30", True),  # 10pt
+        ("80:20", "65:35", False),  # 15pt
+        (None, "70:30", False),
+        ("70:30", None, False),
+    ],
+)
+def test_fault_ratio_within_10pt(extracted: str | None, gold: str | None, ok: bool):
+    assert fault_ratio_within_pts(extracted, gold, max_pts=10) is ok
+
+
+def test_extraction_matches_gold_reports_within_10pt():
+    from marine_claims_ai.ingest.civil_judgment_extractor import extraction_matches_gold
+
+    text = "過失割合は 70:30 である。"
+    extracted = extract_from_judgment(text)
+    exact = extraction_matches_gold(extracted, {"fault_ratio": "70:30"})
+    assert exact["fault_ratio_ok"] is True
+    assert exact["fault_ratio_within_10pt"] is True
+    assert exact["fault_ratio_exact"] is True
+
+    soft = extraction_matches_gold(
+        extracted,
+        {"fault_ratio": "65:35"},
+        fault_ratio_tolerance_pts=10,
+    )
+    assert soft["fault_ratio_ok"] is True
+    assert soft["fault_ratio_exact"] is False
+    assert soft["fault_ratio_within_10pt"] is True
+
+    strict = extraction_matches_gold(extracted, {"fault_ratio": "65:35"})
+    assert strict["fault_ratio_ok"] is False
+    assert strict["fault_ratio_within_10pt"] is True

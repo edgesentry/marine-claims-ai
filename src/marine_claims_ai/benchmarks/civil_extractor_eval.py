@@ -140,6 +140,29 @@ def _score_case(text: str, gold: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _summarize_fault_ratio_tolerance(results: list[dict[str, Any]]) -> dict[str, Any]:
+    """Aggregate A7 soft metric: fault ratio within ±10pt among scored FR cases."""
+    scored = 0
+    within = 0
+    for r in results:
+        match = r.get("match") or {}
+        w = match.get("fault_ratio_within_10pt")
+        if w is None and "fault_ratio_ok" in r:
+            # holdings mode stores flags at top level
+            continue
+        if w is None:
+            continue
+        scored += 1
+        if w:
+            within += 1
+    rate = (within / scored) if scored else 0.0
+    return {
+        "fault_ratio_within_10pt_scored": scored,
+        "fault_ratio_within_10pt_passed": within,
+        "fault_ratio_within_10pt_rate": rate,
+    }
+
+
 def evaluate_offline_snippets(
     snippets: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
@@ -168,12 +191,14 @@ def evaluate_offline_snippets(
         )
     total = len(results)
     accuracy = (passed / total) if total else 0.0
+    tol = _summarize_fault_ratio_tolerance(results)
     return {
         "mode": "offline_snippets",
         "total": total,
         "passed": passed,
         "failed": total - passed,
         "accuracy": accuracy,
+        **tol,
         "results": results,
     }
 
@@ -222,11 +247,14 @@ def evaluate_catalog_holdings(seeds: list[dict[str, Any]] | None = None) -> dict
                 "case_id": seed.get("case_id"),
                 "status": "ok" if fr_ok else "fail",
                 "fault_ratio_ok": fr_ok,
+                "fault_ratio_within_10pt": match.get("fault_ratio_within_10pt"),
                 "extracted": extracted.fault_ratio,
                 "gold": seed.get("fault_ratio"),
+                "match": match,
             }
         )
     accuracy = (passed / scored_n) if scored_n else 0.0
+    tol = _summarize_fault_ratio_tolerance(results)
     return {
         "mode": "catalog_holdings",
         "catalog_total": len(seeds),
@@ -235,6 +263,7 @@ def evaluate_catalog_holdings(seeds: list[dict[str, Any]] | None = None) -> dict
         "failed": scored_n - passed,
         "skipped": len(seeds) - scored_n,
         "accuracy": accuracy,
+        **tol,
         "results": results,
     }
 
@@ -347,6 +376,7 @@ def evaluate_local_documents(
 
     accuracy = (passed / scored_n) if scored_n else 0.0
     field_accuracy = (field_passed / field_scored) if field_scored else 0.0
+    tol = _summarize_fault_ratio_tolerance(results)
     return {
         "mode": "local_documents",
         "data_dir": str(data_dir),
@@ -358,6 +388,7 @@ def evaluate_local_documents(
         "field_accuracy": field_accuracy,
         "field_scored": field_scored,
         "field_passed": field_passed,
+        **tol,
         "results": results,
     }
 
@@ -377,6 +408,12 @@ def main() -> int:
         type=float,
         default=0.90,
         help="Fail if primary accuracy falls below this threshold (default 0.90)",
+    )
+    parser.add_argument(
+        "--min-within-10pt",
+        type=float,
+        default=0.80,
+        help="Fail if fault-ratio within ±10pt rate falls below this (default 0.80; A7 soft)",
     )
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args()
@@ -403,9 +440,11 @@ def main() -> int:
             acc = rep.get("accuracy", 0.0)
             scored = rep.get("scored", rep.get("total", 0))
             passed = rep.get("passed", 0)
+            w10 = rep.get("fault_ratio_within_10pt_rate")
+            w10_s = f" within10pt={w10:.1%}" if w10 is not None else ""
             print(
                 f"[{name}] accuracy={acc:.1%} passed={passed}/{scored} "
-                f"(failed={rep.get('failed', 0)})"
+                f"(failed={rep.get('failed', 0)}){w10_s}"
             )
             for r in rep.get("results", []):
                 if r.get("ok") is False or r.get("status") == "fail":
@@ -429,6 +468,14 @@ def main() -> int:
             print(
                 f"[ERROR] accuracy {rep.get('accuracy', 0):.1%} < {args.min_accuracy:.0%} "
                 f"(mode={rep.get('mode')})",
+                flush=True,
+            )
+            return 1
+        w10_scored = int(rep.get("fault_ratio_within_10pt_scored") or 0)
+        if w10_scored > 0 and float(rep.get("fault_ratio_within_10pt_rate") or 0.0) < args.min_within_10pt:
+            print(
+                f"[ERROR] within±10pt {rep.get('fault_ratio_within_10pt_rate', 0):.1%} "
+                f"< {args.min_within_10pt:.0%} (mode={rep.get('mode')})",
                 flush=True,
             )
             return 1

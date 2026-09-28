@@ -138,7 +138,10 @@ All internal modules and CLI scripts must resolve file locations via **`marine_c
 | `DEFAULT_INPUTS_DIR` | `<repo>/_inputs` | Base directory for raw documents |
 | `DEFAULT_INPUT_REPAIRS_DIR` | `<repo>/_inputs/repairs` | Repair specifications and bids |
 | `DEFAULT_INPUT_CASUALTIES_DIR` | `<repo>/_inputs/casualties` | JTSB and JMAT casualty reports |
+| `DEFAULT_INPUT_JMAT_DIR` | `<repo>/_inputs/casualties/jmat` | JMAT tribunal rulings (HTML/text) |
+| `DEFAULT_INPUT_JTSB_DIR` | `<repo>/_inputs/casualties/jtsb` | JTSB marine accident reports |
 | `DEFAULT_INPUT_LEGAL_DIR` | `<repo>/_inputs/legal` | Civil court judicial precedents |
+| `DEFAULT_INPUT_CIVIL_COURT_DIR` | `<repo>/_inputs/legal/civil_court` | courts.go.jp PDFs/HTML cache |
 | `DEFAULT_DATA_DIR` | `<repo>/_data` | Base directory for derived databases and caches |
 | `DEFAULT_DUCK_DIR` | `<repo>/_data/duckdb` | DuckDB database directory |
 | `DEFAULT_DUCK_PATH` | `<repo>/_data/duckdb/marine_claims.duckdb` | Primary DuckDB database file |

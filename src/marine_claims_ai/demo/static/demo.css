@@ -39,13 +39,48 @@ a:hover { text-decoration: underline; }
   top: 0;
   z-index: 10;
 }
-.brand { font-weight: 650; letter-spacing: 0.02em; }
+.brand-group {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+.brand {
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.brand-logo {
+  vertical-align: middle;
+  border-radius: 4px;
+}
 .badge {
   font-size: 0.75rem;
   color: var(--muted);
   border: 1px solid var(--line);
   padding: 0.2rem 0.55rem;
   border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+}
+.badge.warning {
+  color: #fde047;
+  border-color: rgba(234, 179, 8, 0.45);
+  background: rgba(234, 179, 8, 0.12);
+}
+.btn.pwa-install {
+  background: linear-gradient(135deg, #0284c7, #0ea5e9);
+  color: #ffffff;
+  border: 1px solid #38bdf8;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.btn.pwa-install:hover {
+  background: linear-gradient(135deg, #0369a1, #0284c7);
+  box-shadow: 0 0 10px rgba(56, 189, 248, 0.4);
 }
 .nav { display: flex; gap: 0.4rem; flex-wrap: wrap; }
 .nav a {
