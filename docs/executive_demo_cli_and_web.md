@@ -100,7 +100,23 @@ uv run pytest -m demo -q
 
 ---
 
-## 5. Data prerequisites
+## 5. Progressive Web App (PWA) Offline Capabilities (Issue #74)
+
+The executive web demo operates as an **installable Progressive Web App (PWA)**:
+
+- **Web App Manifest**: Served at `/manifest.webmanifest` with standalone display mode, `#0f172a` navy branding, and maritime AI SVG/maskable icons.
+- **Service Worker (`/sw.js`)**:
+  - Pre-caches core shells (`/`, `/uc2`, `/uc3`, styles, HTMX, Chart.js, icons).
+  - Uses **Stale-While-Revalidate** for static assets and **Network-First with Cache Fallback** for navigation.
+  - Allows full walkthroughs and previous inspection viewings even when disconnected from the server or offline.
+- **Desktop & Field Installability**:
+  - Chrome / Edge displays a native install icon in the address bar.
+  - The demo header displays an interactive **"📥 Install App" / "📥 アプリをインストール"** prompt when available.
+  - An offline warning indicator (⚡) dynamically activates if network connectivity drops.
+
+---
+
+## 6. Data prerequisites
 
 | Artifact | Location | Notes |
 | :--- | :--- | :--- |

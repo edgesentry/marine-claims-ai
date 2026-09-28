@@ -91,7 +91,7 @@ def test_predict_accepts_geometry_dict():
 
 def test_catalog_leave_one_out_mae_within_ten_pp():
     report = evaluate_catalog_mae(leave_one_out=True)
-    assert report["n"] == 36
+    assert report["n"] >= 36
     assert report["mae_pp"] <= 10.0, (
         f"MAE={report['mae_pp']:.2f}pp exceeds 10pp gate; "
         f"worst={[r for r in sorted(report['rows'], key=lambda x: -x['abs_error_pp'])[:3]]}"

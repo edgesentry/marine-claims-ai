@@ -54,9 +54,39 @@ def create_app() -> FastAPI:
         ms = (time.perf_counter() - t0) * 1000
         # Skip noisy static assets
         path = request.url.path
-        if not path.startswith("/static/"):
+        if not path.startswith("/static/") and path not in ("/sw.js", "/favicon.ico"):
             log.info("%s %s → %s (%.0fms)", request.method, path, response.status_code, ms)
         return response
+
+    @app.get("/manifest.webmanifest")
+    def get_manifest():
+        manifest_file = STATIC_DIR / "manifest.webmanifest"
+        return FileResponse(
+            manifest_file,
+            media_type="application/manifest+json",
+            headers={"Cache-Control": "public, max-age=86400"},
+        )
+
+    @app.get("/sw.js")
+    def get_service_worker():
+        sw_file = STATIC_DIR / "sw.js"
+        return FileResponse(
+            sw_file,
+            media_type="application/javascript",
+            headers={
+                "Cache-Control": "no-cache",
+                "Service-Worker-Allowed": "/",
+            },
+        )
+
+    @app.get("/favicon.ico")
+    def get_favicon():
+        icon_file = STATIC_DIR / "icons" / "icon.svg"
+        return FileResponse(
+            icon_file,
+            media_type="image/svg+xml",
+            headers={"Cache-Control": "public, max-age=86400"},
+        )
 
     @app.get("/", response_class=HTMLResponse)
     def home(request: Request, demo_lang: Annotated[str | None, Cookie()] = None):
