@@ -11,7 +11,16 @@ import json
 import os
 import re
 import subprocess
+from decimal import Decimal
 
+from marine_claims_ai.analytics.rule_d_solver import (
+    ApportionmentRule,
+    DockingContext,
+    OwnerNecessity,
+    RepairLineItem,
+    WorkParty,
+    apportion_rule_d,
+)
 from marine_claims_ai.appraisal.negative_patterns import (
     ACTION_APPORTIONED,
     ACTION_DISALLOWED,
@@ -57,6 +66,130 @@ def description_is_bow_thruster_work(desc: str) -> bool:
     return desc.strip().startswith("バウスラスター") or "バウスラスター プロペラ" in desc
 
 
+def is_common_dock_description(desc: str) -> bool:
+    """True for entering/leaving / lay (common drydock dues) line items."""
+    return "入出渠" in desc or "滞渠" in desc or "入渠" in desc
+
+
+_STATUTORY_OWNER_KEYS = (
+    "法定",
+    "検査証書",
+    "SOLAS",
+    "船級",
+    "年次検査",
+    "中間検査",
+    "定期検査",
+    "JG",
+)
+
+
+def _line_id(item: dict) -> str:
+    return f"line-{item.get('id', item.get('num', 'x'))}"
+
+
+def build_rule_d_line_items(
+    items: list[dict],
+    *,
+    assume_statutory_owner_work: bool = True,
+) -> list[RepairLineItem]:
+    """
+    Map appraisal line dicts to Rule D5 ``RepairLineItem`` rows.
+
+    When ``assume_statutory_owner_work`` is True and no JG/survey statutory line is
+    present, inject a synthetic SAFE line so concurrent drydock screening follows
+    D5 ¶2(a) 50/50 (same default as the executive demo).
+    """
+    lines: list[RepairLineItem] = []
+    saw_statutory = False
+    saw_dock = False
+
+    for item in items:
+        desc = str(item.get("description") or "")
+        cost = Decimal(int(item.get("estimated_cost") or 0))
+        lid = _line_id(item)
+
+        if is_common_dock_description(desc):
+            saw_dock = True
+            lines.append(
+                RepairLineItem(
+                    id=lid,
+                    trade_code="DOCK-01",
+                    cost=cost,
+                    title=desc[:80],
+                )
+            )
+            continue
+
+        if any(k in desc for k in _STATUTORY_OWNER_KEYS):
+            saw_statutory = True
+            lines.append(
+                RepairLineItem(
+                    id=lid,
+                    trade_code="SAFE-01",
+                    cost=cost,
+                    necessity=OwnerNecessity.STATUTORY_SEAWORTHINESS,
+                    title=desc[:80],
+                )
+            )
+            continue
+
+        if any(
+            k in desc
+            for k in (
+                "主機関",
+                "ピストン",
+                "プロペラ軸",
+                "減速機",
+                "発電機関",
+                "カロリー",
+            )
+        ):
+            lines.append(
+                RepairLineItem(
+                    id=lid,
+                    trade_code="ENG-02",
+                    cost=cost,
+                    necessity=OwnerNecessity.DEFERRED,
+                    title=desc[:80],
+                )
+            )
+            continue
+
+        if any(k in desc for k in ("外板", "球状船首", "船首", "バウスラスター")):
+            lines.append(
+                RepairLineItem(
+                    id=lid,
+                    trade_code="HULL-01",
+                    cost=cost,
+                    work_party=WorkParty.CASUALTY,
+                    title=desc[:80],
+                )
+            )
+            continue
+
+        lines.append(
+            RepairLineItem(
+                id=lid,
+                trade_code="OWN-01",
+                cost=cost,
+                necessity=OwnerNecessity.DEFERRED,
+                title=desc[:80],
+            )
+        )
+
+    if assume_statutory_owner_work and saw_dock and not saw_statutory:
+        lines.append(
+            RepairLineItem(
+                id="safe-synthetic",
+                trade_code="SAFE-01",
+                cost=Decimal("550000"),
+                necessity=OwnerNecessity.STATUTORY_SEAWORTHINESS,
+                title="Statutory survey (assumed concurrent)",
+            )
+        )
+    return lines
+
+
 def _ontology_exclude_reason(causality: dict, damaged_zones: list[str]) -> str:
     reason_code = causality.get("reason") or "unknown"
     repair = causality.get("repair_node")
@@ -77,16 +210,26 @@ def _ontology_exclude_reason(causality: dict, damaged_zones: list[str]) -> str:
     )
 
 
-def evaluate_claims_dynamically(items, casualty_profile, scorer=None):
+def evaluate_claims_dynamically(
+    items,
+    casualty_profile,
+    scorer=None,
+    *,
+    docking_context: DockingContext | str | None = None,
+    assume_statutory_owner_work: bool = True,
+):
     """
     Evaluate each specification item against the casualty profile.
 
-    Checks in order: (1) drydock dues, (2) naval-architecture compartment causality,
-    (3) Negative Pattern Library cosine red-flag scoring, (4) keyword gates.
+    Checks in order: (1) AAA Rule D5 drydock dues, (2) naval-architecture compartment
+    causality, (3) Negative Pattern Library cosine red-flag scoring, (4) keyword gates.
     Bare 「塗装」「洗浄」 alone never triggers COVERED.
 
     ``scorer`` may be a NegativePatternScorer (or compatible) for tests; when None,
     the default library-backed scorer is constructed once per call.
+
+    Common drydock dues (入出渠／滞渠) are apportioned via ``apportion_rule_d``
+    (DuckDB SQL), not a hardcoded ``cost * 0.5`` heuristic.
     """
     damaged_zones = list(casualty_profile["damaged_components"])
     analyzed = []
@@ -94,6 +237,22 @@ def evaluate_claims_dynamically(items, casualty_profile, scorer=None):
     total_covered = 0
     total_excluded = 0
     npl_scorer = scorer if scorer is not None else NegativePatternScorer()
+
+    if docking_context is None:
+        ctx = DockingContext.CASUALTY_IMMEDIATE
+    elif isinstance(docking_context, DockingContext):
+        ctx = docking_context
+    else:
+        try:
+            ctx = DockingContext(str(docking_context))
+        except ValueError:
+            ctx = DockingContext.CASUALTY_IMMEDIATE
+
+    rule_d_items = build_rule_d_line_items(
+        items, assume_statutory_owner_work=assume_statutory_owner_work
+    )
+    rule_d_result = apportion_rule_d(rule_d_items, docking_context=ctx)
+    rule_d_by_id = {ln.id: ln for ln in rule_d_result.lines}
 
     has_hull_damage = any(z in damaged_zones for z in ["外板", "球状船首", "貨物タンク", "タンク"])
     has_propulsion_damage = any(z in damaged_zones for z in ["推進器", "舵"])
@@ -111,17 +270,44 @@ def evaluate_claims_dynamically(items, casualty_profile, scorer=None):
         approved_amount = 0
         repair_zone = None
         causality = None
+        apportionment_rule = None
+        insurer_share = None
+        owner_share = None
         red_flag = npl_scorer.score_description(desc, category=cat)
 
-        # Rule 1: Common Drydocking charges (入出渠・滞渠) — apportionment, not zone-gated
-        if "入出渠" in desc or "滞渠" in desc:
-            status = "APPORTIONED (50%)"
-            approved_amount = cost * 0.5
-            reason = (
-                "入出渠基本料・滞渠費は、事故復旧工事と船主定期点検工事の双方が行われたため、"
-                "海事鑑定実務（50%ルール）に基づき折半認定。"
-            )
-            clause_ref = "Marine Insurance Act / ITC-Hulls Apportionment Rule"
+        # Rule 1: Common Drydocking charges — AAA Rule D5 (DuckDB), not zone-gated
+        if is_common_dock_description(desc):
+            ln = rule_d_by_id.get(_line_id(item))
+            if ln is None:
+                # Fallback should not happen when build_rule_d_line_items saw the row.
+                approved_amount = int(cost) // 2
+                status = "APPORTIONED (50%)"
+                apportionment_rule = ApportionmentRule.RULE_D5_50_50.value
+                insurer_share = approved_amount
+                owner_share = int(cost) - approved_amount
+            else:
+                insurer_share = int(ln.insurer_share)
+                owner_share = int(ln.owner_share)
+                approved_amount = insurer_share
+                apportionment_rule = ln.apportionment_rule.value
+                if ln.apportionment_rule == ApportionmentRule.RULE_D5_50_50:
+                    status = "APPORTIONED (50%)"
+                    reason = (
+                        "入出渠・滞渠共通費は AAA Rule D5 に基づき、事故復旧と船主法定工事の"
+                        "双方がドックを要するため折半認定（DuckDB 確定計算）。"
+                    )
+                else:
+                    status = "COVERED"
+                    reason = (
+                        "入出渠・滞渠共通費は AAA Rule D5 ¶1 に基づき、船主の法定・堪航性工事が"
+                        "併存しないため保険者 100% 負担（DuckDB 確定計算）。"
+                    )
+                clause_ref = f"AAA Rules of Practice Rule D5 / {apportionment_rule}"
+                # Exact reconciliation: insurer + owner == cost
+                if insurer_share + owner_share != int(cost):
+                    raise AssertionError(
+                        f"Rule D5 reconciliation error: {insurer_share}+{owner_share}!={cost}"
+                    )
         else:
             repair_zone = infer_repair_zone(desc, cat)
             if repair_zone and damaged_zones:
@@ -255,6 +441,10 @@ def evaluate_claims_dynamically(items, casualty_profile, scorer=None):
         item_result["matched_trade_code"] = red_flag.get("matched_trade_code")
         item_result["recommended_action"] = red_flag.get("recommended_action")
         item_result["citation"] = red_flag.get("citation")
+        if apportionment_rule is not None:
+            item_result["apportionment_rule"] = apportionment_rule
+            item_result["insurer_share"] = insurer_share
+            item_result["owner_share"] = owner_share
         if repair_zone:
             item_result["repair_zone"] = repair_zone
         if causality:
@@ -270,6 +460,11 @@ def evaluate_claims_dynamically(items, casualty_profile, scorer=None):
         total_excluded += item_result["excluded_amount"]
         analyzed.append(item_result)
 
+    d5_recon_error = 0
+    for ln in rule_d_result.lines:
+        if ln.is_common_dock_charge:
+            d5_recon_error += abs(int(ln.insurer_share) + int(ln.owner_share) - int(ln.cost))
+
     summary = {
         "casualty_profile": casualty_profile,
         "total_items": len(analyzed),
@@ -284,9 +479,13 @@ def evaluate_claims_dynamically(items, casualty_profile, scorer=None):
         ),
         "items_excluded_count": len([x for x in analyzed if "EXCLUDED" in x["status"]]),
         "items_review_count": len([x for x in analyzed if "REVIEW" in x["status"]]),
+        "docking_context": ctx.value,
+        "rule_d5_apportionment_rule": rule_d_result.apportionment_rule.value,
+        "rule_d5_reconciliation_error_jpy": d5_recon_error,
         "pricing_note": (
             "Line-item JPY amounts are model estimates from public standard repair "
-            "unit-price heuristics (not shipyard tender figures on the source PDF)."
+            "unit-price heuristics (not shipyard tender figures on the source PDF). "
+            "Common drydock dues use AAA Rule D5 DuckDB apportionment."
         ),
     }
 
