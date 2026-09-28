@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import json
+from pathlib import Path
+
 from marine_claims_ai.benchmarks.gate_a_priority1 import (
     evaluate_a3_rule_d5_pipeline,
     evaluate_a3_rule_d5_synthetic,
@@ -35,9 +38,40 @@ def test_scale_incomplete_when_below_targets():
     assert s["scale_incomplete"] is True
 
 
+def test_resolve_pdf_finds_repairs_specs(tmp_path: Path, monkeypatch):
+    from marine_claims_ai.benchmarks import public_appraisal_eval as pae
+
+    repairs = tmp_path / "repairs" / "specs"
+    repairs.mkdir(parents=True)
+    pdf = repairs / "demo.pdf"
+    pdf.write_bytes(b"%PDF-1.4")
+    monkeypatch.setattr(pae, "DEFAULT_INPUT_REPAIRS_DIR", tmp_path / "repairs")
+    assert pae.resolve_pdf("demo.pdf") == pdf
+
+
 def test_run_gate_a_skip_pdf_span_passes_zero_tolerance(tmp_path):
-    """CI-friendly path: synthetic A3 + skip PDF span; missing PDFs skip A1 cases."""
+    """CI-friendly path: synthetic A3 + skip PDF span; empty appraisal cases."""
+    appraisal_cfg = {
+        "version": 1,
+        "cases": [],
+        "critical_exclude_substrings": ["主機関"],
+        "gates": {
+            "min_cases_with_pdfs": 0,
+            "max_critical_false_accepts": 0,
+            "min_status_agreement": 0.85,
+        },
+    }
+    appraisal_path = tmp_path / "appraisal.json"
+    appraisal_path.write_text(json.dumps(appraisal_cfg), encoding="utf-8")
+
+    gate_cfg = load_gate_config()
+    gate_cfg = dict(gate_cfg)
+    gate_cfg["public_appraisal_config"] = str(appraisal_path)
+    gate_path = tmp_path / "gate.json"
+    gate_path.write_text(json.dumps(gate_cfg), encoding="utf-8")
+
     report = run_gate_a_priority1(
+        config_path=gate_path,
         dataset_dir=tmp_path,
         include_pdf_span=False,
         bid_count=0,

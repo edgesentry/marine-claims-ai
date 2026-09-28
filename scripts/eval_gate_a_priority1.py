@@ -27,8 +27,8 @@ def main() -> int:
     parser.add_argument(
         "--bid-count",
         type=int,
-        default=0,
-        help="Known bid-notice corpus size for scale_incomplete reporting",
+        default=None,
+        help="Override bid-notice corpus size (default: count _inputs/repairs/bids/*.pdf)",
     )
     parser.add_argument(
         "--skip-pdf-span",
