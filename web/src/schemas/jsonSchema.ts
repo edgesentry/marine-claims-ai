@@ -60,6 +60,7 @@ export function extractionJsonSchema(schemaId: SchemaId): JsonSchemaObject {
         }),
       )
       .default([]),
+    field_confidence: z.record(z.string(), z.number().min(0).max(1)).optional(),
     abstain: z
       .object({
         code: z.literal("HUMAN_REVIEW_REQUIRED"),

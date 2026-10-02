@@ -99,6 +99,8 @@ describe("Issue #88 DoD — Stage B grounding gate", () => {
         },
       ]),
     );
+    expect(paste.status).toBe("scored");
+    if (paste.status !== "scored") return;
     expect(paste.report.defect_score).toBeGreaterThan(0);
   });
 
@@ -111,9 +113,12 @@ describe("Issue #88 DoD — Stage B grounding gate", () => {
         true_bearing_a_to_b_deg: 70,
       },
       factsExcerpt: "両船は横切の関係",
+      confidence: 0.85,
       groundingMode: "require_span",
       sourceText: source,
     });
+    expect(result.status).toBe("scored");
+    if (result.status !== "scored") return;
     expect(result.extraction.grounding.some((g) => g.field === "facts_excerpt")).toBe(true);
     expect(result.verdict.situation).toBe("crossing");
   });

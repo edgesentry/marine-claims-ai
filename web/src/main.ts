@@ -53,11 +53,19 @@ import {
   ExtractionValidationError,
   GroundingValidationError,
   ruleD5LinesFromExtraction,
+  type ColregsExtraction,
+  type ExtractionResult,
+  type RuleD5Extraction,
 } from "./schemas";
 import { runColregs, runPsc, runPscFixture, runRuleD5, runRuleD5FromRepairText } from "./core";
 import { getDuckDb } from "./db/duckdb";
 
 type Tab = "uc2" | "uc3" | "psc";
+
+interface PendingReview {
+  extraction: ExtractionResult;
+  reasons: string[];
+}
 
 interface AppState {
   lang: Lang;
@@ -72,7 +80,9 @@ interface AppState {
   includeStatutory: boolean;
   uc2Lines: RepairLineItem[];
   uc2FromPdf: boolean;
+  uc2Confirmed: boolean;
   uc2Analyzed: AnalyzedItem[];
+  uc2Pending: PendingReview | null;
   // UC3
   caseId: string;
   headingA: number;
@@ -83,6 +93,8 @@ interface AppState {
   seeds: CatalogSeed[];
   jmatCases: Array<Record<string, string>>;
   civil7: CatalogSeed | null;
+  uc3Pending: PendingReview | null;
+  uc3Confirmed: boolean;
   nplScorer: NplScorer;
   // PSC
   pscFixtures: PscFixtureCase[];
@@ -95,6 +107,8 @@ interface AppState {
   pscPasteCic: Record<string, number> | null;
   pscPasteMou: string | null;
   pscPasteLabel: string;
+  pscPending: PendingReview | null;
+  pscConfirmed: boolean;
 }
 
 const state: AppState = {
@@ -109,7 +123,9 @@ const state: AppState = {
   includeStatutory: true,
   uc2Lines: [],
   uc2FromPdf: false,
+  uc2Confirmed: false,
   uc2Analyzed: [],
+  uc2Pending: null,
   caseId: "civil_7",
   headingA: 30,
   headingB: 300,
@@ -119,6 +135,8 @@ const state: AppState = {
   seeds: [],
   jmatCases: [],
   civil7: null,
+  uc3Pending: null,
+  uc3Confirmed: false,
   nplScorer: noOpNplScorer,
   pscFixtures: [],
   pscCaseId: "repeat_ism_major",
@@ -130,6 +148,8 @@ const state: AppState = {
   pscPasteCic: null,
   pscPasteMou: null,
   pscPasteLabel: "",
+  pscPending: null,
+  pscConfirmed: false,
 };
 
 function fmtYen(n: number): string {
@@ -146,7 +166,47 @@ function escapeHtml(value: unknown): string {
     .replace(/'/g, "&#39;");
 }
 
+function emptyUc2View(): Uc2View {
+  return {
+    rule: "—",
+    dock_total: 0,
+    insurer_common: 0,
+    owner_common: 0,
+    insurer_total: 0,
+    owner_total: 0,
+    days_saved: 0,
+    offhire_jpy: 0,
+    line_rows: [],
+  };
+}
+
+function reviewBannerHtml(pending: PendingReview): string {
+  const conf = pending.extraction.confidence;
+  const reasons = pending.reasons.length
+    ? pending.reasons
+    : pending.extraction.abstain?.reason
+      ? [pending.extraction.abstain.reason]
+      : [];
+  return `<div class="review-banner" role="status">
+    <h2><span class="pill review">${escapeHtml(t("human_review_title", state.lang))}</span></h2>
+    <p>${escapeHtml(t("human_review_body", state.lang))}</p>
+    <p class="muted">${escapeHtml(t("human_review_not_legal", state.lang))}</p>
+    <p>${escapeHtml(t("confidence_label", state.lang))}: <strong>${escapeHtml(conf.toFixed(2))}</strong></p>
+    ${
+      reasons.length
+        ? `<ul class="reasons">${reasons.map((r) => `<li><code>${escapeHtml(r)}</code></li>`).join("")}</ul>`
+        : ""
+    }
+    <p class="muted">${escapeHtml(t("review_edit_hint", state.lang))}</p>
+  </div>`;
+}
+
 function buildUc2(): Uc2View {
+  if (state.uc2Pending && !state.uc2Confirmed) {
+    void validateCausality("船首", "機関室");
+    return emptyUc2View();
+  }
+
   const lines =
     state.uc2Lines.length > 0
       ? state.uc2Lines
@@ -155,11 +215,12 @@ function buildUc2(): Uc2View {
   const synced = lines.map((ln) =>
     (ln.trade_code || "").startsWith("DOCK") ? { ...ln, cost: dockTotal } : ln,
   );
-  const { apportionment: result, days_saved, offhire_jpy } = runRuleD5({
+  const fromPdfPendingGate = state.uc2FromPdf && !state.uc2Confirmed;
+  const run = runRuleD5({
     dockingContext: state.dockingContext,
     lines: synced,
     assumeStatutoryOwnerWork: state.includeStatutory,
-    confidence: state.uc2FromPdf ? 0.65 : 0.85,
+    confidence: state.uc2FromPdf ? (state.uc2Confirmed ? 0.85 : 0.65) : 0.85,
     grounding: synced
       .filter((ln) => ln.title)
       .slice(0, 8)
@@ -167,7 +228,12 @@ function buildUc2(): Uc2View {
         field: `lines.${ln.id}`,
         source_quote: String(ln.title),
       })),
-    groundingMode: state.uc2FromPdf ? "require_span" : "paste_bypass",
+    groundingMode: state.uc2FromPdf && !state.uc2Confirmed ? "require_span" : "paste_bypass",
+    confidenceMode: state.uc2Confirmed
+      ? "confirmed"
+      : fromPdfPendingGate
+        ? "enforce"
+        : "bypass",
     hireRate: state.hireRate,
     legacyLeadDays: state.legacyLeadDays,
     aiLeadMinutes: state.aiLeadMinutes,
@@ -175,6 +241,12 @@ function buildUc2(): Uc2View {
 
   void validateCausality("船首", "機関室");
 
+  if (run.status === "abstain") {
+    state.uc2Pending = { extraction: run.extraction, reasons: run.reasons };
+    return emptyUc2View();
+  }
+
+  const result = run.apportionment;
   return {
     rule: result.apportionment_rule,
     dock_total: result.common_dues_total,
@@ -182,8 +254,8 @@ function buildUc2(): Uc2View {
     owner_common: result.owner_common_share,
     insurer_total: result.insurer_total,
     owner_total: result.owner_total,
-    days_saved,
-    offhire_jpy,
+    days_saved: run.days_saved,
+    offhire_jpy: run.offhire_jpy,
     line_rows: result.lines.map((ln) => ({
       id: ln.id,
       title: ln.title || ln.id,
@@ -225,6 +297,22 @@ function geometryForCase(): EncounterGeometry {
   };
 }
 
+function emptyUc3View(title: string, facts: string, ruling: string, documentKind?: "judgment" | "jtsb"): Uc3View {
+  return {
+    title,
+    situation: "—",
+    situation_label: "—",
+    role_a_label: "—",
+    role_b_label: "—",
+    fault_ratio: "—",
+    relative_bearing: 0,
+    rule_citations: [],
+    facts,
+    ruling,
+    document_kind: documentKind,
+  };
+}
+
 function buildUc3(): Uc3View {
   let title = state.caseId;
   let facts = "";
@@ -253,27 +341,39 @@ function buildUc3(): Uc3View {
       ? state.civil7.document_kind
       : undefined;
 
-  const {
-    extraction,
-    verdict,
-    fault_ratio: faultRatio,
-  } = runColregs({
+  if (state.uc3Pending && !state.uc3Confirmed) {
+    return emptyUc3View(title, facts, ruling, docKind);
+  }
+
+  const isUpload = state.civil7?.case_id === "upload";
+  const run = runColregs({
     geometry,
     factsExcerpt: facts || undefined,
     rulingExcerpt: ruling || undefined,
     title,
     faultRatioHint: catalogFault || undefined,
     documentKind: docKind,
-    confidence: state.civil7?.case_id === "upload" ? 0.55 : 0.7,
-    groundingMode:
-      state.civil7?.case_id === "upload" ? "require_span" : "paste_bypass",
+    confidence: isUpload ? (state.uc3Confirmed ? 0.85 : 0.55) : 0.7,
+    groundingMode: isUpload && !state.uc3Confirmed ? "require_span" : "paste_bypass",
+    confidenceMode: state.uc3Confirmed
+      ? "confirmed"
+      : isUpload && !state.uc3Confirmed
+        ? "enforce"
+        : "bypass",
     sourceText:
-      state.civil7?.case_id === "upload"
+      isUpload && !state.uc3Confirmed
         ? [facts, ruling].filter(Boolean).join("\n") || undefined
         : undefined,
     rules: state.rules,
     seeds: state.seeds,
   });
+
+  if (run.status === "abstain") {
+    state.uc3Pending = { extraction: run.extraction, reasons: run.reasons };
+    return emptyUc3View(title, facts, ruling, docKind);
+  }
+
+  const { extraction, verdict, fault_ratio: faultRatio } = run;
   const rel = verdict.relative_bearing_a_to_b_deg;
   const documentKind = extraction.payload.document_kind ?? docKind;
 
@@ -315,6 +415,58 @@ function explainBox(prefix: "uc2" | "uc3" | "psc"): string {
 function renderUc2(root: HTMLElement): void {
   const view = buildUc2();
   const causality = validateCausality("船首", "機関室");
+  const pending = state.uc2Pending && !state.uc2Confirmed ? state.uc2Pending : null;
+  const pendingExt = pending?.extraction as RuleD5Extraction | undefined;
+  const editableLines =
+    pendingExt?.payload.lines ??
+    (state.uc2Lines.length
+      ? state.uc2Lines
+      : []);
+
+  const resultsPanel = pending
+    ? `<section class="panel">
+        ${reviewBannerHtml(pending)}
+        <div class="review-fields">
+          ${editableLines
+            .map(
+              (ln, i) => `<label>${escapeHtml(t("col_title", state.lang))} / ${escapeHtml(t("col_cost", state.lang))}
+              <input type="text" data-rev-title="${i}" value="${escapeHtml(ln.title || ln.id)}">
+              <input type="number" data-rev-cost="${i}" value="${escapeHtml(ln.cost)}">
+            </label>`,
+            )
+            .join("")}
+        </div>
+        <div class="actions">
+          <button type="button" class="btn" id="confirmScoreUc2">${escapeHtml(t("confirm_and_score", state.lang))}</button>
+        </div>
+      </section>`
+    : `<section class="panel">
+        <h2>${escapeHtml(t("rule_label", state.lang))}</h2>
+        <p><code>${escapeHtml(displayRule(view.rule, state.lang))}</code></p>
+        <dl class="metrics">
+          <div><dt>${escapeHtml(t("common_dues", state.lang))}</dt><dd>${escapeHtml(fmtYen(view.dock_total))}</dd></div>
+          <div><dt>${escapeHtml(t("insurer_share", state.lang))}</dt><dd>${escapeHtml(fmtYen(view.insurer_common))}</dd></div>
+          <div><dt>${escapeHtml(t("owner_share", state.lang))}</dt><dd>${escapeHtml(fmtYen(view.owner_common))}</dd></div>
+        </dl>
+        <h3>${escapeHtml(t("offhire_title", state.lang))}</h3>
+        <p>${escapeHtml(t("days_saved", state.lang))}: ${view.days_saved} · ${escapeHtml(t("offhire_saved", state.lang))}: ${escapeHtml(fmtYen(view.offhire_jpy))}</p>
+        <table class="lines">
+          <thead><tr><th>${escapeHtml(t("col_id", state.lang))}</th><th>${escapeHtml(t("col_title", state.lang))}</th><th>${escapeHtml(t("col_cost", state.lang))}</th><th>${escapeHtml(t("col_insurer", state.lang))}</th><th>${escapeHtml(t("col_owner", state.lang))}</th><th>${escapeHtml(t("col_rule", state.lang))}</th></tr></thead>
+          <tbody>
+            ${view.line_rows
+              .map(
+                (r) =>
+                  `<tr><td>${escapeHtml(r.id)}</td><td>${escapeHtml(displayLineTitle(r.title, state.lang))}</td><td>${escapeHtml(fmtYen(r.cost))}</td><td>${escapeHtml(fmtYen(r.insurer))}</td><td>${escapeHtml(fmtYen(r.owner))}</td><td><code>${escapeHtml(displayRule(r.rule, state.lang))}</code></td></tr>`,
+              )
+              .join("")}
+          </tbody>
+        </table>
+        <div class="actions">
+          <button type="button" class="btn" id="expMd">${escapeHtml(t("export_apportion_md", state.lang))}</button>
+          <button type="button" class="btn" id="expHtml">${escapeHtml(t("export_apportion_html", state.lang))}</button>
+        </div>
+      </section>`;
+
   root.innerHTML = `
     ${briefingBox("uc2")}
     <p class="lead">${escapeHtml(t("uc2_lead", state.lang))}</p>
@@ -352,7 +504,15 @@ function renderUc2(root: HTMLElement): void {
         <div class="actions">
           <button type="button" class="btn" id="useSynthetic">${escapeHtml(t("use_synthetic", state.lang))}</button>
         </div>
-        ${state.uc2FromPdf ? `<p class="ok">${escapeHtml(t("analyzed_ok", state.lang))}</p>` : ""}
+        ${
+          state.uc2FromPdf
+            ? `<p class="ok">${escapeHtml(
+                pending
+                  ? t("analyzed_pending_review", state.lang)
+                  : t("analyzed_ok", state.lang),
+              )}</p>`
+            : ""
+        }
         ${
           state.uc2Analyzed.length
             ? `<p class="muted">${escapeHtml(t("pipeline_statuses", state.lang))}: ${state.uc2Analyzed
@@ -365,32 +525,7 @@ function renderUc2(root: HTMLElement): void {
         }
         <p class="muted">${escapeHtml(t("causality_check", state.lang))}: <code>${escapeHtml(displayCausalityReason(causality.reason, state.lang))}</code> · ${escapeHtml(causality.valid ? t("causality_valid", state.lang) : t("causality_invalid", state.lang))}</p>
       </section>
-      <section class="panel">
-        <h2>${escapeHtml(t("rule_label", state.lang))}</h2>
-        <p><code>${escapeHtml(displayRule(view.rule, state.lang))}</code></p>
-        <dl class="metrics">
-          <div><dt>${escapeHtml(t("common_dues", state.lang))}</dt><dd>${escapeHtml(fmtYen(view.dock_total))}</dd></div>
-          <div><dt>${escapeHtml(t("insurer_share", state.lang))}</dt><dd>${escapeHtml(fmtYen(view.insurer_common))}</dd></div>
-          <div><dt>${escapeHtml(t("owner_share", state.lang))}</dt><dd>${escapeHtml(fmtYen(view.owner_common))}</dd></div>
-        </dl>
-        <h3>${escapeHtml(t("offhire_title", state.lang))}</h3>
-        <p>${escapeHtml(t("days_saved", state.lang))}: ${view.days_saved} · ${escapeHtml(t("offhire_saved", state.lang))}: ${escapeHtml(fmtYen(view.offhire_jpy))}</p>
-        <table class="lines">
-          <thead><tr><th>${escapeHtml(t("col_id", state.lang))}</th><th>${escapeHtml(t("col_title", state.lang))}</th><th>${escapeHtml(t("col_cost", state.lang))}</th><th>${escapeHtml(t("col_insurer", state.lang))}</th><th>${escapeHtml(t("col_owner", state.lang))}</th><th>${escapeHtml(t("col_rule", state.lang))}</th></tr></thead>
-          <tbody>
-            ${view.line_rows
-              .map(
-                (r) =>
-                  `<tr><td>${escapeHtml(r.id)}</td><td>${escapeHtml(displayLineTitle(r.title, state.lang))}</td><td>${escapeHtml(fmtYen(r.cost))}</td><td>${escapeHtml(fmtYen(r.insurer))}</td><td>${escapeHtml(fmtYen(r.owner))}</td><td><code>${escapeHtml(displayRule(r.rule, state.lang))}</code></td></tr>`,
-              )
-              .join("")}
-          </tbody>
-        </table>
-        <div class="actions">
-          <button type="button" class="btn" id="expMd">${escapeHtml(t("export_apportion_md", state.lang))}</button>
-          <button type="button" class="btn" id="expHtml">${escapeHtml(t("export_apportion_html", state.lang))}</button>
-        </div>
-      </section>
+      ${resultsPanel}
     </div>
   `;
 
@@ -421,7 +556,24 @@ function renderUc2(root: HTMLElement): void {
   root.querySelector("#useSynthetic")?.addEventListener("click", () => {
     state.uc2Lines = [];
     state.uc2FromPdf = false;
+    state.uc2Confirmed = false;
+    state.uc2Pending = null;
     state.uc2Analyzed = [];
+    render();
+  });
+  root.querySelector("#confirmScoreUc2")?.addEventListener("click", () => {
+    const base = editableLines.map((ln) => ({ ...ln }));
+    for (const input of root.querySelectorAll<HTMLInputElement>("[data-rev-title]")) {
+      const i = Number(input.dataset.revTitle);
+      if (base[i]) base[i] = { ...base[i]!, title: input.value };
+    }
+    for (const input of root.querySelectorAll<HTMLInputElement>("[data-rev-cost]")) {
+      const i = Number(input.dataset.revCost);
+      if (base[i]) base[i] = { ...base[i]!, cost: Number(input.value) || 0 };
+    }
+    state.uc2Lines = base;
+    state.uc2Confirmed = true;
+    state.uc2Pending = null;
     render();
   });
   const drop = root.querySelector("#pdfDrop") as HTMLElement;
@@ -474,6 +626,14 @@ async function handlePdf(file: File): Promise<void> {
       aiLeadMinutes: state.aiLeadMinutes,
     });
     state.uc2Lines = ruleD5LinesFromExtraction(run.extraction);
+    state.uc2FromPdf = true;
+    state.uc2Confirmed = false;
+    if (run.status === "abstain") {
+      state.uc2Pending = { extraction: run.extraction, reasons: run.reasons };
+    } else {
+      state.uc2Pending = null;
+      state.uc2Confirmed = true;
+    }
   } catch (err) {
     if (
       err instanceof ExtractionValidationError ||
@@ -488,7 +648,6 @@ async function handlePdf(file: File): Promise<void> {
     }
     throw err;
   }
-  state.uc2FromPdf = true;
   const dockTotal = state.dailyDockRate * state.dockDays;
   const synced = state.uc2Lines.map((ln) =>
     (ln.trade_code || "").startsWith("DOCK") ? { ...ln, cost: dockTotal } : ln,
@@ -527,36 +686,34 @@ function renderUc3(root: HTMLElement): void {
     { id: "civil_7", title: state.civil7?.title || "Civil #7" },
     ...state.jmatCases.slice(0, 20).map((c) => ({ id: c.case_id!, title: c.title || c.case_id! })),
   ];
+  const pending = state.uc3Pending && !state.uc3Confirmed ? state.uc3Pending : null;
+  const pendingExt = pending?.extraction as ColregsExtraction | undefined;
 
-  root.innerHTML = `
-    ${briefingBox("uc3")}
-    <p class="lead">${escapeHtml(t("uc3_lead", state.lang))}</p>
-    ${explainBox("uc3")}
-    <div class="grid-2">
-      <section class="panel">
-        <label>${escapeHtml(t("select_case", state.lang))}
-          <select id="caseSel">
-            ${options
-              .map(
-                (o) =>
-                  `<option value="${escapeHtml(o.id)}" ${o.id === state.caseId ? "selected" : ""}>${escapeHtml(o.title)}</option>`,
-              )
-              .join("")}
-          </select>
-        </label>
-        <label class="check"><input type="checkbox" id="ovrGeom" ${state.overrideGeom ? "checked" : ""}> ${escapeHtml(t("geometry_override", state.lang))}</label>
-        <label>${escapeHtml(t("heading_a", state.lang))}
-          <input type="number" id="hdgA" value="${state.headingA}" ${state.overrideGeom || state.caseId === "civil_7" ? "" : "disabled"}>
-        </label>
-        <label>${escapeHtml(t("heading_b", state.lang))}
-          <input type="number" id="hdgB" value="${state.headingB}" ${state.overrideGeom || state.caseId === "civil_7" ? "" : "disabled"}>
-        </label>
-        <label>${escapeHtml(t("bearing_ab", state.lang))}
-          <input type="number" id="brg" value="${state.bearingAb}" ${state.overrideGeom || state.caseId === "civil_7" ? "" : "disabled"}>
-        </label>
-        <div class="dropzone" id="pdfDrop3">${escapeHtml(t("drop_pdf", state.lang))}<input type="file" id="pdfFile3" accept="application/pdf" hidden></div>
-      </section>
-      <section class="panel">
+  const resultsPanel = pending
+    ? `<section class="panel">
+        ${reviewBannerHtml(pending)}
+        <div class="review-fields">
+          <label>${escapeHtml(t("heading_a", state.lang))}
+            <input type="number" id="revHdgA" value="${escapeHtml(pendingExt?.payload.geometry.heading_a_deg ?? state.headingA)}">
+          </label>
+          <label>${escapeHtml(t("heading_b", state.lang))}
+            <input type="number" id="revHdgB" value="${escapeHtml(pendingExt?.payload.geometry.heading_b_deg ?? state.headingB)}">
+          </label>
+          <label>${escapeHtml(t("bearing_ab", state.lang))}
+            <input type="number" id="revBrg" value="${escapeHtml(pendingExt?.payload.geometry.true_bearing_a_to_b_deg ?? state.bearingAb)}">
+          </label>
+          <label>${escapeHtml(t("facts", state.lang))}
+            <textarea id="revFacts" rows="4">${escapeHtml(pendingExt?.payload.facts_excerpt || view.facts)}</textarea>
+          </label>
+          <label>${escapeHtml(view.document_kind === "jtsb" ? t("ruling_jtsb", state.lang) : t("ruling", state.lang))}
+            <textarea id="revRuling" rows="4">${escapeHtml(pendingExt?.payload.ruling_excerpt || view.ruling)}</textarea>
+          </label>
+        </div>
+        <div class="actions">
+          <button type="button" class="btn" id="confirmScoreUc3">${escapeHtml(t("confirm_and_score", state.lang))}</button>
+        </div>
+      </section>`
+    : `<section class="panel">
         <h2>${escapeHtml(view.title)}</h2>
         <dl class="metrics">
           <div><dt>${escapeHtml(t("situation", state.lang))}</dt><dd>${escapeHtml(view.situation_label)}</dd></div>
@@ -586,12 +743,44 @@ function renderUc3(root: HTMLElement): void {
           <button type="button" class="btn" id="exp3Md">${escapeHtml(t("export_colregs_md", state.lang))}</button>
           <button type="button" class="btn" id="exp3Html">${escapeHtml(t("export_colregs_html", state.lang))}</button>
         </div>
+      </section>`;
+
+  root.innerHTML = `
+    ${briefingBox("uc3")}
+    <p class="lead">${escapeHtml(t("uc3_lead", state.lang))}</p>
+    ${explainBox("uc3")}
+    <div class="grid-2">
+      <section class="panel">
+        <label>${escapeHtml(t("select_case", state.lang))}
+          <select id="caseSel">
+            ${options
+              .map(
+                (o) =>
+                  `<option value="${escapeHtml(o.id)}" ${o.id === state.caseId ? "selected" : ""}>${escapeHtml(o.title)}</option>`,
+              )
+              .join("")}
+          </select>
+        </label>
+        <label class="check"><input type="checkbox" id="ovrGeom" ${state.overrideGeom ? "checked" : ""}> ${escapeHtml(t("geometry_override", state.lang))}</label>
+        <label>${escapeHtml(t("heading_a", state.lang))}
+          <input type="number" id="hdgA" value="${state.headingA}" ${state.overrideGeom || state.caseId === "civil_7" ? "" : "disabled"}>
+        </label>
+        <label>${escapeHtml(t("heading_b", state.lang))}
+          <input type="number" id="hdgB" value="${state.headingB}" ${state.overrideGeom || state.caseId === "civil_7" ? "" : "disabled"}>
+        </label>
+        <label>${escapeHtml(t("bearing_ab", state.lang))}
+          <input type="number" id="brg" value="${state.bearingAb}" ${state.overrideGeom || state.caseId === "civil_7" ? "" : "disabled"}>
+        </label>
+        <div class="dropzone" id="pdfDrop3">${escapeHtml(t("drop_pdf", state.lang))}<input type="file" id="pdfFile3" accept="application/pdf" hidden></div>
       </section>
+      ${resultsPanel}
     </div>
   `;
 
   root.querySelector("#caseSel")?.addEventListener("change", (e) => {
     state.caseId = (e.target as HTMLSelectElement).value;
+    state.uc3Pending = null;
+    state.uc3Confirmed = false;
     if (state.caseId === "civil_7") {
       state.headingA = 30;
       state.headingB = 300;
@@ -615,6 +804,28 @@ function renderUc3(root: HTMLElement): void {
     });
   }
 
+  root.querySelector("#confirmScoreUc3")?.addEventListener("click", () => {
+    const hdgA = Number((root.querySelector("#revHdgA") as HTMLInputElement)?.value);
+    const hdgB = Number((root.querySelector("#revHdgB") as HTMLInputElement)?.value);
+    const brg = Number((root.querySelector("#revBrg") as HTMLInputElement)?.value);
+    const facts = (root.querySelector("#revFacts") as HTMLTextAreaElement)?.value ?? "";
+    const ruling = (root.querySelector("#revRuling") as HTMLTextAreaElement)?.value ?? "";
+    state.headingA = hdgA;
+    state.headingB = hdgB;
+    state.bearingAb = brg;
+    state.overrideGeom = true;
+    if (state.civil7) {
+      state.civil7 = {
+        ...state.civil7,
+        input_facts: facts,
+        holding: ruling,
+      };
+    }
+    state.uc3Confirmed = true;
+    state.uc3Pending = null;
+    render();
+  });
+
   const drop = root.querySelector("#pdfDrop3") as HTMLElement;
   const fileInput = root.querySelector("#pdfFile3") as HTMLInputElement;
   drop?.addEventListener("click", () => fileInput?.click());
@@ -635,7 +846,7 @@ function renderUc3(root: HTMLElement): void {
     const facts = extractFactsExcerpt(text);
     const documentKind = jtsbReport ? "jtsb" : "judgment";
     try {
-      buildColregsExtraction({
+      const extraction = buildColregsExtraction({
         geometry: {
           heading_a_deg: state.headingA,
           heading_b_deg: state.headingB,
@@ -654,8 +865,30 @@ function renderUc3(root: HTMLElement): void {
           holding ? { field: "ruling_excerpt", source_quote: holding.slice(0, 240) } : null,
         ].filter((g): g is { field: string; source_quote: string } => g != null),
         groundingMode: "require_span",
+        confidenceMode: "enforce",
         sourceText: text,
       });
+      state.caseId = "civil_7";
+      state.civil7 = {
+        case_id: "upload",
+        title: f.name,
+        input_facts: facts,
+        holding,
+        fault_ratio: extracted.fault_ratio || "",
+        document_kind: documentKind,
+      };
+      state.overrideGeom = true;
+      state.uc3Confirmed = false;
+      if (extraction.abstain) {
+        state.uc3Pending = {
+          extraction,
+          reasons: extraction.abstain.reason.split("; ").slice(1),
+        };
+      } else {
+        state.uc3Pending = null;
+        state.uc3Confirmed = true;
+      }
+      render();
     } catch (err) {
       if (
         err instanceof ExtractionValidationError ||
@@ -666,17 +899,6 @@ function renderUc3(root: HTMLElement): void {
       }
       throw err;
     }
-    state.caseId = "civil_7";
-    state.civil7 = {
-      case_id: "upload",
-      title: f.name,
-      input_facts: facts,
-      holding,
-      fault_ratio: extracted.fault_ratio || "",
-      document_kind: documentKind,
-    };
-    state.overrideGeom = true;
-    render();
   });
 
   root.querySelector("#exp3Md")?.addEventListener("click", () => {
@@ -688,17 +910,32 @@ function renderUc3(root: HTMLElement): void {
 }
 
 function buildPscReport(): { report: SeaworthinessRiskReport; title: string } {
+  if (state.pscPending && !state.pscConfirmed) {
+    return {
+      report: scoreSeaworthiness([]),
+      title: state.pscPasteLabel || state.pscCaseId || "—",
+    };
+  }
+
   if (state.pscUsePaste && state.pscPasteCurrent.length) {
-    const { report } = runPsc({
+    const run = runPsc({
       deficiencies: state.pscPasteCurrent,
       prior: state.pscPastePrior,
       mouId: state.pscPasteMou,
       cicWeights: state.pscPasteCic,
       lookbackMonths: state.pscLookbackMonths,
-      confidence: 0.75,
+      confidence: state.pscConfirmed ? 0.85 : 0.75,
       groundingMode: "paste_bypass",
+      confidenceMode: state.pscConfirmed ? "confirmed" : "bypass",
     });
-    return { report, title: state.pscPasteLabel || "pasted" };
+    if (run.status === "abstain") {
+      state.pscPending = { extraction: run.extraction, reasons: run.reasons };
+      return {
+        report: scoreSeaworthiness([]),
+        title: state.pscPasteLabel || "pasted",
+      };
+    }
+    return { report: run.report, title: state.pscPasteLabel || "pasted" };
   }
   const fixture =
     state.pscFixtures.find((c) => c.id === state.pscCaseId) ||
@@ -710,10 +947,17 @@ function buildPscReport(): { report: SeaworthinessRiskReport; title: string } {
       title: state.pscCaseId || "—",
     };
   }
-  const { report } = runPscFixture(fixture, {
+  const run = runPscFixture(fixture, {
     lookbackMonths: state.pscLookbackMonths,
   });
-  return { report, title: fixture.id };
+  if (run.status === "abstain") {
+    state.pscPending = { extraction: run.extraction, reasons: run.reasons };
+    return {
+      report: scoreSeaworthiness([]),
+      title: fixture.id,
+    };
+  }
+  return { report: run.report, title: fixture.id };
 }
 
 function buildPscView(): PscView {

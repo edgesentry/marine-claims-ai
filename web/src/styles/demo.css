@@ -231,6 +231,36 @@ th { color: var(--muted); font-weight: 550; font-size: 0.78rem; }
 .pill.excluded { background: color-mix(in srgb, var(--danger) 35%, transparent); color: #f0b4aa; }
 .pill.review { background: color-mix(in srgb, #6a7fd1 35%, transparent); color: #c5cef5; }
 
+.review-banner {
+  border: 1px solid color-mix(in srgb, #6a7fd1 55%, var(--line));
+  background: color-mix(in srgb, #6a7fd1 12%, var(--panel));
+  border-radius: 8px;
+  padding: 0.85rem 1rem;
+  margin-bottom: 1rem;
+}
+.review-banner h2 {
+  margin: 0 0 0.35rem;
+  font-size: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.review-banner .reasons {
+  margin: 0.5rem 0 0;
+  padding-left: 1.1rem;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+.review-fields label {
+  display: block;
+  margin: 0.55rem 0;
+}
+.review-fields input,
+.review-fields textarea {
+  width: 100%;
+  margin-top: 0.25rem;
+}
+
 .actions { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 1rem; }
 .btn {
   display: inline-block;

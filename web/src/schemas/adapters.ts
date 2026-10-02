@@ -10,6 +10,12 @@ import {
   type GroundingMode,
 } from "../pipeline/groundingGate";
 import {
+  applyConfidenceGate,
+  resolveConfidenceMode,
+  type ConfidenceMode,
+} from "../pipeline/confidenceGate";
+import type { ConfidenceThresholds } from "../config/confidenceThresholds";
+import {
   assertValidForStageB,
   type ColregsExtraction,
   type ExtractionResult,
@@ -36,6 +42,9 @@ function deficiencyToExtract(d: NormalizedDeficiency): PscDeficiencyExtract {
 export interface ExtractionBuildOpts {
   groundingMode?: GroundingMode;
   sourceText?: string;
+  confidenceMode?: ConfidenceMode;
+  field_confidence?: Record<string, number>;
+  thresholds?: ConfidenceThresholds;
 }
 
 function gateEnvelope(
@@ -43,9 +52,17 @@ function gateEnvelope(
   opts: ExtractionBuildOpts,
 ): ExtractionResult {
   const shape = assertValidForStageB(envelope);
-  return assertGroundingForStageB(shape, {
+  const grounded = assertGroundingForStageB(shape, {
     mode: opts.groundingMode ?? "require_span",
     sourceText: opts.sourceText,
+  });
+  const confidenceMode = resolveConfidenceMode(
+    opts.groundingMode,
+    opts.confidenceMode,
+  );
+  return applyConfidenceGate(grounded, {
+    mode: confidenceMode,
+    thresholds: opts.thresholds,
   });
 }
 
@@ -54,14 +71,18 @@ export function buildRuleD5Extraction(opts: {
   lines: RepairLineItem[];
   assumeStatutoryOwnerWork?: boolean;
   confidence?: number;
+  field_confidence?: Record<string, number>;
   grounding?: GroundingRef[];
   groundingMode?: GroundingMode;
+  confidenceMode?: ConfidenceMode;
   sourceText?: string;
+  thresholds?: ConfidenceThresholds;
 }): RuleD5Extraction {
   const envelope = {
     schema_id: "rule_d5.v1" as const,
     confidence: clampConfidence(opts.confidence ?? 0.6),
     grounding: opts.grounding ?? [],
+    field_confidence: opts.field_confidence,
     payload: {
       docking_context: opts.dockingContext,
       lines: opts.lines.map((ln) => ({
@@ -89,14 +110,18 @@ export function buildColregsExtraction(opts: {
     confidence: number;
   }>;
   confidence?: number;
+  field_confidence?: Record<string, number>;
   grounding?: GroundingRef[];
   groundingMode?: GroundingMode;
+  confidenceMode?: ConfidenceMode;
   sourceText?: string;
+  thresholds?: ConfidenceThresholds;
 }): ColregsExtraction {
   const envelope = {
     schema_id: "colregs.v1" as const,
     confidence: clampConfidence(opts.confidence ?? 0.5),
     grounding: opts.grounding ?? [],
+    field_confidence: opts.field_confidence,
     payload: {
       geometry: {
         heading_a_deg: opts.geometry.heading_a_deg,
@@ -125,9 +150,12 @@ export function buildPscExtraction(opts: {
   cicWeights?: Record<string, number> | null;
   mouId?: string | null;
   confidence?: number;
+  field_confidence?: Record<string, number>;
   grounding?: GroundingRef[];
   groundingMode?: GroundingMode;
+  confidenceMode?: ConfidenceMode;
   sourceText?: string;
+  thresholds?: ConfidenceThresholds;
 }): PscExtraction {
   const toExtract = (
     rows: Array<NormalizedDeficiency | PscDeficiencyExtract>,
@@ -148,6 +176,7 @@ export function buildPscExtraction(opts: {
     schema_id: "psc.v1" as const,
     confidence: clampConfidence(opts.confidence ?? 0.7),
     grounding: opts.grounding ?? [],
+    field_confidence: opts.field_confidence,
     payload: {
       deficiencies: toExtract(opts.deficiencies),
       prior_deficiencies: opts.prior?.length ? toExtract(opts.prior) : undefined,
@@ -184,6 +213,7 @@ export function geometryFromExtraction(
  * Throws ExtractionValidationError on failure.
  * Grounding mode defaults to paste_bypass so raw envelope shape checks stay #87-compatible;
  * callers that need Exact Span should pass groundingMode + sourceText via build* or assertGroundingForStageB.
+ * Confidence defaults to bypass with paste_bypass (Issue #89).
  */
 export function gateExtraction(
   input: unknown,
@@ -192,5 +222,7 @@ export function gateExtraction(
   return gateEnvelope(input, {
     groundingMode: opts.groundingMode ?? "paste_bypass",
     sourceText: opts.sourceText,
+    confidenceMode: opts.confidenceMode,
+    thresholds: opts.thresholds,
   });
 }

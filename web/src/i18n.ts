@@ -254,9 +254,37 @@ const MESSAGES: Record<string, Record<Lang, string>> = {
     en: "Extracted data failed the Stage A schema check and was not scored.",
     ja: "抽出結果が Stage A スキーマ検証に失敗したため、採点しませんでした。",
   },
+  human_review_title: {
+    en: "HUMAN_REVIEW_REQUIRED",
+    ja: "HUMAN_REVIEW_REQUIRED（要人間確認）",
+  },
+  human_review_body: {
+    en: "Stage A confidence is below the engineering threshold. Stage B scoring is paused until you confirm or edit the structured fields.",
+    ja: "Stage A の信頼度が工学的閾値を下回ったため、Stage B 採点を保留しています。構造化フィールドを確認・編集してから確定してください。",
+  },
+  human_review_not_legal: {
+    en: "Abstention is an engineering safety rail — not a legal opinion, warranty finding, or statutory determination.",
+    ja: "棄権（abstention）は工学的な安全レールであり、法的意見・保証判断・法令上の結論ではありません。",
+  },
+  confidence_label: {
+    en: "Document confidence",
+    ja: "文書信頼度",
+  },
+  confirm_and_score: {
+    en: "Confirm & score",
+    ja: "確認して採点",
+  },
+  review_edit_hint: {
+    en: "Edit fields below, then confirm to run Stage B.",
+    ja: "下のフィールドを編集し、確認後に Stage B を実行します。",
+  },
   analyzed_ok: {
     en: "Analysis finished. Results are shown below.",
     ja: "解析が完了しました。下に結果を表示しています。",
+  },
+  analyzed_pending_review: {
+    en: "Extraction ready — human review required before scoring.",
+    ja: "抽出完了 — 採点前に人間確認が必要です。",
   },
   col_id: { en: "ID", ja: "ID" },
   col_title: { en: "Title", ja: "摘要" },

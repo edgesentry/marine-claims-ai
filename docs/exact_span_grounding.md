@@ -6,6 +6,7 @@ Stage A extractors turn messy documents into UC-fixed `ExtractionResult` envelop
 | :--- | :--- |
 | **#87 shape** | Envelope matches Zod / JSON Schema (`assertValidForStageB`) |
 | **#88 grounding** | Critical `source_quote`s exist (and match source when provided) unless `paste_bypass` |
+| **#89 confidence** | Document / field confidence meets engineering thresholds, or `HUMAN_REVIEW_REQUIRED` ([confidence abstention](confidence_abstention.md)) |
 
 Without Exact Span, a well-formed envelope can still carry fabricated repair lines, judgment excerpts, or PSC codes into Rule D5 / COLREGS / PSC scorers. Claims demos then look “correct” while provenance is missing, and CI cannot gate ungrounded / fabricated rates.
 
@@ -21,12 +22,12 @@ Exact Span (findGroundedQuote) ──reject──► discarded (ungrounded)
 ExtractionResult.grounding[]  (+ page_number / pdf_coordinates when available)
         │
         ▼
-assertValidForStageB  →  assertGroundingForStageB
-        │                      │
-        │                      ├─ require_span (default for document paths)
-        │                      └─ paste_bypass (hand-pasted JSON / fixtures / synthetic UI)
+assertValidForStageB  →  assertGroundingForStageB  →  applyConfidenceGate (#89)
+        │                      │                         │
+        │                      ├─ require_span           ├─ ok → Stage B
+        │                      └─ paste_bypass           └─ abstain → HUMAN_REVIEW
         ▼
-Stage B scorers
+Stage B scorers (only when confidence gate allows)
 ```
 
 ## Modes

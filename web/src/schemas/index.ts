@@ -6,6 +6,7 @@ export {
   SchemaIdSchema,
   PdfCoordinatesSchema,
   GroundingRefSchema,
+  FieldConfidenceSchema,
   AbstainSchema,
   ExtractionEnvelopeBaseSchema,
   type SchemaId,
@@ -82,3 +83,15 @@ export {
   type GroundingMode,
   type GroundingGateOptions,
 } from "../pipeline/groundingGate";
+
+export {
+  assessConfidence,
+  applyConfidenceGate,
+  assertConfidenceForStageB,
+  logAbstain,
+  resolveConfidenceMode,
+  ConfidenceValidationError,
+  type ConfidenceMode,
+  type ConfidenceGateOptions,
+  type ConfidenceAssessment,
+} from "../pipeline/confidenceGate";

@@ -82,6 +82,17 @@
             "additionalProperties": false
           }
         },
+        "field_confidence": {
+          "type": "object",
+          "propertyNames": {
+            "type": "string"
+          },
+          "additionalProperties": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          }
+        },
         "abstain": {
           "type": "object",
           "properties": {
@@ -258,6 +269,17 @@
               "source_quote"
             ],
             "additionalProperties": false
+          }
+        },
+        "field_confidence": {
+          "type": "object",
+          "propertyNames": {
+            "type": "string"
+          },
+          "additionalProperties": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
           }
         },
         "abstain": {
@@ -462,6 +484,17 @@
               "source_quote"
             ],
             "additionalProperties": false
+          }
+        },
+        "field_confidence": {
+          "type": "object",
+          "propertyNames": {
+            "type": "string"
+          },
+          "additionalProperties": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
           }
         },
         "abstain": {
