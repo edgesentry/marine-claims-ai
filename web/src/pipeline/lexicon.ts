@@ -1,7 +1,8 @@
 /**
  * Shipyard / inspection jargon lexicon loader + longest-token match (Issue #90).
+ * SoT JSON lives under config/ (Zero-Dataset allowlist); do not mirror JSON under web/src.
  */
-import lexiconJson from "./lexicons/shipyard_jargon.v1.json";
+import lexiconJson from "../../../config/lexicons/shipyard_jargon.v1.json";
 
 export type LexiconDomain =
   | "repair"
