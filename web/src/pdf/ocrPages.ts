@@ -174,6 +174,28 @@ export async function ocrPdfPages(
 }
 
 /**
+ * OCR a single image file (PNG/JPEG/WebP) for PSC / scan sheets (#92).
+ * Reuses the same Tesseract worker as PDF page OCR (#94).
+ */
+export async function ocrImageFile(
+  file: File | Blob,
+  opts?: { onProgress?: (p: OcrProgress) => void },
+): Promise<OcrPdfResult> {
+  const worker = await getOcrWorker(opts?.onProgress);
+  opts?.onProgress?.({ status: "recognize_image", progress: 0.1 });
+  const ret = await worker.recognize(file);
+  const text = (ret.data.text || "").trim();
+  const confidence = Math.max(0, Math.min(100, Number(ret.data.confidence) || 0));
+  opts?.onProgress?.({ status: "recognize_image", progress: 1 });
+  return {
+    text,
+    pages: [{ page: 1, text, confidence }],
+    source: "ocr",
+    meanConfidence: confidence / 100,
+  };
+}
+
+/**
  * Prefer PDF text layer; fall back to in-browser OCR when empty (Issue #94).
  * Inject `extractText` / `ocr` in Vitest to avoid canvas + WASM.
  */

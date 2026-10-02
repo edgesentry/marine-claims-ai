@@ -15,7 +15,7 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "gate-a": "vitest run tests/gateA.test.ts tests/gateAPriority2.test.ts tests/spanA4A8.test.ts tests/groundingGate.test.ts tests/issue88DoD.test.ts tests/confidenceGate.test.ts tests/issue89DoD.test.ts tests/documentRouter.test.ts tests/civilJudgmentExtractor.test.ts tests/colregsTelemetryExtractor.test.ts tests/issue91DoD.test.ts tests/negativePatterns.test.ts tests/pipeline.test.ts tests/ruleD5.test.ts tests/schemas.test.ts tests/coreRunners.test.ts tests/ocrUploadPath.test.ts"
+    "gate-a": "vitest run tests/gateA.test.ts tests/gateAPriority2.test.ts tests/spanA4A8.test.ts tests/groundingGate.test.ts tests/issue88DoD.test.ts tests/confidenceGate.test.ts tests/issue89DoD.test.ts tests/documentRouter.test.ts tests/civilJudgmentExtractor.test.ts tests/colregsTelemetryExtractor.test.ts tests/issue91DoD.test.ts tests/issue92DoD.test.ts tests/negativePatterns.test.ts tests/pipeline.test.ts tests/ruleD5.test.ts tests/schemas.test.ts tests/coreRunners.test.ts tests/ocrUploadPath.test.ts"
   },
   "dependencies": {
     "@duckdb/duckdb-wasm": "^1.29.0",

@@ -23,6 +23,7 @@ import {
 import { extractPdfText } from "./pdf/parseTender";
 import {
   extractPdfTextWithOcr,
+  ocrImageFile,
   stageAConfidenceForSource,
   OCR_STAGE_A_CONFIDENCE,
   type PdfExtractionSource,
@@ -40,6 +41,7 @@ import {
   telemetryToGeometry,
   telemetryFieldConfidence,
 } from "./ingest/colregsTelemetryExtractor";
+import { looksLikeHtml } from "./ingest/pscDeficiencyExtractor";
 import {
   evaluateClaimsDynamically,
   noOpNplScorer,
@@ -69,7 +71,14 @@ import {
   type ExtractionResult,
   type RuleD5Extraction,
 } from "./schemas";
-import { runColregs, runPsc, runPscFixture, runRuleD5, runRuleD5FromRepairText } from "./core";
+import {
+  runColregs,
+  runPsc,
+  runPscFixture,
+  runPscFromDocument,
+  runRuleD5,
+  runRuleD5FromRepairText,
+} from "./core";
 import { getDuckDb } from "./db/duckdb";
 import {
   classifyDocument,
@@ -143,6 +152,8 @@ interface AppState {
   pscPasteCic: Record<string, number> | null;
   pscPasteMou: string | null;
   pscPasteLabel: string;
+  /** Document upload path (#92) vs JSON/CSV paste. */
+  pscFromDocument: boolean;
   pscPending: PendingReview | null;
   pscConfirmed: boolean;
   pscUpload: PendingUpload | null;
@@ -188,6 +199,7 @@ const state: AppState = {
   pscPasteCic: null,
   pscPasteMou: null,
   pscPasteLabel: "",
+  pscFromDocument: false,
   pscPending: null,
   pscConfirmed: false,
   pscUpload: null,
@@ -1193,6 +1205,16 @@ function buildPscReport(): { report: SeaworthinessRiskReport; title: string } {
   return { report: run.report, title: fixture.id };
 }
 
+/** JSON / CSV paste vs MOU document text (#92). */
+function looksLikeStructuredPscPaste(text: string): boolean {
+  const t = text.trim();
+  if (!t) return false;
+  if (looksLikeHtml(t)) return false;
+  if (t.startsWith("{") || t.startsWith("[")) return true;
+  const header = (t.split(/\n/)[0] || "").toLowerCase();
+  return /deficiency_code|def_code|action_taken|nature_of_deficiency/.test(header);
+}
+
 function buildPscView(): PscView {
   const { report, title } = buildPscReport();
   return {
@@ -1230,40 +1252,17 @@ function renderPsc(root: HTMLElement): void {
       : view.risk_band === "elevated"
         ? "band-elevated"
         : "band-low";
+  const pending = state.pscPending && !state.pscConfirmed ? state.pscPending : null;
 
-  root.innerHTML = `
-    ${briefingBox("psc")}
-    <p class="lead">${escapeHtml(t("psc_lead", state.lang))}</p>
-    ${explainBox("psc")}
-    <div class="grid-2">
-      <section class="panel">
-        <label>${escapeHtml(t("select_psc_fixture", state.lang))}
-          <select id="pscCaseSel" ${state.pscUsePaste ? "disabled" : ""}>
-            ${options
-              .map(
-                (o) =>
-                  `<option value="${escapeHtml(o.id)}" ${o.id === state.pscCaseId ? "selected" : ""}>${escapeHtml(o.id)}${
-                    o.mou_id ? ` (${escapeHtml(String(o.mou_id))})` : ""
-                  }</option>`,
-              )
-              .join("")}
-          </select>
-        </label>
-        <label>${escapeHtml(t("psc_lookback", state.lang))}
-          <input type="range" id="pscLookback" min="3" max="60" step="1" value="${state.pscLookbackMonths}">
-          <span id="pscLookbackVal">${state.pscLookbackMonths}</span>
-        </label>
-        <label>${escapeHtml(t("psc_paste", state.lang))}
-          <textarea id="pscPaste" rows="8" placeholder="${escapeHtml(t("psc_paste_hint", state.lang))}">${escapeHtml(state.pscPasteText)}</textarea>
-        </label>
-        ${routerPanelHtml("psc", state.pscUpload, "analyzePsc")}
-        <div class="actions">
-          <button type="button" class="btn" id="pscApplyPaste">${escapeHtml(t("psc_apply_paste", state.lang))}</button>
-          <button type="button" class="btn" id="pscClearPaste">${escapeHtml(t("psc_clear_paste", state.lang))}</button>
-        </div>
+  const resultsPanel = pending
+    ? `<section class="panel">
+        ${reviewBannerHtml(pending)}
         <p class="muted">${escapeHtml(t("psc_disclaimer", state.lang))}</p>
-      </section>
-      <section class="panel">
+        <div class="actions">
+          <button type="button" class="btn" id="confirmScorePsc">${escapeHtml(t("confirm_and_score", state.lang))}</button>
+        </div>
+      </section>`
+    : `<section class="panel">
         <h2>${escapeHtml(view.title)}</h2>
         <dl class="metrics">
           <div><dt>${escapeHtml(t("psc_defect_score", state.lang))}</dt><dd><strong>${escapeHtml(view.defect_score)}</strong></dd></div>
@@ -1308,14 +1307,54 @@ function renderPsc(root: HTMLElement): void {
           <button type="button" class="btn" id="expPscMd">${escapeHtml(t("export_psc_md", state.lang))}</button>
           <button type="button" class="btn" id="expPscHtml">${escapeHtml(t("export_psc_html", state.lang))}</button>
         </div>
+      </section>`;
+
+  root.innerHTML = `
+    ${briefingBox("psc")}
+    <p class="lead">${escapeHtml(t("psc_lead", state.lang))}</p>
+    ${explainBox("psc")}
+    <div class="grid-2">
+      <section class="panel">
+        <label>${escapeHtml(t("select_psc_fixture", state.lang))}
+          <select id="pscCaseSel" ${state.pscUsePaste ? "disabled" : ""}>
+            ${options
+              .map(
+                (o) =>
+                  `<option value="${escapeHtml(o.id)}" ${o.id === state.pscCaseId ? "selected" : ""}>${escapeHtml(o.id)}${
+                    o.mou_id ? ` (${escapeHtml(String(o.mou_id))})` : ""
+                  }</option>`,
+              )
+              .join("")}
+          </select>
+        </label>
+        <label>${escapeHtml(t("psc_lookback", state.lang))}
+          <input type="range" id="pscLookback" min="3" max="60" step="1" value="${state.pscLookbackMonths}">
+          <span id="pscLookbackVal">${state.pscLookbackMonths}</span>
+        </label>
+        <div class="dropzone" id="pdfDropPsc">${escapeHtml(t("drop_psc", state.lang))}<input type="file" id="pdfFilePsc" accept="application/pdf,.html,.htm,text/html,image/png,image/jpeg,image/webp,text/plain" hidden></div>
+        ${state.ocrBusy && state.tab === "psc" ? `<p class="warn" id="ocrBusy">${escapeHtml(state.ocrBusy)}</p>` : ""}
+        <label>${escapeHtml(t("psc_paste", state.lang))}
+          <textarea id="pscPaste" rows="6" placeholder="${escapeHtml(t("psc_paste_hint", state.lang))}">${escapeHtml(state.pscPasteText)}</textarea>
+        </label>
+        ${routerPanelHtml("psc", state.pscUpload, "analyzePsc")}
+        <div class="actions">
+          <button type="button" class="btn" id="pscLoadSample">${escapeHtml(t("psc_load_sample", state.lang))}</button>
+          <button type="button" class="btn" id="pscApplyPaste">${escapeHtml(t("psc_apply_paste", state.lang))}</button>
+          <button type="button" class="btn" id="pscClearPaste">${escapeHtml(t("psc_clear_paste", state.lang))}</button>
+        </div>
+        <p class="muted">${escapeHtml(t("psc_disclaimer", state.lang))}</p>
       </section>
+      ${resultsPanel}
     </div>
   `;
 
   root.querySelector("#pscCaseSel")?.addEventListener("change", (e) => {
     state.pscCaseId = (e.target as HTMLSelectElement).value;
     state.pscUsePaste = false;
+    state.pscFromDocument = false;
     state.pscUpload = null;
+    state.pscPending = null;
+    state.pscConfirmed = false;
     render();
   });
   root.querySelector("#pscLookback")?.addEventListener("input", (e) => {
@@ -1342,6 +1381,14 @@ function renderPsc(root: HTMLElement): void {
   root.querySelector("#analyzePsc")?.addEventListener("click", () => {
     void analyzePscUpload();
   });
+  root.querySelector("#confirmScorePsc")?.addEventListener("click", () => {
+    state.pscConfirmed = true;
+    state.pscPending = null;
+    render();
+  });
+  root.querySelector("#pscLoadSample")?.addEventListener("click", () => {
+    void loadPscSampleHtml();
+  });
   root.querySelector("#pscApplyPaste")?.addEventListener("click", () => {
     const ta = root.querySelector("#pscPaste") as HTMLTextAreaElement | null;
     const text = ta?.value ?? state.pscPasteText;
@@ -1358,6 +1405,7 @@ function renderPsc(root: HTMLElement): void {
       override: null,
       extractionSource: "text_layer",
     };
+    state.pscFromDocument = !looksLikeStructuredPscPaste(text);
     const decision = resolveDocumentRoute("psc", classification, null);
     if (!decision.allowed) {
       state.pscUsePaste = false;
@@ -1369,6 +1417,7 @@ function renderPsc(root: HTMLElement): void {
   });
   root.querySelector("#pscClearPaste")?.addEventListener("click", () => {
     state.pscUsePaste = false;
+    state.pscFromDocument = false;
     state.pscPasteCurrent = [];
     state.pscPastePrior = null;
     state.pscPasteCic = null;
@@ -1380,12 +1429,135 @@ function renderPsc(root: HTMLElement): void {
     state.pscUpload = null;
     render();
   });
+
+  const drop = root.querySelector("#pdfDropPsc") as HTMLElement;
+  const fileInput = root.querySelector("#pdfFilePsc") as HTMLInputElement;
+  drop?.addEventListener("click", () => fileInput?.click());
+  drop?.addEventListener("dragover", (e) => {
+    e.preventDefault();
+  });
+  drop?.addEventListener("drop", (e) => {
+    e.preventDefault();
+    const f = e.dataTransfer?.files?.[0];
+    if (f) void handlePscFile(f);
+  });
+  fileInput?.addEventListener("change", async () => {
+    const f = fileInput.files?.[0];
+    if (f) await handlePscFile(f);
+  });
+
   root.querySelector("#expPscMd")?.addEventListener("click", () => {
     downloadText("psc_memo.md", pscMarkdown(view, state.lang), "text/markdown");
   });
   root.querySelector("#expPscHtml")?.addEventListener("click", () => {
     downloadText("psc_memo.html", pscHtml(view, state.lang), "text/html");
   });
+}
+
+async function loadPscSampleHtml(): Promise<void> {
+  const base = import.meta.env.BASE_URL || "./";
+  try {
+    const res = await fetch(`${base}data/psc_sample_inspection.txt`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const text = await res.text();
+    const classification = classifyDocument(text, {
+      filename: "psc_sample_inspection.txt",
+    });
+    state.pscUpload = {
+      text,
+      filename: "psc_sample_inspection.txt",
+      classification,
+      override: null,
+      extractionSource: "text_layer",
+    };
+    state.pscFromDocument = true;
+    state.pscPending = null;
+    state.pscConfirmed = false;
+    render();
+  } catch (err) {
+    console.error("[psc] sample load failed", err);
+    alert(t("psc_err_document", state.lang));
+  }
+}
+
+async function handlePscFile(file: File): Promise<void> {
+  state.ocrBusy = null;
+  const name = file.name.toLowerCase();
+  const isHtml = /\.html?$/.test(name) || file.type.includes("html");
+  const isImage = /^image\//.test(file.type) || /\.(png|jpe?g|webp)$/.test(name);
+  const isPdf = file.type === "application/pdf" || name.endsWith(".pdf");
+
+  let text = "";
+  let extractionSource: PdfExtractionSource = "text_layer";
+
+  if (isHtml || (!isPdf && !isImage && name.endsWith(".txt"))) {
+    text = await file.text();
+  } else if (isImage) {
+    state.ocrBusy = t("ocr_in_progress", state.lang);
+    render();
+    try {
+      const ocr = await ocrImageFile(file, {
+        onProgress: (p) => {
+          const pct = Math.round(p.progress * 100);
+          state.ocrBusy = `${t("ocr_in_progress", state.lang)} (${pct}%)`;
+          const el = document.querySelector("#ocrBusy");
+          if (el) el.textContent = state.ocrBusy;
+          else render();
+        },
+      });
+      text = ocr.text;
+      extractionSource = "ocr";
+    } catch (err) {
+      console.error("[ocr] PSC image failed", err);
+      state.ocrBusy = null;
+      alert(t("ocr_failed", state.lang));
+      render();
+      return;
+    }
+    state.ocrBusy = null;
+  } else {
+    // PDF (default)
+    state.ocrBusy = t("ocr_in_progress", state.lang);
+    render();
+    const extracted = await extractPdfTextWithOcr(file, {
+      extractText: extractPdfText,
+      onProgress: (p) => {
+        const pct = Math.round(p.progress * 100);
+        state.ocrBusy = `${t("ocr_in_progress", state.lang)} (${pct}%)`;
+        const el = document.querySelector("#ocrBusy");
+        if (el) el.textContent = state.ocrBusy;
+        else render();
+      },
+    });
+    state.ocrBusy = null;
+    if (!extracted.text.trim()) {
+      alert(t(extracted.error ? "ocr_failed" : "err_pdf_empty_text", state.lang));
+      render();
+      return;
+    }
+    text = extracted.text;
+    extractionSource = extracted.source;
+  }
+
+  if (!text.trim()) {
+    alert(t("psc_err_document", state.lang));
+    render();
+    return;
+  }
+
+  const classification = classifyDocument(text, { filename: file.name });
+  state.pscUpload = {
+    text,
+    filename: file.name,
+    classification,
+    override: null,
+    extractionSource,
+  };
+  state.pscFromDocument = true;
+  state.pscPending = null;
+  state.pscConfirmed = false;
+  state.pscUsePaste = false;
+  render();
 }
 
 async function analyzePscUpload(): Promise<void> {
@@ -1401,29 +1573,58 @@ async function analyzePscUpload(): Promise<void> {
     return;
   }
   const text = upload.text;
+  const asPaste = looksLikeStructuredPscPaste(text) && !state.pscFromDocument;
+
   try {
-    const parsed = tryParsePscPaste(text);
-    if (!parsed.current.length) {
-      alert(t("psc_err_empty", state.lang));
+    if (asPaste) {
+      const parsed = tryParsePscPaste(text);
+      if (!parsed.current.length) {
+        alert(t("psc_err_empty", state.lang));
+        return;
+      }
+      buildPscExtraction({
+        deficiencies: parsed.current,
+        prior: parsed.prior,
+        mouId: parsed.mouId,
+        cicWeights: parsed.cicWeights,
+        lookbackMonths: state.pscLookbackMonths,
+        confidence: 0.75,
+        groundingMode: "paste_bypass",
+      });
+      state.pscPasteCurrent = parsed.current;
+      state.pscPastePrior = parsed.prior;
+      state.pscPasteCic = parsed.cicWeights;
+      state.pscPasteMou = parsed.mouId;
+      state.pscPasteLabel = parsed.label;
+      state.pscUsePaste = true;
+      state.pscFromDocument = false;
+      state.pscPending = null;
+      state.pscConfirmed = true;
+      render();
       return;
     }
-    buildPscExtraction({
-      deficiencies: parsed.current,
-      prior: parsed.prior,
-      mouId: parsed.mouId,
-      cicWeights: parsed.cicWeights,
+
+    const confidence = stageAConfidenceForSource(upload.extractionSource);
+    const run = runPscFromDocument(text, {
       lookbackMonths: state.pscLookbackMonths,
-      confidence: 0.75,
-      groundingMode: "paste_bypass",
+      confidence,
+      filename: upload.filename,
     });
-    state.pscPasteCurrent = parsed.current;
-    state.pscPastePrior = parsed.prior;
-    state.pscPasteCic = parsed.cicWeights;
-    state.pscPasteMou = parsed.mouId;
-    state.pscPasteLabel = parsed.label;
+    state.pscPasteCurrent = run.deficiencies;
+    state.pscPastePrior = run.prior;
+    state.pscPasteCic = null;
+    state.pscPasteMou = run.mouId;
+    state.pscPasteLabel = run.label;
     state.pscUsePaste = true;
-    state.pscPending = null;
-    state.pscConfirmed = true;
+    state.pscFromDocument = true;
+
+    if (run.status === "abstain") {
+      state.pscPending = { extraction: run.extraction, reasons: run.reasons };
+      state.pscConfirmed = false;
+    } else {
+      state.pscPending = null;
+      state.pscConfirmed = true;
+    }
     render();
   } catch (err) {
     if (
@@ -1433,7 +1634,30 @@ async function analyzePscUpload(): Promise<void> {
       alert(t("err_schema_invalid", state.lang));
       return;
     }
-    alert(t("psc_err_paste", state.lang));
+    if (err instanceof Error && /No deficiencies/i.test(err.message)) {
+      alert(t("psc_err_document", state.lang));
+      return;
+    }
+    // Fall back: try paste parser for mixed inputs
+    try {
+      const parsed = tryParsePscPaste(text);
+      if (parsed.current.length) {
+        state.pscPasteCurrent = parsed.current;
+        state.pscPastePrior = parsed.prior;
+        state.pscPasteCic = parsed.cicWeights;
+        state.pscPasteMou = parsed.mouId;
+        state.pscPasteLabel = parsed.label;
+        state.pscUsePaste = true;
+        state.pscFromDocument = false;
+        state.pscPending = null;
+        state.pscConfirmed = true;
+        render();
+        return;
+      }
+    } catch {
+      /* ignore */
+    }
+    alert(asPaste ? t("psc_err_paste", state.lang) : t("psc_err_document", state.lang));
   }
 }
 

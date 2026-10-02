@@ -10,6 +10,11 @@ import {
   type PscFixtureCase,
   type SeaworthinessRiskReport,
 } from "../engines/psc";
+import {
+  extractPscDeficienciesFromText,
+  looksLikeHtml,
+  htmlToPlainText,
+} from "../ingest/pscDeficiencyExtractor";
 import type { GroundingMode } from "../pipeline/groundingGate";
 import {
   resolveConfidenceMode,
@@ -113,6 +118,53 @@ export function runPscFromPaste(
     confidenceMode: opts.confidenceMode,
   });
   return { ...result, label: parsed.label };
+}
+
+/**
+ * MOU PDF/HTML/OCR document path (#92): Exact Span required.
+ * Pass `sourceText` already plain (or HTML — extractor strips tags).
+ */
+export function runPscFromDocument(
+  text: string,
+  opts: {
+    lookbackMonths?: number;
+    confidence?: number;
+    confidenceMode?: ConfidenceMode;
+    filename?: string | null;
+  } = {},
+): PscRunResult & {
+  label: string;
+  extractedCount: number;
+  deficiencies: NormalizedDeficiency[];
+  prior: NormalizedDeficiency[] | null;
+  mouId: string | null;
+} {
+  const extracted = extractPscDeficienciesFromText(text, {
+    filename: opts.filename,
+  });
+  if (!extracted.deficiencies.length) {
+    throw new Error("No deficiencies found in PSC document");
+  }
+  const sourceText = looksLikeHtml(text) ? htmlToPlainText(text) : text;
+  const result = runPsc({
+    deficiencies: extracted.deficiencies,
+    prior: extracted.prior.length ? extracted.prior : null,
+    mouId: extracted.mouId,
+    lookbackMonths: opts.lookbackMonths,
+    confidence: opts.confidence ?? extracted.confidence,
+    grounding: extracted.grounding,
+    groundingMode: "require_span",
+    confidenceMode: opts.confidenceMode,
+    sourceText,
+  });
+  return {
+    ...result,
+    label: extracted.label,
+    extractedCount: extracted.deficiencies.length,
+    deficiencies: extracted.deficiencies,
+    prior: extracted.prior.length ? extracted.prior : null,
+    mouId: extracted.mouId,
+  };
 }
 
 export function runPscFixture(

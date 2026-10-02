@@ -19,6 +19,7 @@ export {
 export {
   runPsc,
   runPscFromPaste,
+  runPscFromDocument,
   runPscFixture,
   type PscRunInput,
   type PscRunResult,
