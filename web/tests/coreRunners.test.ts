@@ -26,6 +26,8 @@ describe("core runners", () => {
       legacyLeadDays: 14,
       aiLeadMinutes: 30,
     });
+    expect(result.status).toBe("scored");
+    if (result.status !== "scored") return;
     expect(result.extraction.schema_id).toBe("rule_d5.v1");
     expect(result.apportionment.lines.length).toBeGreaterThan(0);
     expect(result.apportionment.insurer_total + result.apportionment.owner_total).toBe(
@@ -51,6 +53,8 @@ describe("core runners", () => {
       },
       factsExcerpt: "両船は行会いの関係",
     });
+    expect(result.status).toBe("scored");
+    if (result.status !== "scored") return;
     expect(result.extraction.schema_id).toBe("colregs.v1");
     expect(result.verdict.situation).toBe("head_on");
   });
@@ -61,6 +65,8 @@ describe("core runners", () => {
     const fixture = fixtures.cases.find((c) => c.id === "repeat_ism_major");
     expect(fixture).toBeTruthy();
     const result = runPscFixture(fixture!, { lookbackMonths: 24 });
+    expect(result.status).toBe("scored");
+    if (result.status !== "scored") return;
     expect(result.extraction.schema_id).toBe("psc.v1");
     expect(result.report.defect_score).toBeGreaterThan(0);
   });

@@ -14,6 +14,10 @@ import {
 } from "../engines/fault";
 import { findGroundedQuote } from "../pipeline/spanValidate";
 import type { GroundingMode } from "../pipeline/groundingGate";
+import {
+  resolveConfidenceMode,
+  type ConfidenceMode,
+} from "../pipeline/confidenceGate";
 import type { PdfContent } from "../pipeline/pdfLocate";
 import { locateQuoteInPdfSafe } from "../pipeline/pdfLocate";
 import {
@@ -35,8 +39,10 @@ export interface ColregsRunInput {
     confidence: number;
   }>;
   confidence?: number;
+  field_confidence?: Record<string, number>;
   grounding?: GroundingRef[];
   groundingMode?: GroundingMode;
+  confidenceMode?: ConfidenceMode;
   /** Source document text for Exact Span verification. */
   sourceText?: string;
   pdfContent?: PdfContent;
@@ -44,13 +50,20 @@ export interface ColregsRunInput {
   seeds?: CatalogSeed[];
 }
 
-export interface ColregsRunResult {
-  extraction: ColregsExtraction;
-  geometry: EncounterGeometry;
-  verdict: EncounterVerdict;
-  fault_ratio: string;
-  prediction: FaultPrediction | null;
-}
+export type ColregsRunResult =
+  | {
+      status: "scored";
+      extraction: ColregsExtraction;
+      geometry: EncounterGeometry;
+      verdict: EncounterVerdict;
+      fault_ratio: string;
+      prediction: FaultPrediction | null;
+    }
+  | {
+      status: "abstain";
+      extraction: ColregsExtraction;
+      reasons: string[];
+    };
 
 function groundExcerpt(
   field: string,
@@ -94,6 +107,7 @@ export function runColregs(input: ColregsRunInput): ColregsRunResult {
   const mode: GroundingMode =
     input.groundingMode ??
     (input.sourceText ? "require_span" : "paste_bypass");
+  const confidenceMode = resolveConfidenceMode(mode, input.confidenceMode);
 
   let factsExcerpt = input.factsExcerpt;
   let rulingExcerpt = input.rulingExcerpt;
@@ -136,10 +150,21 @@ export function runColregs(input: ColregsRunInput): ColregsRunResult {
     documentKind: input.documentKind,
     situationCandidates: input.situationCandidates,
     confidence: input.confidence ?? 0.6,
+    field_confidence: input.field_confidence,
     grounding,
     groundingMode: mode,
+    confidenceMode,
     sourceText: input.sourceText,
   });
+
+  if (confidenceMode === "enforce" && extraction.abstain) {
+    return {
+      status: "abstain",
+      extraction,
+      reasons: extraction.abstain.reason.split("; ").slice(1),
+    };
+  }
+
   const geometry = geometryFromExtraction(extraction);
   const verdict = classifyEncounter(geometry);
   const narrative =
@@ -161,5 +186,12 @@ export function runColregs(input: ColregsRunInput): ColregsRunResult {
     extraction.payload.fault_ratio_hint ||
     prediction?.fault_ratio ||
     "70:30";
-  return { extraction, geometry, verdict, fault_ratio, prediction };
+  return {
+    status: "scored",
+    extraction,
+    geometry,
+    verdict,
+    fault_ratio,
+    prediction,
+  };
 }

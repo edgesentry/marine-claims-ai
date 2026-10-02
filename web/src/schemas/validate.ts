@@ -74,7 +74,7 @@ export function parseExtraction(input: unknown): ExtractionResult {
 
 /**
  * Gate for Stage B: reject invalid envelopes so scorers never see bad JSON.
- * Does not block on optional `abstain` (Issue #89 handles that in UI).
+ * Does not block on optional `abstain` — Issue #89 confidence gate / UI handles that.
  */
 export function assertValidForStageB(input: unknown): ExtractionResult {
   return parseExtraction(input);

@@ -131,9 +131,12 @@ describe("runners Exact Span", () => {
         true_bearing_a_to_b_deg: 70,
       },
       factsExcerpt: "両船は横切の関係",
+      confidence: 0.85,
       groundingMode: "require_span",
       sourceText: source,
     });
+    expect(result.status).toBe("scored");
+    if (result.status !== "scored") return;
     expect(result.extraction.grounding.some((g) => g.field === "facts_excerpt")).toBe(
       true,
     );
@@ -151,6 +154,8 @@ describe("runners Exact Span", () => {
         },
       ]),
     );
+    expect(result.status).toBe("scored");
+    if (result.status !== "scored") return;
     expect(result.extraction.schema_id).toBe("psc.v1");
     expect(result.report.defect_score).toBeGreaterThan(0);
   });

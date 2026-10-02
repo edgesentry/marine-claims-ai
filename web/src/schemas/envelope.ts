@@ -30,14 +30,22 @@ export const AbstainSchema = z.object({
   reason: z.string().min(1),
 });
 
+/** Per-field confidence map (payload path → 0..1). Issue #89. */
+export const FieldConfidenceSchema = z.record(
+  z.string(),
+  z.number().min(0).max(1),
+);
+
 /** Envelope fields shared by every UC (payload validated separately). */
 export const ExtractionEnvelopeBaseSchema = z.object({
   schema_id: SchemaIdSchema,
   confidence: z.number().min(0).max(1),
   grounding: z.array(GroundingRefSchema).default([]),
+  field_confidence: FieldConfidenceSchema.optional(),
   abstain: AbstainSchema.optional(),
 });
 
 export type PdfCoordinates = z.infer<typeof PdfCoordinatesSchema>;
 export type GroundingRef = z.infer<typeof GroundingRefSchema>;
+export type FieldConfidence = z.infer<typeof FieldConfidenceSchema>;
 export type Abstain = z.infer<typeof AbstainSchema>;

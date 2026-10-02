@@ -2,7 +2,7 @@
 
 Explains the executive-demo tabs (Issue #54 / #83): **what** each use case is, **which laws / rules it encodes**, **inputs**, **internal processing**, and **what outputs mean**. The Web UI analyzes **real business PDFs** where relevant (list or open file); interactive controls still change results live.
 
-Related: [Executive demo (WASM PWA)](executive_demo_cli_and_web.md) · [AAA Rule D5](aaa_rule_d5_drydock_apportionment.md) · [COLREGS engine](colregs_encounter_engine.md) · [PSC deficiency vector](psc_deficiency_vector.md) · [Getting started](getting_started.md).
+Related: [Executive demo (WASM PWA)](executive_demo_cli_and_web.md) · [AAA Rule D5](aaa_rule_d5_drydock_apportionment.md) · [COLREGS engine](colregs_encounter_engine.md) · [PSC deficiency vector](psc_deficiency_vector.md) · [Exact Span grounding](exact_span_grounding.md) · [Confidence / HUMAN_REVIEW](confidence_abstention.md) · [Getting started](getting_started.md).
 
 **UI language:** Business terms only on screen (no library/function names). Developer notes below may mention modules.
 
@@ -26,7 +26,7 @@ Before Stage B scoring, extractors wrap output in a shared **`ExtractionResult`*
 - `colregs.v1` — headings / bearing / situation candidates + facts/ruling excerpts  
 - `psc.v1` — deficiency rows (+ optional prior window)
 
-Invalid envelopes never reach the Rule D5 / COLREGS / PSC scorers. JSON Schema copies for interoperability: [docs/schemas/](schemas/). Document-derived fields also need **Exact Span** grounding (or an explicit paste bypass): [exact_span_grounding.md](exact_span_grounding.md) (Issue #88).
+Invalid envelopes never reach the Rule D5 / COLREGS / PSC scorers. JSON Schema copies for interoperability: [docs/schemas/](schemas/). Document-derived fields also need **Exact Span** grounding (or an explicit paste bypass): [exact_span_grounding.md](exact_span_grounding.md) (Issue #88). When Stage A document confidence is below engineering defaults, the PWA shows **`HUMAN_REVIEW_REQUIRED`** and blocks Stage B until Confirm & score ([confidence_abstention.md](confidence_abstention.md#try-it-in-the-pwa), Issue #89) — e.g. Rule D5 repair PDF upload, not the synthetic demo lines.
 
 ---
 

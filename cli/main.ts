@@ -44,6 +44,17 @@ function print(obj: unknown): void {
   process.stdout.write(JSON.stringify(obj, null, 2) + "\n");
 }
 
+/** Print a runner result; exit 3 when Stage A abstains (Issue #89). */
+function printRun(result: { status: string }): void {
+  print(result);
+  if (result.status === "abstain") {
+    process.stderr.write(
+      "HUMAN_REVIEW_REQUIRED: Stage B not scored. Re-run with --confirm after review, or raise --confidence.\n",
+    );
+    process.exit(3);
+  }
+}
+
 function fail(message: string, code = 1): never {
   process.stderr.write(message + "\n");
   process.exit(code);
@@ -56,8 +67,10 @@ UC commands (same Stage A → Stage B path as the PWA):
   rule-d5 [--text FILE | --lines FILE.json]
           [--docking casualty_immediate|deferred_to_routine]
           [--dock-rate N] [--dock-days N] [--no-statutory] [--hire N]
+          [--confidence N] [--confirm]
   colregs --heading-a N --heading-b N --bearing N
           [--facts TEXT] [--ruling TEXT] [--fault-hint R]
+          [--confidence N] [--confirm]
   psc [--fixture ID | --json FILE | --csv FILE] [--lookback N]
 
 Component commands (test individual pieces):
@@ -147,6 +160,12 @@ function cmdRuleD5(flags: Record<string, string | boolean>): void {
   const hireRate = flagNum(flags, "hire", 800_000);
   const legacyLeadDays = flagNum(flags, "legacy-days", 14);
   const aiLeadMinutes = flagNum(flags, "ai-minutes", 30);
+  const confidenceRaw = flagStr(flags, "confidence");
+  const confidence = confidenceRaw != null ? Number(confidenceRaw) : undefined;
+  if (confidenceRaw != null && !Number.isFinite(confidence)) {
+    fail(`Invalid --confidence: ${confidenceRaw}`);
+  }
+  const confidenceMode = flagBool(flags, "confirm") ? ("confirmed" as const) : undefined;
 
   const linesPath = flagStr(flags, "lines");
   if (linesPath) {
@@ -157,7 +176,7 @@ function cmdRuleD5(flags: Record<string, string | boolean>): void {
     if (!Array.isArray(lines) || !lines.length) {
       fail("--lines must be a RepairLineItem[] or { lines: [...] }");
     }
-    print(
+    printRun(
       runRuleD5({
         dockingContext: docking,
         lines,
@@ -165,6 +184,8 @@ function cmdRuleD5(flags: Record<string, string | boolean>): void {
         hireRate,
         legacyLeadDays,
         aiLeadMinutes,
+        confidence,
+        confidenceMode,
         groundingMode: "paste_bypass",
       }),
     );
@@ -173,7 +194,7 @@ function cmdRuleD5(flags: Record<string, string | boolean>): void {
 
   const textPath = flagStr(flags, "text");
   if (textPath) {
-    print(
+    printRun(
       runRuleD5FromRepairText(readText(textPath), {
         dockingContext: docking,
         dailyDockRate,
@@ -182,12 +203,14 @@ function cmdRuleD5(flags: Record<string, string | boolean>): void {
         hireRate,
         legacyLeadDays,
         aiLeadMinutes,
+        confidence,
+        confidenceMode,
       }),
     );
     return;
   }
 
-  print(
+  printRun(
     runRuleD5Synthetic({
       dockingContext: docking,
       dailyDockRate,
@@ -207,7 +230,13 @@ function cmdColregs(flags: Record<string, string | boolean>): void {
   if (![headingA, headingB, bearing].every(Number.isFinite)) {
     fail("colregs requires --heading-a --heading-b --bearing");
   }
-  print(
+  const confidenceRaw = flagStr(flags, "confidence");
+  const confidence = confidenceRaw != null ? Number(confidenceRaw) : undefined;
+  if (confidenceRaw != null && !Number.isFinite(confidence)) {
+    fail(`Invalid --confidence: ${confidenceRaw}`);
+  }
+  const confidenceMode = flagBool(flags, "confirm") ? ("confirmed" as const) : undefined;
+  printRun(
     runColregs({
       geometry: {
         heading_a_deg: headingA,
@@ -222,6 +251,8 @@ function cmdColregs(flags: Record<string, string | boolean>): void {
       faultRatioHint: flagStr(flags, "fault-hint"),
       documentKind:
         (flagStr(flags, "document-kind") as "judgment" | "jtsb" | undefined) || undefined,
+      confidence,
+      confidenceMode,
     }),
   );
 }
@@ -239,17 +270,17 @@ function cmdPsc(flags: Record<string, string | boolean>): void {
         `Unknown fixture "${fixtureId}". Available: ${fixtures.cases.map((c) => c.id).join(", ")}`,
       );
     }
-    print(runPscFixture(fixture, { lookbackMonths: lookback }));
+    printRun(runPscFixture(fixture, { lookbackMonths: lookback }));
     return;
   }
   const jsonPath = flagStr(flags, "json");
   if (jsonPath) {
-    print(runPscFromPaste(readText(jsonPath), { lookbackMonths: lookback }));
+    printRun(runPscFromPaste(readText(jsonPath), { lookbackMonths: lookback }));
     return;
   }
   const csvPath = flagStr(flags, "csv");
   if (csvPath) {
-    print(runPscFromPaste(readText(csvPath), { lookbackMonths: lookback }));
+    printRun(runPscFromPaste(readText(csvPath), { lookbackMonths: lookback }));
     return;
   }
   fail("psc requires --fixture, --json, or --csv");

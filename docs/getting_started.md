@@ -4,7 +4,7 @@ Install, ingest, index, evaluate, and run the claims pipeline. Local caches defa
 
 This guide is the canonical how-to formerly kept in the repository README.
 
-Related: [Executive demo](executive_demo_cli_and_web.md) · [Demo use cases](demo_use_cases.md) · [Exact Span grounding](exact_span_grounding.md) · [Public benchmarks](public_benchmarks_and_accuracy_evaluation.md) · [Technical stack](technical_stack.md) · [Database lifecycle](database_architecture_and_lifecycle.md).
+Related: [Executive demo](executive_demo_cli_and_web.md) · [Demo use cases](demo_use_cases.md) · [Exact Span grounding](exact_span_grounding.md) · [Confidence / HUMAN_REVIEW abstention](confidence_abstention.md) · [Public benchmarks](public_benchmarks_and_accuracy_evaluation.md) · [Technical stack](technical_stack.md) · [Database lifecycle](database_architecture_and_lifecycle.md).
 
 ---
 
@@ -36,6 +36,8 @@ cd web && npm run cli -- classify-encounter --heading-a 0 --heading-b 180 --bear
 ```
 
 Full design: [executive_demo_cli_and_web.md](executive_demo_cli_and_web.md). Use-case I/O and **legal / rule basis** (AAA Rule D5 · COLREGS / 海上衝突予防法 · Tokyo/Paris MOU + IMO A.1155(32)): [demo_use_cases.md](demo_use_cases.md).
+
+**HUMAN_REVIEW_REQUIRED (Issue #89):** uploading a repair PDF on the Rule D5 tab (or a judgment/JTSB PDF on COLREGS) pauses Stage B until Confirm & score — see [confidence_abstention.md](confidence_abstention.md#try-it-in-the-pwa). Synthetic Rule D5 lines and PSC fixtures still auto-score.
 
 ---
 

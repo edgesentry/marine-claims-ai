@@ -12,6 +12,10 @@ import {
 } from "../engines/psc";
 import type { GroundingMode } from "../pipeline/groundingGate";
 import {
+  resolveConfidenceMode,
+  type ConfidenceMode,
+} from "../pipeline/confidenceGate";
+import {
   buildPscExtraction,
   type GroundingRef,
   type PscExtraction,
@@ -24,20 +28,34 @@ export interface PscRunInput {
   cicWeights?: Record<string, number> | null;
   lookbackMonths?: number;
   confidence?: number;
+  field_confidence?: Record<string, number>;
   grounding?: GroundingRef[];
   groundingMode?: GroundingMode;
+  confidenceMode?: ConfidenceMode;
   sourceText?: string;
 }
 
-export interface PscRunResult {
-  extraction: PscExtraction;
-  report: SeaworthinessRiskReport;
-}
+export type PscRunResult =
+  | {
+      status: "scored";
+      extraction: PscExtraction;
+      report: SeaworthinessRiskReport;
+    }
+  | {
+      status: "abstain";
+      extraction: PscExtraction;
+      reasons: string[];
+    };
 
 export function runPsc(input: PscRunInput): PscRunResult {
   if (!input.deficiencies.length) {
     throw new Error("PSC run requires at least one deficiency");
   }
+  const groundingMode = input.groundingMode ?? "require_span";
+  const confidenceMode = resolveConfidenceMode(
+    groundingMode,
+    input.confidenceMode,
+  );
   const extraction = buildPscExtraction({
     deficiencies: input.deficiencies,
     prior: input.prior,
@@ -45,10 +63,21 @@ export function runPsc(input: PscRunInput): PscRunResult {
     cicWeights: input.cicWeights,
     lookbackMonths: input.lookbackMonths ?? DEFAULT_LOOKBACK_MONTHS,
     confidence: input.confidence ?? 0.75,
+    field_confidence: input.field_confidence,
     grounding: input.grounding,
-    groundingMode: input.groundingMode ?? "require_span",
+    groundingMode,
+    confidenceMode,
     sourceText: input.sourceText,
   });
+
+  if (confidenceMode === "enforce" && extraction.abstain) {
+    return {
+      status: "abstain",
+      extraction,
+      reasons: extraction.abstain.reason.split("; ").slice(1),
+    };
+  }
+
   const report = scoreSeaworthiness(input.deficiencies, {
     prior: input.prior,
     mouId: extraction.payload.mou_id ?? input.mouId,
@@ -58,12 +87,16 @@ export function runPsc(input: PscRunInput): PscRunResult {
       input.lookbackMonths ??
       DEFAULT_LOOKBACK_MONTHS,
   });
-  return { extraction, report };
+  return { status: "scored", extraction, report };
 }
 
 export function runPscFromPaste(
   text: string,
-  opts: { lookbackMonths?: number; confidence?: number } = {},
+  opts: {
+    lookbackMonths?: number;
+    confidence?: number;
+    confidenceMode?: ConfidenceMode;
+  } = {},
 ): PscRunResult & { label: string } {
   const parsed = tryParsePscPaste(text);
   if (!parsed.current.length) {
@@ -77,18 +110,28 @@ export function runPscFromPaste(
     lookbackMonths: opts.lookbackMonths,
     confidence: opts.confidence,
     groundingMode: "paste_bypass",
+    confidenceMode: opts.confidenceMode,
   });
   return { ...result, label: parsed.label };
 }
 
 export function runPscFixture(
   fixture: PscFixtureCase | Record<string, unknown>,
-  opts: { lookbackMonths?: number; confidence?: number } = {},
+  opts: {
+    lookbackMonths?: number;
+    confidence?: number;
+    confidenceMode?: ConfidenceMode;
+  } = {},
 ): PscRunResult {
   const c = fixture as PscFixtureCase;
   const report = scoreFixtureCase(fixture, {
     lookbackMonths: opts.lookbackMonths,
   });
+  const groundingMode = "paste_bypass" as const;
+  const confidenceMode = resolveConfidenceMode(
+    groundingMode,
+    opts.confidenceMode,
+  );
   const extraction = buildPscExtraction({
     deficiencies: report.deficiencies,
     mouId: report.mou_id ?? (typeof c.mou_id === "string" ? c.mou_id : null),
@@ -100,7 +143,17 @@ export function runPscFixture(
         : null,
     lookbackMonths: opts.lookbackMonths ?? DEFAULT_LOOKBACK_MONTHS,
     confidence: opts.confidence ?? 0.9,
-    groundingMode: "paste_bypass",
+    groundingMode,
+    confidenceMode,
   });
-  return { extraction, report };
+
+  if (confidenceMode === "enforce" && extraction.abstain) {
+    return {
+      status: "abstain",
+      extraction,
+      reasons: extraction.abstain.reason.split("; ").slice(1),
+    };
+  }
+
+  return { status: "scored", extraction, report };
 }
