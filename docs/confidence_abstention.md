@@ -25,13 +25,13 @@ If an older Service Worker is serving a stale bundle, hard-reload or unregister 
 | **2. COLREGS** | Judgment / JTSB-style narrative PDF (facts / ruling extractable) | `0.55` | Same abstention panel for geometry + excerpts; Confirm & score then classifies. |
 | **3. PSC** | — | fixtures / paste use `bypass` | Auto-scores (no abstention on the default path). |
 
-**Does not abstain**
+### Does not abstain
 
 - Rule D5 **Use synthetic demo lines** (`confidence` 0.85, `bypass`)
 - COLREGS catalog cases (not `case_id: upload`)
 - PSC fixtures and pasted JSON/CSV
 
-**Local PDFs (gitignored Zero-Dataset caches — never commit)**
+### Local PDFs (gitignored Zero-Dataset caches — never commit)
 
 After `scripts/fetch_public_datasets.py` (or an existing `_inputs/` / `_data/` cache):
 
