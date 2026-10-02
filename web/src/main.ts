@@ -1,5 +1,5 @@
 import "./styles/demo.css";
-import { roleLabel, situationLabel, t, type Lang } from "./i18n";
+import { roleLabel, situationLabel, t, displayRule, displayStatus, displayCausalityReason, displayLineTitle, type Lang } from "./i18n";
 import {
   classifyEncounter,
   OVERTAKING_RELATIVE_BEARING_MAX_DEG,
@@ -19,6 +19,12 @@ import {
   repairItemsToRuleDLines,
   syntheticUc2Lines,
 } from "./pdf/parseTender";
+import {
+  extractFactsExcerpt,
+  extractFromJudgment,
+  extractJtsbCauseExcerpt,
+  isLikelyJtsbReport,
+} from "./ingest/civilJudgmentExtractor";
 import {
   evaluateClaimsDynamically,
   noOpNplScorer,
@@ -109,7 +115,7 @@ function buildUc2(): Uc2View {
   const lines =
     state.uc2Lines.length > 0
       ? state.uc2Lines
-      : syntheticUc2Lines(state.dailyDockRate, state.dockDays, state.includeStatutory);
+      : syntheticUc2Lines(state.dailyDockRate, state.dockDays, state.includeStatutory, state.lang);
   const dockTotal = state.dailyDockRate * state.dockDays;
   const synced = lines.map((ln) =>
     (ln.trade_code || "").startsWith("DOCK") ? { ...ln, cost: dockTotal } : ln,
@@ -201,6 +207,11 @@ function buildUc3(): Uc3View {
   const faultRatio = catalogFault || prediction?.fault_ratio || "70:30";
   const rel = verdict.relative_bearing_a_to_b_deg;
 
+  const documentKind =
+    state.caseId === "civil_7" && state.civil7?.document_kind
+      ? state.civil7.document_kind
+      : undefined;
+
   return {
     title,
     situation: verdict.situation,
@@ -212,7 +223,19 @@ function buildUc3(): Uc3View {
     rule_citations: verdict.rule_citations,
     facts,
     ruling,
+    document_kind: documentKind,
   };
+}
+
+function briefingBox(prefix: "uc2" | "uc3"): string {
+  return `<aside class="briefing" aria-label="${escapeHtml(t("briefing_label", state.lang))}">
+    <h2 class="briefing-title">${escapeHtml(t(`briefing_title_${prefix}`, state.lang))}</h2>
+    <div class="briefing-prose">
+      <p>${escapeHtml(t(`${prefix}_briefing_p1`, state.lang))}</p>
+      <p>${escapeHtml(t(`${prefix}_briefing_p2`, state.lang))}</p>
+      <p>${escapeHtml(t(`${prefix}_briefing_p3`, state.lang))}</p>
+    </div>
+  </aside>`;
 }
 
 function explainBox(prefix: "uc2" | "uc3"): string {
@@ -228,6 +251,7 @@ function renderUc2(root: HTMLElement): void {
   const view = buildUc2();
   const causality = validateCausality("船首", "機関室");
   root.innerHTML = `
+    ${briefingBox("uc2")}
     <p class="lead">${escapeHtml(t("uc2_lead", state.lang))}</p>
     ${explainBox("uc2")}
     <div class="grid-2">
@@ -266,19 +290,19 @@ function renderUc2(root: HTMLElement): void {
         ${state.uc2FromPdf ? `<p class="ok">${escapeHtml(t("analyzed_ok", state.lang))}</p>` : ""}
         ${
           state.uc2Analyzed.length
-            ? `<p class="muted">Pipeline statuses: ${state.uc2Analyzed
+            ? `<p class="muted">${escapeHtml(t("pipeline_statuses", state.lang))}: ${state.uc2Analyzed
                 .map(
                   (a) =>
-                    `${escapeHtml(a.description.slice(0, 24))}… → <code>${escapeHtml(a.status)}</code>`,
+                    `${escapeHtml(displayLineTitle(a.description, state.lang).slice(0, 28))}… → <code>${escapeHtml(displayStatus(a.status, state.lang))}</code>`,
                 )
                 .join("<br>")}</p>`
             : ""
         }
-        <p class="muted">Causality check (bow→machinery): <code>${escapeHtml(causality.reason)}</code> valid=${causality.valid}</p>
+        <p class="muted">${escapeHtml(t("causality_check", state.lang))}: <code>${escapeHtml(displayCausalityReason(causality.reason, state.lang))}</code> · ${escapeHtml(causality.valid ? t("causality_valid", state.lang) : t("causality_invalid", state.lang))}</p>
       </section>
       <section class="panel">
         <h2>${escapeHtml(t("rule_label", state.lang))}</h2>
-        <p><code>${escapeHtml(view.rule)}</code></p>
+        <p><code>${escapeHtml(displayRule(view.rule, state.lang))}</code></p>
         <dl class="metrics">
           <div><dt>${escapeHtml(t("common_dues", state.lang))}</dt><dd>${escapeHtml(fmtYen(view.dock_total))}</dd></div>
           <div><dt>${escapeHtml(t("insurer_share", state.lang))}</dt><dd>${escapeHtml(fmtYen(view.insurer_common))}</dd></div>
@@ -287,12 +311,12 @@ function renderUc2(root: HTMLElement): void {
         <h3>${escapeHtml(t("offhire_title", state.lang))}</h3>
         <p>${escapeHtml(t("days_saved", state.lang))}: ${view.days_saved} · ${escapeHtml(t("offhire_saved", state.lang))}: ${escapeHtml(fmtYen(view.offhire_jpy))}</p>
         <table class="lines">
-          <thead><tr><th>ID</th><th>Title</th><th>Cost</th><th>Insurer</th><th>Owner</th><th>Rule</th></tr></thead>
+          <thead><tr><th>${escapeHtml(t("col_id", state.lang))}</th><th>${escapeHtml(t("col_title", state.lang))}</th><th>${escapeHtml(t("col_cost", state.lang))}</th><th>${escapeHtml(t("col_insurer", state.lang))}</th><th>${escapeHtml(t("col_owner", state.lang))}</th><th>${escapeHtml(t("col_rule", state.lang))}</th></tr></thead>
           <tbody>
             ${view.line_rows
               .map(
                 (r) =>
-                  `<tr><td>${escapeHtml(r.id)}</td><td>${escapeHtml(r.title)}</td><td>${escapeHtml(fmtYen(r.cost))}</td><td>${escapeHtml(fmtYen(r.insurer))}</td><td>${escapeHtml(fmtYen(r.owner))}</td><td><code>${escapeHtml(r.rule)}</code></td></tr>`,
+                  `<tr><td>${escapeHtml(r.id)}</td><td>${escapeHtml(displayLineTitle(r.title, state.lang))}</td><td>${escapeHtml(fmtYen(r.cost))}</td><td>${escapeHtml(fmtYen(r.insurer))}</td><td>${escapeHtml(fmtYen(r.owner))}</td><td><code>${escapeHtml(displayRule(r.rule, state.lang))}</code></td></tr>`,
               )
               .join("")}
           </tbody>
@@ -377,6 +401,7 @@ async function handlePdf(file: File): Promise<void> {
     dailyDockRate: state.dailyDockRate,
     dockDays: state.dockDays,
     includeStatutory: state.includeStatutory,
+    lang: state.lang,
   });
   state.uc2FromPdf = true;
   const dockTotal = state.dailyDockRate * state.dockDays;
@@ -419,6 +444,7 @@ function renderUc3(root: HTMLElement): void {
   ];
 
   root.innerHTML = `
+    ${briefingBox("uc3")}
     <p class="lead">${escapeHtml(t("uc3_lead", state.lang))}</p>
     ${explainBox("uc3")}
     <div class="grid-2">
@@ -467,9 +493,10 @@ function renderUc3(root: HTMLElement): void {
         </svg>
         <p class="muted">${escapeHtml(t("article", state.lang))}: ${escapeHtml((view.rule_citations || []).join(" · ") || "—")}</p>
         <h3>${escapeHtml(t("facts", state.lang))}</h3>
-        <pre class="facts">${escapeHtml(view.facts || "—")}</pre>
-        <h3>${escapeHtml(t("ruling", state.lang))}</h3>
-        <pre class="facts">${escapeHtml(view.ruling || "—")}</pre>
+        ${state.civil7?.case_id === "upload" ? `<p class="muted facts-note">${escapeHtml(t("facts_pdf_notice", state.lang))}</p>` : ""}
+        <pre class="facts">${escapeHtml(view.facts || t("facts_empty", state.lang))}</pre>
+        <h3>${escapeHtml(view.document_kind === "jtsb" ? t("ruling_jtsb", state.lang) : t("ruling", state.lang))}</h3>
+        <pre class="facts">${escapeHtml(view.ruling?.trim() ? view.ruling : t("ruling_empty", state.lang))}</pre>
         <div class="actions">
           <button type="button" class="btn" id="exp3Md">${escapeHtml(t("export_colregs_md", state.lang))}</button>
           <button type="button" class="btn" id="exp3Html">${escapeHtml(t("export_colregs_html", state.lang))}</button>
@@ -514,13 +541,20 @@ function renderUc3(root: HTMLElement): void {
       alert(t("err_pdf_empty_text", state.lang));
       return;
     }
+    const extracted = extractFromJudgment(text);
+    const jtsbReport = isLikelyJtsbReport(text);
+    let holding = extracted.holding_excerpt || "";
+    if (!holding) {
+      holding = extractJtsbCauseExcerpt(text) || "";
+    }
     state.caseId = "civil_7";
     state.civil7 = {
       case_id: "upload",
       title: f.name,
-      input_facts: text.slice(0, 2000),
-      holding: "",
-      fault_ratio: "",
+      input_facts: extractFactsExcerpt(text),
+      holding,
+      fault_ratio: extracted.fault_ratio || "",
+      document_kind: jtsbReport ? "jtsb" : "judgment",
     };
     state.overrideGeom = true;
     render();
@@ -544,8 +578,13 @@ function render(): void {
       <nav class="nav">
         <button type="button" class="btn ${state.tab === "uc2" ? "active" : ""}" data-tab="uc2">${escapeHtml(t("nav_uc2", state.lang))}</button>
         <button type="button" class="btn ${state.tab === "uc3" ? "active" : ""}" data-tab="uc3">${escapeHtml(t("nav_uc3", state.lang))}</button>
-        <button type="button" class="btn" data-lang="en">${escapeHtml(t("lang_en", state.lang))}</button>
-        <button type="button" class="btn" data-lang="ja">${escapeHtml(t("lang_ja", state.lang))}</button>
+        <label class="lang-select">
+          <span class="sr-only">${escapeHtml(t("lang_label", state.lang))}</span>
+          <select id="langSel" aria-label="${escapeHtml(t("lang_label", state.lang))}">
+            <option value="en" ${state.lang === "en" ? "selected" : ""}>${escapeHtml(t("lang_en", state.lang))}</option>
+            <option value="ja" ${state.lang === "ja" ? "selected" : ""}>${escapeHtml(t("lang_ja", state.lang))}</option>
+          </select>
+        </label>
         <button type="button" class="btn pwa-install" id="pwaInstall" hidden>${escapeHtml(t("pwa_install_btn", state.lang))}</button>
       </nav>
     </header>
@@ -561,12 +600,10 @@ function render(): void {
       render();
     });
   });
-  app.querySelectorAll("[data-lang]").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      state.lang = (btn as HTMLElement).dataset.lang as Lang;
-      localStorage.setItem("lang", state.lang);
-      render();
-    });
+  app.querySelector("#langSel")?.addEventListener("change", (e) => {
+    state.lang = (e.target as HTMLSelectElement).value as Lang;
+    localStorage.setItem("lang", state.lang);
+    render();
   });
 }
 

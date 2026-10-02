@@ -5,7 +5,9 @@ import {
   bestFaultRatio,
   extractFaultRatios,
   extractFromJudgment,
+  extractJtsbCauseExcerpt,
   extractNegligenceHolding,
+  isLikelyJtsbReport,
   extractionMatchesGold,
   faultRatioWithinPts,
   parseFaultRatioParts,
@@ -190,5 +192,24 @@ describe("extractionMatchesGold within_10pt", () => {
       true,
     );
     expect(bestFaultRatio(excerpt || "")).toBe("65:35");
+  });
+});
+
+describe("JTSB accident reports", () => {
+  const sample =
+    "運輸安全委員会 船舶事故調査報告書\n事故の概要 夜間の衝突。\n" +
+    "＜原因＞ 本事故は、夜間、両船が衝突したものと考えられる。\n" +
+    "＜勧告等＞ 安全勧告 運輸安全委員会は、本事故調査の結果に基づき";
+
+  it("detects JTSB-style documents", () => {
+    expect(isLikelyJtsbReport(sample)).toBe(true);
+    expect(isLikelyJtsbReport("過失割合は65:35である。")).toBe(false);
+  });
+
+  it("extracts ＜原因＞ section as cause finding", () => {
+    const cause = extractJtsbCauseExcerpt(sample);
+    expect(cause).not.toBeNull();
+    expect(cause).toContain("両船が衝突したものと考えられる");
+    expect(cause).not.toContain("安全勧告");
   });
 });

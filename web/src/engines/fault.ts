@@ -171,6 +171,8 @@ export interface CatalogSeed {
   holding?: string;
   fault_ratio?: string;
   embedding?: number[];
+  /** PDF upload: civil judgment vs JTSB / MAIA accident report. */
+  document_kind?: "judgment" | "jtsb";
 }
 
 export function knnByCosine(

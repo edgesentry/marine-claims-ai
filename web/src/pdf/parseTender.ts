@@ -4,6 +4,7 @@
 import * as pdfjs from "pdfjs-dist";
 import pdfWorker from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 import type { OwnerNecessity, RepairLineItem, WorkParty } from "../engines/ruleD5";
+import { lineTitle, type Lang } from "../i18n";
 
 pdfjs.GlobalWorkerOptions.workerSrc = pdfWorker;
 
@@ -56,8 +57,10 @@ export function repairItemsToRuleDLines(
     dailyDockRate: number;
     dockDays: number;
     includeStatutory: boolean;
+    lang?: Lang;
   },
 ): RepairLineItem[] {
+  const lang = opts.lang ?? "en";
   const dockTotal = opts.dailyDockRate * opts.dockDays;
   const lines: RepairLineItem[] = [];
   let sawDock = false;
@@ -125,7 +128,7 @@ export function repairItemsToRuleDLines(
       id: "dock-1",
       trade_code: "DOCK-01",
       cost: dockTotal,
-      title: "Entering / leaving / lay dues",
+      title: lineTitle("dock_dues", lang),
     });
   } else {
     for (let i = 0; i < lines.length; i++) {
@@ -141,7 +144,7 @@ export function repairItemsToRuleDLines(
       trade_code: "SAFE-01",
       cost: 550_000,
       necessity: "statutory_seaworthiness",
-      title: "Statutory survey item",
+      title: lineTitle("statutory", lang),
     });
   }
 
@@ -151,7 +154,7 @@ export function repairItemsToRuleDLines(
       trade_code: "HULL-01",
       cost: 4_500_000,
       work_party: "casualty",
-      title: "Bow shell plating repair",
+      title: lineTitle("hull_bow", lang),
     });
   }
 
@@ -162,6 +165,7 @@ export function syntheticUc2Lines(
   dailyDockRate: number,
   dockDays: number,
   includeStatutory: boolean,
+  lang: Lang = "en",
 ): RepairLineItem[] {
   const dockTotal = dailyDockRate * dockDays;
   const lines: RepairLineItem[] = [
@@ -170,14 +174,14 @@ export function syntheticUc2Lines(
       trade_code: "HULL-01",
       cost: 4_500_000,
       work_party: "casualty",
-      title: "Bow shell plating repair",
+      title: lineTitle("hull_bow", lang),
     },
     {
       id: "eng-1",
       trade_code: "ENG-02",
       cost: 1_800_000,
       necessity: "deferred",
-      title: "Piston overhaul (owner)",
+      title: lineTitle("piston_owner", lang),
     },
   ];
   if (includeStatutory) {
@@ -185,14 +189,14 @@ export function syntheticUc2Lines(
       id: "safe-1",
       trade_code: "SAFE-01",
       cost: 550_000,
-      title: "Statutory survey item",
+      title: lineTitle("statutory", lang),
     });
   }
   lines.push({
     id: "dock-1",
     trade_code: "DOCK-01",
     cost: dockTotal,
-    title: "Entering / leaving / lay dues",
+    title: lineTitle("dock_dues", lang),
   });
   return lines;
 }

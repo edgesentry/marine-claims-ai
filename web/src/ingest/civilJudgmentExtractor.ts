@@ -124,6 +124,109 @@ export function normalizeJudgmentText(text: string): string {
   return t;
 }
 
+const FACTS_SECTION_ANCHORS = [
+  "理由（事実）",
+  "理　由",
+  "理由 ",
+  "事　実",
+  "１．事故の概要",
+  "１.事故の概要",
+  "１ 事故の概要",
+  "事故の概要",
+  "事実関係",
+  "事故の経緯",
+] as const;
+
+const FACTS_STOP_MARKERS = [
+  "主　文",
+  "主文",
+  "判　決",
+  "判決主文",
+  "結　論",
+  "結論",
+  "＜原因＞",
+  "<原因>",
+  "＜原因及び",
+] as const;
+
+const JTSB_CAUSE_START = ["＜原因＞", "<原因>", "＜原因及び", "<原因及び>"] as const;
+const JTSB_CAUSE_STOP = ["＜勧告", "<勧告", "＜安全", "安全勧告", "＜参考", "<参考"] as const;
+
+/** Collapse “敏 丸” style interleaved spaces common in JTSB PDF text layers. */
+export function deinterleavePdfSpacing(text: string): string {
+  return text.replace(
+    /((?:[\u3040-\u9fff\u30a0-\u30ffA-Za-z0-9]\s+){2,}[\u3040-\u9fff\u30a0-\u30ffA-Za-z0-9])/g,
+    (chunk) => chunk.replace(/\s+/g, ""),
+  );
+}
+
+/** Pull a readable facts block from judgment / accident-report PDF text. */
+export function extractFactsExcerpt(text: string, maxLen = 4500): string {
+  let t = normalizeJudgmentText(text);
+  if (!t) return "";
+
+  let start = 0;
+  for (const anchor of FACTS_SECTION_ANCHORS) {
+    const idx = t.indexOf(anchor);
+    if (idx >= 0) {
+      start = idx;
+      break;
+    }
+  }
+
+  let excerpt = t.slice(start, start + maxLen);
+  for (const stop of FACTS_STOP_MARKERS) {
+    const idx = excerpt.indexOf(stop);
+    if (idx > 120) {
+      excerpt = excerpt.slice(0, idx);
+      break;
+    }
+  }
+
+  excerpt = deinterleavePdfSpacing(excerpt);
+  excerpt = excerpt.replace(/。/g, "。\n").trim();
+  return excerpt;
+}
+
+export function isLikelyJtsbReport(text: string): boolean {
+  const t = normalizeJudgmentText(text);
+  return (
+    /運輸安全委員会|船舶事故調査|Marine Accident Investigation/i.test(t) ||
+    JTSB_CAUSE_START.some((m) => t.includes(m))
+  );
+}
+
+/** JTSB / MAIA reports use ＜原因＞ instead of a civil “holding”. */
+export function extractJtsbCauseExcerpt(text: string, maxLen = 2800): string | null {
+  let t = normalizeJudgmentText(text);
+  if (!t) return null;
+
+  let start = -1;
+  for (const marker of JTSB_CAUSE_START) {
+    const idx = t.indexOf(marker);
+    if (idx >= 0) {
+      start = idx + marker.length;
+      break;
+    }
+  }
+  if (start < 0) {
+    const idx = t.indexOf("本事故は、");
+    if (idx >= 0 && isLikelyJtsbReport(t)) start = idx;
+  }
+  if (start < 0) return null;
+
+  let excerpt = t.slice(start, start + maxLen).trim();
+  for (const stop of JTSB_CAUSE_STOP) {
+    const idx = excerpt.indexOf(stop);
+    if (idx < 0) continue;
+    const hardStop = stop.includes("勧告") || stop.includes("参考");
+    if (hardStop ? idx > 0 : idx > 80) excerpt = excerpt.slice(0, idx);
+  }
+  excerpt = deinterleavePdfSpacing(excerpt);
+  excerpt = excerpt.replace(/。/g, "。\n").trim();
+  return excerpt || null;
+}
+
 function parseDigitRun(s: string): number | null {
   if (!s) return null;
   if ([...s].every((ch) => ch in DIGIT || isAsciiDigit(ch))) {
