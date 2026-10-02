@@ -50,40 +50,21 @@ const MONTHS: Record<string, string> = {
   dec: "12",
 };
 
-/** Strip HTML to line-oriented plain text (browser DOMParser or Node regex). */
+/** Strip HTML markup to line-oriented plain text (no DOM write-back). */
 export function htmlToPlainText(html: string): string {
   const trimmed = html.trim();
   if (!trimmed) return "";
-  if (typeof DOMParser !== "undefined") {
-    const doc = new DOMParser().parseFromString(trimmed, "text/html");
-    const body = doc.body;
-    if (body) {
-      // Prefer row-ish structure: replace block/table closers with newlines before textContent.
-      const clone = body.cloneNode(true) as HTMLElement;
-      clone.querySelectorAll("br").forEach((el) => el.replaceWith("\n"));
-      clone.querySelectorAll("tr, p, div, li, h1, h2, h3, h4, table").forEach((el) => {
-        el.append("\n");
-      });
-      clone.querySelectorAll("td, th").forEach((el) => {
-        el.append("\t");
-      });
-      return collapseWs(clone.textContent || "");
-    }
-  }
-  return collapseWs(
-    trimmed
-      .replace(/<script[\s\S]*?<\/script>/gi, " ")
-      .replace(/<style[\s\S]*?<\/style>/gi, " ")
-      .replace(/<br\s*\/?>/gi, "\n")
-      .replace(/<\/(tr|p|div|li|h[1-6]|table)>/gi, "\n")
-      .replace(/<\/(td|th)>/gi, "\t")
-      .replace(/<[^>]+>/g, " ")
-      .replace(/&nbsp;/gi, " ")
-      .replace(/&amp;/gi, "&")
-      .replace(/&lt;/gi, "<")
-      .replace(/&gt;/gi, ">")
-      .replace(/&quot;/gi, '"'),
-  );
+  // Tag strip only — never parseInto DOM / never re-inject as HTML (CodeQL).
+  // Structural closers become newlines/tabs so MOU table cells stay row-oriented.
+  const plain = trimmed
+    .replace(/<\s*br\s*\/?\s*>/gi, "\n")
+    .replace(/<\s*\/\s*(tr|p|div|li|h[1-6]|table)\s*>/gi, "\n")
+    .replace(/<\s*\/\s*(td|th)\s*>/gi, "\t")
+    .replace(/<[^>]*>/g, " ")
+    // Whitespace entities only; skip &amp;/&lt; unescape to avoid double-unescape chains.
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&#160;/g, " ");
+  return collapseWs(plain);
 }
 
 function collapseWs(text: string): string {

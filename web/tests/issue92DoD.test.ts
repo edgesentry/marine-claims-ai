@@ -23,7 +23,7 @@ function loadFixture(name: string): string {
 
 describe("pscDeficiencyExtractor", () => {
   it("strips HTML tables into line-oriented text", () => {
-    const html = loadFixture("tokyo_mou_table_sample.html");
+    const html = loadFixture("tokyo_mou_table_sample.txt");
     expect(looksLikeHtml(html)).toBe(true);
     const plain = htmlToPlainText(html);
     expect(plain).toMatch(/07106/);
@@ -32,9 +32,9 @@ describe("pscDeficiencyExtractor", () => {
   });
 
   it("extracts Tokyo HTML sample with Code 30 and 071 ≠ navigation", () => {
-    const html = loadFixture("tokyo_mou_table_sample.html");
+    const html = loadFixture("tokyo_mou_table_sample.txt");
     const extracted = extractPscDeficienciesFromText(html, {
-      filename: "tokyo_mou_table_sample.html",
+      filename: "tokyo_mou_table_sample.txt",
     });
     expect(extracted.deficiencies.length).toBeGreaterThanOrEqual(2);
     expect(extracted.mouId).toBe("tokyo");
@@ -74,11 +74,11 @@ describe("pscDeficiencyExtractor", () => {
 
 describe("Issue #92 DoD — MOU document → score without hand JSON", () => {
   it("DoD: public-style HTML fixture scores offline under require_span", () => {
-    const html = loadFixture("tokyo_mou_table_sample.html");
+    const html = loadFixture("tokyo_mou_table_sample.txt");
     const run = runPscFromDocument(html, {
       lookbackMonths: 24,
       confidence: 0.75,
-      filename: "tokyo_mou_table_sample.html",
+      filename: "tokyo_mou_table_sample.txt",
     });
     expect(run.status).toBe("scored");
     if (run.status !== "scored") return;
@@ -114,7 +114,7 @@ describe("Issue #92 DoD — MOU document → score without hand JSON", () => {
   });
 
   it("DoD: memo export keeps warranty disclaimer", () => {
-    const html = loadFixture("tokyo_mou_table_sample.html");
+    const html = loadFixture("tokyo_mou_table_sample.txt");
     const run = runPscFromDocument(html, { confidence: 0.8 });
     expect(run.status).toBe("scored");
     if (run.status !== "scored") return;

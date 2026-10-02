@@ -1457,15 +1457,15 @@ function renderPsc(root: HTMLElement): void {
 async function loadPscSampleHtml(): Promise<void> {
   const base = import.meta.env.BASE_URL || "./";
   try {
-    const res = await fetch(`${base}data/psc_sample_inspection.html`);
+    const res = await fetch(`${base}data/psc_sample_inspection.txt`);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const text = await res.text();
     const classification = classifyDocument(text, {
-      filename: "psc_sample_inspection.html",
+      filename: "psc_sample_inspection.txt",
     });
     state.pscUpload = {
       text,
-      filename: "psc_sample_inspection.html",
+      filename: "psc_sample_inspection.txt",
       classification,
       override: null,
       extractionSource: "text_layer",

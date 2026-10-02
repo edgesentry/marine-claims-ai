@@ -26,10 +26,16 @@ for (const name of configFiles) {
   if (existsSync(src)) copyFileSync(src, join(outDir, name));
 }
 
-// Issue #92 — anonymized MOU-style HTML sample for offline PSC Stage A demo
-const pscSampleSrc = join(webRoot, "tests", "fixtures", "psc", "tokyo_mou_table_sample.html");
+// Issue #92 — anonymized MOU-style sample (tracked as .txt; Zero-Dataset bans .html)
+const pscSampleSrc = join(
+  webRoot,
+  "tests",
+  "fixtures",
+  "psc",
+  "tokyo_mou_table_sample.txt",
+);
 if (existsSync(pscSampleSrc)) {
-  copyFileSync(pscSampleSrc, join(outDir, "psc_sample_inspection.html"));
+  copyFileSync(pscSampleSrc, join(outDir, "psc_sample_inspection.txt"));
 }
 
 const py = `
