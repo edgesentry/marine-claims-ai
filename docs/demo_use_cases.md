@@ -20,6 +20,17 @@ Detailed clause maps: [aaa_rule_d5_drydock_apportionment.md](aaa_rule_d5_drydock
 
 ## Stage A extraction contract
 
+**Document-type router (Issue #86)** runs first on uploaded PDF / pasted text (`web/src/pipeline/documentRouter.ts`):
+
+| Detected type | Demo tab that may Analyze |
+| :--- | :--- |
+| `repair_spec` | Rule D5 |
+| `civil_judgment` / `jmat_ruling` / `jtsb_report` | COLREGS |
+| `psc_inspection` | PSC |
+| `unknown` | none — override required or abstain |
+
+The PWA shows the detected type and confidence, lets you override before **Analyze**, and never silently runs Stage B on `unknown` or a tab mismatch. Heuristic Tier 1 only in this release (optional SLM Tier 2 is Issue #77).
+
 Before Stage B scoring, extractors wrap output in a shared **`ExtractionResult`** (`web/src/schemas/`, Issue #87):
 
 - `rule_d5.v1` — repair lines + docking context  
