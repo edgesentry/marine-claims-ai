@@ -102,4 +102,4 @@ Expectations also covered in `groundingGate.test.ts` / `spanA4A8.test.ts`:
 | #92 | PSC MOU PDF/HTML/image → deficiencies under `require_span` — implemented (`web/src/ingest/pscDeficiencyExtractor.ts`, PWA dropzone + sample HTML) |
 | #45 | Full deskew / table-grid OCR → `pdf_coordinates` (Python ingest) |
 | #94 | Client OCR text wired into PWA upload (Tesseract.js); bbox geometry still #45 |
-| #93 | Broader Stage A eval harness / ungrounded-rate gates across corpora |
+| #93 | Stage A eval harness / field F1 · grounding · abstain gates (CI job `stage-a`) — see [public_benchmarks §3.4](public_benchmarks_and_accuracy_evaluation.md#34-stage-a-extraction-accuracy-issue-93) |

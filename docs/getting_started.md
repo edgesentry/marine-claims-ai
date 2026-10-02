@@ -53,6 +53,8 @@ Full design: [executive_demo_cli_and_web.md](executive_demo_cli_and_web.md). Use
 
 **Multilingual → schema enums (Issue #90):** UI i18n does not drive extraction. JA/EN repair / situation / PSC phrases normalize to the same UC codes so Stage B scores match. Tests: `cd web && npm test -- tests/issue90DoD.test.ts`.
 
+**Stage A accuracy gates (Issue #93):** Field-level extraction metrics (schema-valid, Exact Span, abstain precision, Stage A→B on grounded rows) are gated independently of Gate A / Stage B rule agreement. Run: `cd web && npm run stage-a`. Thresholds: [public_benchmarks_and_accuracy_evaluation.md](public_benchmarks_and_accuracy_evaluation.md#34-stage-a-extraction-accuracy-issue-93).
+
 ---
 
 ## 1. Ingest public datasets

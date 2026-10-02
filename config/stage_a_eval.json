@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "description": "Stage A extraction accuracy gates (Issue #93). Separate from Gate A / Stage B rule agreement. Public Zero-Dataset fixtures only.",
+  "gold_fixtures": "web/tests/fixtures/stage_a/gold_cases.json",
+  "gates": {
+    "min_cases": 12,
+    "min_schema_valid_rate": 1.0,
+    "min_field_exact_match_rate": 0.85,
+    "min_grounding_pass_rate": 0.9,
+    "min_abstain_precision": 1.0,
+    "min_abstain_recall": 1.0,
+    "min_stage_b_agreement_rate": 0.9,
+    "degraded": {
+      "min_cases": 1,
+      "min_schema_valid_rate": 1.0,
+      "min_field_exact_match_rate": 0.4
+    },
+    "multilingual": {
+      "min_cases": 2,
+      "min_schema_valid_rate": 1.0,
+      "min_field_exact_match_rate": 0.9,
+      "min_stage_b_agreement_rate": 1.0
+    }
+  }
+}

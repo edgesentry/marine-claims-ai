@@ -239,6 +239,7 @@ flowchart TD
         T2["verify_civil_catalog.py\nPrecedent Catalog URL Liveness Check"]
         T3["check_zero_dataset_leak.py\nCryptographic Content & Zero-Leakage Scan"]
         T4["pymarkdown & ruff\nLinting & Syntax Enforcement"]
+        T5["web-pwa: Gate A + Stage A\nnpm run gate-a / npm run stage-a"]
     end
 
     subgraph CLI["Layer 2: Local Benchmark Evaluation Suite"]
@@ -294,6 +295,62 @@ uv run python scripts/eval_colregs_end_to_end.py \
   - `min_situation_agreement`: ≥ 90.0%.
   - `max_critical_role_inversions`: Strictly 0.
 - Offline unit coverage: COLREGS / encounter tests under `web/tests/` (Vitest). Legacy `tests/test_jmat_extractor.py` was removed with the Python extractor.
+
+### 3.4 Stage A Extraction Accuracy (Issue #93)
+
+Stage A (messy docs → UC-fixed schemas) is gated **independently** of Gate A / Stage B rule agreement. A Stage A regression must fail CI even when Stage B synthetic fixtures still pass.
+
+#### Canonical implementation
+
+| Artifact | Path |
+| :--- | :--- |
+| Gate thresholds | `config/stage_a_eval.json` |
+| Public gold cases | `web/tests/fixtures/stage_a/gold_cases.json` |
+| Harness | `web/src/benchmarks/stageAEval.ts` |
+| Vitest | `web/tests/stageA.test.ts` |
+| npm script | `cd web && npm run stage-a` |
+| CI job | `.github/workflows/web-pwa.yml` → job `stage-a` (alongside Gate A) |
+
+```bash
+cd web
+npm run stage-a
+```
+
+#### Metrics (vs public gold; Zero-Dataset allowlist)
+
+| Metric | Definition |
+| :--- | :--- |
+| Schema-valid rate | Share of cases whose `ExtractionResult` envelope parses (`safeParseExtraction`) |
+| Field-level exact-match | Exact match on gold fields (COLREGS headings/bearings/speeds; PSC code+action; Rule D5 trade_code+cost) |
+| Grounding / Exact Span pass rate | `assertGroundingForStageB(..., require_span)` on non-abstain scored rows |
+| Abstain precision / recall | Abstain when `expect_abstain`; do not abstain when the document is clear |
+| Stage A→B agreement | On grounded/scored rows only: COLREGS situation/roles, PSC detention, Rule D5 apportionment / JA·EN insurer parity |
+
+#### CI thresholds (`config/stage_a_eval.json`)
+
+| Gate | Threshold |
+| :--- | :--- |
+| Overall `min_cases` | ≥ 12 |
+| `min_schema_valid_rate` | 1.0 |
+| `min_field_exact_match_rate` | ≥ 0.85 |
+| `min_grounding_pass_rate` | ≥ 0.90 |
+| `min_abstain_precision` / `min_abstain_recall` | 1.0 |
+| `min_stage_b_agreement_rate` (grounded rows) | ≥ 0.90 |
+| **Degraded** subset (`ocr` / #45+#94) `min_field_exact_match_rate` | ≥ 0.40 (flexibility floor; below overall) |
+| **Multilingual** subset (#90 / #14-style) `min_field_exact_match_rate` | ≥ 0.90 |
+| **Multilingual** `min_stage_b_agreement_rate` | 1.0 |
+
+#### Current baseline (public fixtures, Tier-1 heuristics)
+
+| Subset | Schema | Field EM | Grounding | Abstain P/R | Stage A→B |
+| :--- | ---: | ---: | ---: | ---: | ---: |
+| Overall | 1.00 | ≈0.98 | 1.00 | 1.00 / 1.00 | 1.00 |
+| Degraded (OCR scan) | 1.00 | 0.75 | 1.00 | — | — |
+| Multilingual (JA/EN) | 1.00 | 1.00 | 1.00 | — | 1.00 |
+
+Degraded OCR field EM below 1.0 is intentional: yen-strip residue still drops some Exact Span lines. Improvements from #45 / #14 should raise the degraded rate without lowering overall gates. Epic #85 cites these numbers for “more flexible and more accurate.”
+
+Gold cases cover COLREGS (clear + abstain), Tokyo/Paris PSC MOU shapes, clean JA/EN Rule D5 packages, OCR `repair_lines.txt`, and JA/EN Stage B insurer-total parity — no proprietary dossiers.
 
 ---
 

@@ -1,0 +1,227 @@
+{
+  "version": 1,
+  "description": "Stage A public gold for field-level extraction eval (Issue #93). Embedded public-style phrasing and relative fixture paths only — Zero-Dataset allowlist. Gold is independent of Stage B rule engines where noted.",
+  "attribution": "Narratives stylized after public JMAT/JTSB phrasing; PSC shapes after Tokyo/Paris MOU portal layouts; repair lines after public gazette tender shapes. No proprietary claim dossiers.",
+  "cases": [
+    {
+      "id": "colregs-kii-crossing",
+      "uc": "colregs",
+      "tags": ["clear", "jmat"],
+      "source_text": "本船Ａは針路０３０度、速力約１２ノットで進行中、右舷前約４０度に相手船Ｂを視認した。相手船Ｂは針路３００度、速力約１０ノットで航行していた。両船は接近し衝突の危険が生じた。",
+      "expect_abstain": false,
+      "gold": {
+        "heading_a_deg": 30,
+        "heading_b_deg": 300,
+        "true_bearing_a_to_b_deg": 70,
+        "speed_a_kn": 12,
+        "speed_b_kn": 10
+      },
+      "stage_b_gold": {
+        "situation": "crossing",
+        "role_a": "give_way",
+        "role_b": "stand_on"
+      }
+    },
+    {
+      "id": "colregs-head-on-reciprocal",
+      "uc": "colregs",
+      "tags": ["clear", "jtsb"],
+      "source_text": "本船Ａは針路０００度、速力約８ノットで進行中、船首方向に相手船Ｂを視認した。相手船Ｂは針路１８０度、速力約９ノットで接近していた。",
+      "expect_abstain": false,
+      "gold": {
+        "heading_a_deg": 0,
+        "heading_b_deg": 180,
+        "true_bearing_a_to_b_deg": 0,
+        "speed_a_kn": 8,
+        "speed_b_kn": 9
+      },
+      "stage_b_gold": {
+        "situation": "head_on",
+        "role_a": "give_way",
+        "role_b": "give_way"
+      }
+    },
+    {
+      "id": "colregs-overtaking-starboard",
+      "uc": "colregs",
+      "tags": ["clear", "jtsb"],
+      "source_text": "本船Ａは針路０８５度、速力約１４ノットで進行中、左舷前約１５度に相手船Ｂを視認した。相手船Ｂは針路０９０度、速力約８ノットで東進しており、本船Ａは相手船の右舷正横後から追越し接近していた。",
+      "expect_abstain": false,
+      "gold": {
+        "heading_a_deg": 85,
+        "heading_b_deg": 90,
+        "speed_a_kn": 14,
+        "speed_b_kn": 8
+      },
+      "stage_b_gold": {
+        "situation": "overtaking",
+        "role_a": "give_way",
+        "role_b": "stand_on"
+      }
+    },
+    {
+      "id": "colregs-port-standon",
+      "uc": "colregs",
+      "tags": ["clear", "jmat"],
+      "source_text": "本船Ａは針路０００度、速力約１１ノットで進行中、左舷前約６０度に相手船Ｂを視認した。相手船Ｂは針路０９０度、速力約９ノットであった。",
+      "expect_abstain": false,
+      "gold": {
+        "heading_a_deg": 0,
+        "heading_b_deg": 90,
+        "true_bearing_a_to_b_deg": 300,
+        "speed_a_kn": 11,
+        "speed_b_kn": 9
+      },
+      "stage_b_gold": {
+        "situation": "crossing",
+        "role_a": "stand_on",
+        "role_b": "give_way"
+      }
+    },
+    {
+      "id": "colregs-abstain-no-geometry",
+      "uc": "colregs",
+      "tags": ["abstain", "clear"],
+      "source_text": "両船は横切の関係にあった。詳細な針路の記載はない。",
+      "expect_abstain": true,
+      "gold": {}
+    },
+    {
+      "id": "colregs-abstain-qualitative-only",
+      "uc": "colregs",
+      "tags": ["abstain", "clear"],
+      "source_text": "本件は行会いの状況で衝突したものであるが、具体的な針路・速力の数値は示されていない。",
+      "expect_abstain": true,
+      "gold": {}
+    },
+    {
+      "id": "psc-tokyo-html",
+      "uc": "psc",
+      "tags": ["clear", "mou"],
+      "fixture_file": "psc/tokyo_mou_table_sample.txt",
+      "expect_abstain": false,
+      "gold": {
+        "deficiencies": [
+          { "code": "07106", "action_code": "17" },
+          { "code": "04102", "action_code": "30" },
+          { "code": "01106", "action_code": "17" }
+        ]
+      },
+      "stage_b_gold": {
+        "detention_present": true
+      }
+    },
+    {
+      "id": "psc-paris-text",
+      "uc": "psc",
+      "tags": ["clear", "mou"],
+      "fixture_file": "psc/paris_mou_text_sample.txt",
+      "expect_abstain": false,
+      "gold": {
+        "deficiencies": [
+          { "code": "04102", "action_code": "30" },
+          { "code": "01106", "action_code": "17" },
+          { "code": "10104", "action_code": "16" }
+        ]
+      },
+      "stage_b_gold": {
+        "detention_present": true
+      }
+    },
+    {
+      "id": "rule-d5-clean-ja",
+      "uc": "rule_d5",
+      "tags": ["clear", "multilingual"],
+      "source_text": "修繕仕様書（公開ベンチマーク合成）\n\n甲板部 外板ケレン及び塗装工事 850,000円\n機関部 主機関ピストン抜出開放点検 1,800,000円\n共通 入出渠及び滞渠料 3,400,000円\n甲板部 法定検査証書更新工事 550,000円\n",
+      "expect_abstain": false,
+      "rule_d5_opts": {
+        "docking_context": "casualty_immediate",
+        "daily_dock_rate": 850000,
+        "dock_days": 4,
+        "include_statutory": true
+      },
+      "gold": {
+        "lines": [
+          { "trade_code": "HULL-01", "cost": 850000 },
+          { "trade_code": "ENG-02", "cost": 1800000 },
+          { "trade_code": "DOCK-01", "cost": 3400000 },
+          { "trade_code": "SAFE-01", "cost": 550000 }
+        ]
+      },
+      "stage_b_gold": {
+        "apportionment_rule": "RULE_D5"
+      }
+    },
+    {
+      "id": "rule-d5-clean-en",
+      "uc": "rule_d5",
+      "tags": ["clear", "multilingual"],
+      "source_text": "Repair specification (public benchmark synthetic)\n\nShell plating scaling and painting 850,000\nMain engine piston draw overhaul 1,800,000\nDrydock dues entering and leaving 3,400,000\nStatutory survey certificate renewal 550,000\n",
+      "expect_abstain": false,
+      "rule_d5_opts": {
+        "docking_context": "casualty_immediate",
+        "daily_dock_rate": 850000,
+        "dock_days": 4,
+        "include_statutory": true
+      },
+      "gold": {
+        "lines": [
+          { "trade_code": "HULL-01", "cost": 850000 },
+          { "trade_code": "ENG-02", "cost": 1800000 },
+          { "trade_code": "DOCK-01", "cost": 3400000 },
+          { "trade_code": "SAFE-01", "cost": 550000 }
+        ]
+      },
+      "stage_b_gold": {
+        "apportionment_rule": "RULE_D5"
+      }
+    },
+    {
+      "id": "rule-d5-ocr-degraded",
+      "uc": "rule_d5",
+      "tags": ["degraded", "ocr"],
+      "fixture_file": "ocr_scan_synthetic/repair_lines.txt",
+      "expect_abstain": false,
+      "rule_d5_opts": {
+        "docking_context": "casualty_immediate",
+        "daily_dock_rate": 860000,
+        "dock_days": 5,
+        "include_statutory": true
+      },
+      "gold": {
+        "lines": [
+          { "trade_code": "HULL-01", "cost": 1200000 },
+          { "trade_code": "HULL-01", "cost": 850000 },
+          { "trade_code": "ENG-02", "cost": 3500000 },
+          { "trade_code": "DOCK-01", "cost": 4300000 }
+        ]
+      },
+      "notes": "Degraded OCR (#45/#94): yen-strip leaves 円 residue; Exact Span currently recovers a subset. Gate floor tracks flexibility gains."
+    },
+    {
+      "id": "rule-d5-multilingual-parity",
+      "uc": "rule_d5_parity",
+      "tags": ["multilingual", "clear"],
+      "expect_abstain": false,
+      "source_text_ja": "修繕仕様書（公開ベンチマーク合成）\n\n甲板部 外板ケレン及び塗装工事 850,000円\n機関部 主機関ピストン抜出開放点検 1,800,000円\n共通 入出渠及び滞渠料 3,400,000円\n甲板部 法定検査証書更新工事 550,000円\n",
+      "source_text_en": "Repair specification (public benchmark synthetic)\n\nShell plating scaling and painting 850,000\nMain engine piston draw overhaul 1,800,000\nDrydock dues entering and leaving 3,400,000\nStatutory survey certificate renewal 550,000\n",
+      "rule_d5_opts": {
+        "docking_context": "casualty_immediate",
+        "daily_dock_rate": 850000,
+        "dock_days": 4,
+        "include_statutory": true
+      },
+      "gold": {
+        "lines": [
+          { "trade_code": "HULL-01", "cost": 850000 },
+          { "trade_code": "ENG-02", "cost": 1800000 },
+          { "trade_code": "DOCK-01", "cost": 3400000 },
+          { "trade_code": "SAFE-01", "cost": 550000 }
+        ]
+      },
+      "stage_b_gold": {
+        "identical_insurer_total": true
+      }
+    }
+  ]
+}
