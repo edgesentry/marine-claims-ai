@@ -25,8 +25,8 @@ const MESSAGES: Record<string, Record<Lang, string>> = {
     ja: "下の裁決・事故報告 PDF を開き、必要なら針路を調整して、その航法メモをこの場で作れます。",
   },
   psc_lead: {
-    en: "Pick a public MOU-style fixture or paste a deficiency list, set the lookback window, and draft an underwriter screening memo here.",
-    ja: "公開の MOU 型フィクスチャを選ぶか欠陥リストを貼り付け、Lookback を設定して、引受スクリーニングメモをこの場で作れます。",
+    en: "Pick a public MOU-style fixture, drop a PSC PDF/HTML, or paste a deficiency list — then draft an underwriter screening memo here.",
+    ja: "公開の MOU 型フィクスチャを選ぶか、PSC の PDF/HTML をドロップ／欠陥リストを貼り付けて、引受スクリーニングメモをこの場で作れます。",
   },
   daily_dock_rate: { en: "Dock daily rate (JPY/day)", ja: "入渠日額（円/日）" },
   dock_days: { en: "Dock days", ja: "滞渠日数" },
@@ -184,8 +184,8 @@ const MESSAGES: Record<string, Record<Lang, string>> = {
     ja: "公開の MOU 型 PSC 欠陥を Defect Score に採点し、更改・引受スクリーニングに使う。",
   },
   psc_explain_input: {
-    en: "Bundled anonymized fixture, or pasted JSON / simple CSV deficiency list, plus lookback months.",
-    ja: "同梱の匿名フィクスチャ、または貼り付けた JSON／簡易 CSV の欠陥リストと Lookback（月）。",
+    en: "Bundled anonymized fixture, MOU-style PDF/HTML/image, or pasted JSON / CSV deficiency list, plus lookback months.",
+    ja: "同梱の匿名フィクスチャ、MOU 型 PDF/HTML/画像、または貼り付けた JSON／CSV の欠陥リストと Lookback（月）。",
   },
   psc_explain_process: {
     en: "Normalize deficiency and action codes, weight severity, apply repeat multiplier inside the lookback window.",
@@ -214,6 +214,18 @@ const MESSAGES: Record<string, Record<Lang, string>> = {
   },
   psc_apply_paste: { en: "Score pasted list", ja: "貼付けを採点" },
   psc_clear_paste: { en: "Back to fixtures", ja: "フィクスチャに戻る" },
+  drop_psc: {
+    en: "Drop PSC PDF / HTML / image, or click to open",
+    ja: "PSC の PDF / HTML / 画像をドロップ、またはクリックして開く",
+  },
+  psc_load_sample: {
+    en: "Load sample MOU HTML",
+    ja: "サンプル MOU HTML を読込",
+  },
+  psc_err_document: {
+    en: "Could not extract deficiencies from this document.",
+    ja: "この文書から欠陥を取り出せませんでした。",
+  },
   psc_defect_score: { en: "Defect Score", ja: "Defect Score" },
   psc_risk_band: { en: "Risk band", ja: "リスク帯" },
   psc_detention: { en: "Detention (Code 30)", ja: "拘留（Code 30）" },

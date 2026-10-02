@@ -43,11 +43,13 @@ cd web && npm run cli -- classify-encounter --heading-a 0 --heading-b 180 --bear
 
 Full design: [executive_demo_cli_and_web.md](executive_demo_cli_and_web.md). Use-case I/O and **legal / rule basis** (AAA Rule D5 · COLREGS / 海上衝突予防法 · Tokyo/Paris MOU + IMO A.1155(32)): [demo_use_cases.md](demo_use_cases.md).
 
-**Document-type router (Issue #86):** after you drop a PDF (Rule D5 / COLREGS) or paste deficiencies (PSC), the PWA shows the **detected document type** and confidence. Confirm or **override** the type, then click **Analyze**. `unknown` or a type that does not match the current tab never runs Stage B until you override to an allowed type. Router tests: `cd web && npm test -- tests/documentRouter.test.ts`. CLI check: `cd web && npm run cli -- route --text path.txt --tab uc2` (exit `3` = abstain / mismatch).
+**Document-type router (Issue #86):** after you drop a PDF (Rule D5 / COLREGS / PSC) or paste deficiencies (PSC), the PWA shows the **detected document type** and confidence. Confirm or **override** the type, then click **Analyze**. `unknown` or a type that does not match the current tab never runs Stage B until you override to an allowed type. Router tests: `cd web && npm test -- tests/documentRouter.test.ts`. CLI check: `cd web && npm run cli -- route --text path.txt --tab uc2` (exit `3` = abstain / mismatch).
 
 **HUMAN_REVIEW_REQUIRED (Issue #89):** after Analyze, a low-confidence repair PDF on the Rule D5 tab (or a judgment/JTSB PDF on COLREGS) pauses Stage B until Confirm & score — see [confidence_abstention.md](confidence_abstention.md#try-it-in-the-pwa). Synthetic Rule D5 lines and PSC fixtures still auto-score.
 
 **COLREGS narrative telemetry (Issue #91):** JMAT / judgment / JTSB text yields headings and bearings when present (Exact Span grounded). Catalog cases score from `facts_text` without slider overrides; missing numeric geometry abstains with `geometry_missing`. Tests: `cd web && npm test -- tests/issue91DoD.test.ts`.
+
+**PSC document Stage A (Issue #92):** Drop a Tokyo/Paris MOU–style PDF, HTML, or image on the PSC tab (or **Load sample MOU HTML**). The extractor maps table rows → `psc.v1` deficiencies under Exact Span (`require_span`), then `scoreSeaworthiness`. JSON/CSV paste remains available. Memo export still states it is not a warranty opinion. Tests: `cd web && npm test -- tests/issue92DoD.test.ts`.
 
 ---
 

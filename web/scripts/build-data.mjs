@@ -26,6 +26,12 @@ for (const name of configFiles) {
   if (existsSync(src)) copyFileSync(src, join(outDir, name));
 }
 
+// Issue #92 — anonymized MOU-style HTML sample for offline PSC Stage A demo
+const pscSampleSrc = join(webRoot, "tests", "fixtures", "psc", "tokyo_mou_table_sample.html");
+if (existsSync(pscSampleSrc)) {
+  copyFileSync(pscSampleSrc, join(outDir, "psc_sample_inspection.html"));
+}
+
 const py = `
 import json, math, re
 from pathlib import Path

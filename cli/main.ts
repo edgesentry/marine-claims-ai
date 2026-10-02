@@ -34,6 +34,7 @@ import {
   runColregs,
   runPscFixture,
   runPscFromPaste,
+  runPscFromDocument,
   runRuleD5,
   runRuleD5FromRepairText,
   runRuleD5Synthetic,
@@ -80,7 +81,8 @@ UC commands (same Stage A → Stage B path as the PWA):
   colregs (--heading-a N --heading-b N --bearing N | --text FILE)
           [--facts TEXT] [--ruling TEXT] [--fault-hint R]
           [--confidence N] [--confirm]
-  psc [--fixture ID | --json FILE | --csv FILE] [--lookback N]
+  psc [--fixture ID | --json FILE | --csv FILE | --text FILE]
+      [--lookback N] [--confidence N] [--confirm]
 
 Component commands (test individual pieces):
   validate FILE.json
@@ -279,6 +281,10 @@ function cmdColregs(flags: Record<string, string | boolean>): void {
 
 function cmdPsc(flags: Record<string, string | boolean>): void {
   const lookback = flagNum(flags, "lookback", 24);
+  const confidenceRaw = flagStr(flags, "confidence");
+  const confidence =
+    confidenceRaw != null ? flagNum(flags, "confidence", 0.75) : undefined;
+  const confidenceMode = flags.confirm ? ("confirmed" as const) : undefined;
   const fixtureId = flagStr(flags, "fixture");
   if (fixtureId) {
     const fixtures = loadPscFixtures();
@@ -303,7 +309,19 @@ function cmdPsc(flags: Record<string, string | boolean>): void {
     printRun(runPscFromPaste(readText(csvPath), { lookbackMonths: lookback }));
     return;
   }
-  fail("psc requires --fixture, --json, or --csv");
+  const textPath = flagStr(flags, "text") || flagStr(flags, "html");
+  if (textPath) {
+    printRun(
+      runPscFromDocument(readText(textPath), {
+        lookbackMonths: lookback,
+        confidence: confidence ?? 0.75,
+        confidenceMode,
+        filename: textPath,
+      }),
+    );
+    return;
+  }
+  fail("psc requires --fixture, --json, --csv, or --text/--html");
 }
 
 function cmdValidate(positionals: string[]): void {

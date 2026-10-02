@@ -1,0 +1,10 @@
+Port State Control — Paris MOU (synthetic public-benchmark shape)
+Inspection date: 2024-03-12
+Vessel: ANONYMIZED TANKER (no IMO)
+
+Deficiencies list
+04102	Emergency fire pump and its pipes — inoperative	Action taken: 30	SOLAS
+01106	Document of Compliance (DoC/ISM) — overdue endorsement	Action taken: 17	SOLAS
+10104	Gyro compass — unreliable heading	Action taken: 16	SOLAS V
+
+Note: Code 071xx is Fire safety (not Safety of Navigation). Navigation is 101xx.
