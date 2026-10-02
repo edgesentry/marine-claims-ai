@@ -24,7 +24,6 @@ marine-claims-search = "marine_claims_ai.index.search:main"
 marine-claims-apportion = "marine_claims_ai.analytics.apportion:main"
 marine-claims-eval-retrieval = "marine_claims_ai.benchmarks.retrieval_scale:main"
 marine-claims-civil-coverage = "marine_claims_ai.benchmarks.civil_coverage:main"
-marine-claims-demo = "marine_claims_ai.demo.cli:main"
 
 [dependency-groups]
 dev = [
@@ -44,10 +43,6 @@ marine_claims_ai = []
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src"]
-markers = [
-    "demo: local executive demo CLI tests (not required in CI; run with: pytest -m demo)",
-]
-addopts = "-m 'not demo'"
 
 [tool.ruff]
 target-version = "py311"

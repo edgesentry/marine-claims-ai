@@ -19,19 +19,14 @@ uv run pytest -q
 
 ## 0b. Executive demo (Issues #54 / #76)
 
-CLI uses `marine_claims_ai.demo.ops`. Browser UI is the static WASM PWA under `web/`. Full design: [executive_demo_cli_and_web.md](executive_demo_cli_and_web.md). Per-tab I/O: [demo_use_cases.md](demo_use_cases.md).
+Browser UI is the static WASM PWA under `web/` (no Python demo server/CLI).
 
 ```bash
-uv run marine-claims-demo uc2 --lang ja --dock-days 5 --no-statutory --export-md _data/rule_d5.md
-uv run marine-claims-demo list-cases
-uv run marine-claims-demo uc3 --case civil_7 --heading-a 0 --heading-b 180 --bearing-ab 0 --export-md _data/colregs.md
-
-# Browser PWA (no Python server)
-cd web && npm install && npm run build && npm run preview
-
-# Optional local CLI E2E (excluded from default/CI pytest)
-uv run pytest -m demo -q
+cd web && npm install && npm test && npm run gate-a
+cd web && npm run build && npm run preview
 ```
+
+Full design: [executive_demo_cli_and_web.md](executive_demo_cli_and_web.md).
 
 ---
 
@@ -145,13 +140,7 @@ JPY amounts on public specs without tender prices are **standard unit-price heur
 cd web && npm run gate-a
 ```
 
-Optional legacy Python PDF corpus:
-
-```bash
-uv run python scripts/eval_gate_a_priority1.py --legacy-python \
-  --json-out _data/benchmarks/gate_a_priority1_report.json \
-  --fail-on-gate
-```
+Optional: if you need a machine-readable report from the browser Gate A runner, use `npm run gate-a` (writes under `web/` / `_data` as configured there). Legacy Python Gate A entrypoints were removed after the WASM migration.
 
 Gates: Critical FA = 0, Rule D5 recon = 0 JPY, (at scale) mean status agreement ≥ 85%.
 
@@ -164,7 +153,8 @@ marine-claims-AI/
 ├── AGENTS.md
 ├── README.md
 ├── pyproject.toml / uv.lock
-├── src/marine_claims_ai/     # publishable core (+ demo/)
+├── src/marine_claims_ai/     # ingest / index / analytics / CI (Python)
+├── web/                      # WASM PWA SoT (engines, Gate A, UI)
 ├── scripts/                  # thin CLI entrypoints
 ├── config/
 └── docs/

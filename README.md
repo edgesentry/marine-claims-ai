@@ -24,7 +24,7 @@ uv run pytest -q
 Full install, ingest, index, eval, pipeline, and demo instructions:
 **[docs/getting_started.md](docs/getting_started.md)**
 
-Executive demo (CLI + WASM PWA): **[docs/executive_demo_cli_and_web.md](docs/executive_demo_cli_and_web.md)**
+Executive demo (WASM PWA): **[docs/executive_demo_cli_and_web.md](docs/executive_demo_cli_and_web.md)**
 
 Agent constraints: **[AGENTS.md](AGENTS.md)**
 
@@ -33,7 +33,7 @@ Agent constraints: **[AGENTS.md](AGENTS.md)**
 | Doc | Topic |
 | :--- | :--- |
 | [Getting Started](docs/getting_started.md) | Install, ingest, indexes, benchmarks, pipeline |
-| [Executive Demo (Issues #54 / #76)](docs/executive_demo_cli_and_web.md) | CLI + client-side WASM PWA |
+| [Executive Demo (Issues #54 / #76)](docs/executive_demo_cli_and_web.md) | Client-side WASM PWA |
 | [Demo Use Cases](docs/demo_use_cases.md) | Per-tab use case / input / process / output |
 | [Technical Stack](docs/technical_stack.md) | Architecture |
 | [Public Benchmarks & Accuracy](docs/public_benchmarks_and_accuracy_evaluation.md) | Evaluation methodology |

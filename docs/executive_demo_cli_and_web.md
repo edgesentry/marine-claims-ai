@@ -20,7 +20,7 @@ npm run gate-a
 npm run build && npm run preview
 ```
 
-`marine-claims-demo` and Gate A Python scripts print these instructions and exit 2.
+Python demo CLI / Gate A shims were removed; use the commands above.
 
 **Python kept intentionally (build-time / corpus ops):**
 
@@ -31,6 +31,5 @@ npm run build && npm run preview
 | `analytics/apportion.py` + `drydock_sql.py` | DuckDB SQL plane over built indexes |
 | `benchmarks/retrieval_scale.py`, `civil_coverage.py` | Corpus-scale metrics over local DuckDB/catalog |
 | `ci/`, `adapters/`, `ontology/psc.py` | Leak checks, jurisdiction adapters, PSC code maps for ingest |
-| `demo/cli.py` | Redirect shim only |
 
 LanceDB / fastembed were removed; search uses DuckDB `list_cosine_similarity` + keyword RRF with PWA-aligned hash embeddings.
