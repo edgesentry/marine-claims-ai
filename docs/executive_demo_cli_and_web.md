@@ -1,16 +1,20 @@
-# Executive Demo & Gate A: WASM PWA (Issues #54 / #76)
+# Executive Demo & Gate A: WASM PWA (Issues #54 / #76 / #83)
 
 **Source of truth:** `web/src/` (TypeScript + DuckDB-WASM).
 
 | Area | Path |
 | :--- | :--- |
-| Engines | `web/src/engines/` (Rule D5, COLREGS, fault, BFS) |
+| Engines | `web/src/engines/` (Rule D5, COLREGS, fault, BFS, **PSC**) |
 | Appraisal + NPL | `web/src/appraisal/` |
 | Exact Span A4 | `web/src/pipeline/` |
 | Civil A7 | `web/src/ingest/civilJudgmentExtractor.ts` |
 | Field3 A8 | `web/src/benchmarks/verify3Fields.ts` |
 | Gate A | `web/src/benchmarks/gateAPriority{1,2}.ts` |
 | Tests | `web/tests/` (Vitest) |
+
+Demo tabs: **1. Rule D5** · **2. COLREGS** · **3. PSC** (public MOU fixtures → Defect Score).
+
+**Legal / rule basis (one line each):** London AAA **Rule D5** · **COLREGS 1972** Rules 13–17 / **海上衝突予防法** 第13–17条 · Tokyo/Paris **MOU** deficiency + action codes (IMO A.1155(32) procedures context). Full table: [demo_use_cases.md](demo_use_cases.md#legal--rule-basis-summary).
 
 ```bash
 cd web
@@ -30,6 +34,6 @@ Python demo CLI / Gate A shims were removed; use the commands above.
 | `index/` | DuckDB build + vector/keyword retrieval (`marine-claims-index` / search) |
 | `analytics/apportion.py` + `drydock_sql.py` | DuckDB SQL plane over built indexes |
 | `benchmarks/retrieval_scale.py`, `civil_coverage.py` | Corpus-scale metrics over local DuckDB/catalog |
-| `ci/`, `adapters/`, `ontology/psc.py` | Leak checks, jurisdiction adapters, PSC code maps for ingest |
+| `ci/`, `adapters/`, `ontology/psc.py` | Leak checks, jurisdiction adapters, PSC code maps for ingest (PWA SoT is `web/src/engines/psc.ts`) |
 
 LanceDB / fastembed were removed; search uses DuckDB `list_cosine_similarity` + keyword RRF with PWA-aligned hash embeddings.

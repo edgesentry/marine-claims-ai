@@ -14,6 +14,15 @@ import {
 } from "./engines/fault";
 import { validateCausality } from "./engines/bfs";
 import {
+  DEFAULT_LOOKBACK_MONTHS,
+  scoreFixtureCase,
+  scoreSeaworthiness,
+  tryParsePscPaste,
+  type NormalizedDeficiency,
+  type PscFixtureCase,
+  type SeaworthinessRiskReport,
+} from "./engines/psc";
+import {
   extractPdfText,
   extractRepairItemsFromText,
   repairItemsToRuleDLines,
@@ -38,12 +47,15 @@ import {
   colregsHtml,
   colregsMarkdown,
   downloadText,
+  pscHtml,
+  pscMarkdown,
+  type PscView,
   type Uc2View,
   type Uc3View,
 } from "./ui/export";
 import { getDuckDb } from "./db/duckdb";
 
-type Tab = "uc2" | "uc3";
+type Tab = "uc2" | "uc3" | "psc";
 
 interface AppState {
   lang: Lang;
@@ -70,6 +82,17 @@ interface AppState {
   jmatCases: Array<Record<string, string>>;
   civil7: CatalogSeed | null;
   nplScorer: NplScorer;
+  // PSC
+  pscFixtures: PscFixtureCase[];
+  pscCaseId: string;
+  pscLookbackMonths: number;
+  pscPasteText: string;
+  pscUsePaste: boolean;
+  pscPasteCurrent: NormalizedDeficiency[];
+  pscPastePrior: NormalizedDeficiency[] | null;
+  pscPasteCic: Record<string, number> | null;
+  pscPasteMou: string | null;
+  pscPasteLabel: string;
 }
 
 const state: AppState = {
@@ -95,6 +118,16 @@ const state: AppState = {
   jmatCases: [],
   civil7: null,
   nplScorer: noOpNplScorer,
+  pscFixtures: [],
+  pscCaseId: "repeat_ism_major",
+  pscLookbackMonths: DEFAULT_LOOKBACK_MONTHS,
+  pscPasteText: "",
+  pscUsePaste: false,
+  pscPasteCurrent: [],
+  pscPastePrior: null,
+  pscPasteCic: null,
+  pscPasteMou: null,
+  pscPasteLabel: "",
 };
 
 function fmtYen(n: number): string {
@@ -227,7 +260,7 @@ function buildUc3(): Uc3View {
   };
 }
 
-function briefingBox(prefix: "uc2" | "uc3"): string {
+function briefingBox(prefix: "uc2" | "uc3" | "psc"): string {
   return `<aside class="briefing" aria-label="${escapeHtml(t("briefing_label", state.lang))}">
     <h2 class="briefing-title">${escapeHtml(t(`briefing_title_${prefix}`, state.lang))}</h2>
     <div class="briefing-prose">
@@ -238,7 +271,7 @@ function briefingBox(prefix: "uc2" | "uc3"): string {
   </aside>`;
 }
 
-function explainBox(prefix: "uc2" | "uc3"): string {
+function explainBox(prefix: "uc2" | "uc3" | "psc"): string {
   return `<aside class="explain">
     <div><strong>${escapeHtml(t("explain_usecase", state.lang))}</strong> ${escapeHtml(t(`${prefix}_explain_usecase`, state.lang))}</div>
     <div><strong>${escapeHtml(t("explain_input", state.lang))}</strong> ${escapeHtml(t(`${prefix}_explain_input`, state.lang))}</div>
@@ -568,6 +601,205 @@ function renderUc3(root: HTMLElement): void {
   });
 }
 
+function buildPscReport(): { report: SeaworthinessRiskReport; title: string } {
+  if (state.pscUsePaste && state.pscPasteCurrent.length) {
+    const report = scoreSeaworthiness(state.pscPasteCurrent, {
+      prior: state.pscPastePrior,
+      mouId: state.pscPasteMou,
+      cicWeights: state.pscPasteCic,
+      lookbackMonths: state.pscLookbackMonths,
+    });
+    return { report, title: state.pscPasteLabel || "pasted" };
+  }
+  const fixture =
+    state.pscFixtures.find((c) => c.id === state.pscCaseId) ||
+    state.pscFixtures[0] ||
+    null;
+  if (!fixture) {
+    return {
+      report: scoreSeaworthiness([]),
+      title: state.pscCaseId || "—",
+    };
+  }
+  return {
+    report: scoreFixtureCase(fixture, { lookbackMonths: state.pscLookbackMonths }),
+    title: fixture.id,
+  };
+}
+
+function buildPscView(): PscView {
+  const { report, title } = buildPscReport();
+  return {
+    title,
+    mou_id: report.mou_id,
+    lookback_months: state.pscLookbackMonths,
+    defect_score: report.defect_score,
+    risk_band: report.risk_band,
+    detention_present: report.detention_present,
+    repeat_critical_flags: report.repeat_critical_flags,
+    notes: report.notes,
+    convention_citations: report.convention_citations,
+    deficiencies: report.deficiencies.map((d) => ({
+      code: d.code,
+      action_code: d.action_code,
+      description: d.description,
+      category_label: d.category_label,
+      convention: d.convention,
+      critical_system: d.critical_system,
+      is_repeat_critical: d.is_repeat_critical,
+      contribution: d.contribution,
+    })),
+  };
+}
+
+function renderPsc(root: HTMLElement): void {
+  const view = buildPscView();
+  const options =
+    state.pscFixtures.length > 0
+      ? state.pscFixtures
+      : [{ id: state.pscCaseId || "repeat_ism_major" } as PscFixtureCase];
+  const bandClass =
+    view.risk_band === "critical"
+      ? "band-critical"
+      : view.risk_band === "elevated"
+        ? "band-elevated"
+        : "band-low";
+
+  root.innerHTML = `
+    ${briefingBox("psc")}
+    <p class="lead">${escapeHtml(t("psc_lead", state.lang))}</p>
+    ${explainBox("psc")}
+    <div class="grid-2">
+      <section class="panel">
+        <label>${escapeHtml(t("select_psc_fixture", state.lang))}
+          <select id="pscCaseSel" ${state.pscUsePaste ? "disabled" : ""}>
+            ${options
+              .map(
+                (o) =>
+                  `<option value="${escapeHtml(o.id)}" ${o.id === state.pscCaseId ? "selected" : ""}>${escapeHtml(o.id)}${
+                    o.mou_id ? ` (${escapeHtml(String(o.mou_id))})` : ""
+                  }</option>`,
+              )
+              .join("")}
+          </select>
+        </label>
+        <label>${escapeHtml(t("psc_lookback", state.lang))}
+          <input type="range" id="pscLookback" min="3" max="60" step="1" value="${state.pscLookbackMonths}">
+          <span id="pscLookbackVal">${state.pscLookbackMonths}</span>
+        </label>
+        <label>${escapeHtml(t("psc_paste", state.lang))}
+          <textarea id="pscPaste" rows="8" placeholder="${escapeHtml(t("psc_paste_hint", state.lang))}">${escapeHtml(state.pscPasteText)}</textarea>
+        </label>
+        <div class="actions">
+          <button type="button" class="btn" id="pscApplyPaste">${escapeHtml(t("psc_apply_paste", state.lang))}</button>
+          <button type="button" class="btn" id="pscClearPaste">${escapeHtml(t("psc_clear_paste", state.lang))}</button>
+        </div>
+        <p class="muted">${escapeHtml(t("psc_disclaimer", state.lang))}</p>
+      </section>
+      <section class="panel">
+        <h2>${escapeHtml(view.title)}</h2>
+        <dl class="metrics">
+          <div><dt>${escapeHtml(t("psc_defect_score", state.lang))}</dt><dd><strong>${escapeHtml(view.defect_score)}</strong></dd></div>
+          <div><dt>${escapeHtml(t("psc_risk_band", state.lang))}</dt><dd><span class="risk-band ${bandClass}">${escapeHtml(t(`psc_band_${view.risk_band}`, state.lang))}</span></dd></div>
+          <div><dt>${escapeHtml(t("psc_detention", state.lang))}</dt><dd>${escapeHtml(
+            view.detention_present ? t("psc_present", state.lang) : t("psc_absent", state.lang),
+          )}</dd></div>
+          <div><dt>${escapeHtml(t("psc_repeat_flags", state.lang))}</dt><dd>${escapeHtml(
+            view.repeat_critical_flags.join(", ") || "—",
+          )}</dd></div>
+        </dl>
+        ${view.notes ? `<p class="muted">${escapeHtml(view.notes)}</p>` : ""}
+        <table class="lines">
+          <thead><tr>
+            <th>${escapeHtml(t("psc_col_code", state.lang))}</th>
+            <th>${escapeHtml(t("psc_col_action", state.lang))}</th>
+            <th>${escapeHtml(t("psc_col_nature", state.lang))}</th>
+            <th>${escapeHtml(t("psc_col_repeat", state.lang))}</th>
+            <th>${escapeHtml(t("psc_col_contrib", state.lang))}</th>
+          </tr></thead>
+          <tbody>
+            ${
+              view.deficiencies.length
+                ? view.deficiencies
+                    .map(
+                      (d) => `<tr>
+              <td><code>${escapeHtml(d.code)}</code></td>
+              <td>${escapeHtml(d.action_code || "—")}</td>
+              <td>${escapeHtml(d.description || d.category_label || "—")}</td>
+              <td>${escapeHtml(
+                d.is_repeat_critical ? t("psc_yes", state.lang) : t("psc_no", state.lang),
+              )}</td>
+              <td class="num">${escapeHtml(d.contribution)}</td>
+            </tr>`,
+                    )
+                    .join("")
+                : `<tr><td colspan="5">—</td></tr>`
+            }
+          </tbody>
+        </table>
+        <div class="actions">
+          <button type="button" class="btn" id="expPscMd">${escapeHtml(t("export_psc_md", state.lang))}</button>
+          <button type="button" class="btn" id="expPscHtml">${escapeHtml(t("export_psc_html", state.lang))}</button>
+        </div>
+      </section>
+    </div>
+  `;
+
+  root.querySelector("#pscCaseSel")?.addEventListener("change", (e) => {
+    state.pscCaseId = (e.target as HTMLSelectElement).value;
+    state.pscUsePaste = false;
+    render();
+  });
+  root.querySelector("#pscLookback")?.addEventListener("input", (e) => {
+    state.pscLookbackMonths = Number((e.target as HTMLInputElement).value);
+    const val = root.querySelector("#pscLookbackVal");
+    if (val) val.textContent = String(state.pscLookbackMonths);
+  });
+  root.querySelector("#pscLookback")?.addEventListener("change", (e) => {
+    state.pscLookbackMonths = Number((e.target as HTMLInputElement).value);
+    render();
+  });
+  root.querySelector("#pscPaste")?.addEventListener("change", (e) => {
+    state.pscPasteText = (e.target as HTMLTextAreaElement).value;
+  });
+  root.querySelector("#pscApplyPaste")?.addEventListener("click", () => {
+    const ta = root.querySelector("#pscPaste") as HTMLTextAreaElement | null;
+    const text = ta?.value ?? state.pscPasteText;
+    state.pscPasteText = text;
+    try {
+      const parsed = tryParsePscPaste(text);
+      if (!parsed.current.length) {
+        alert(t("psc_err_empty", state.lang));
+        return;
+      }
+      state.pscPasteCurrent = parsed.current;
+      state.pscPastePrior = parsed.prior;
+      state.pscPasteCic = parsed.cicWeights;
+      state.pscPasteMou = parsed.mouId;
+      state.pscPasteLabel = parsed.label;
+      state.pscUsePaste = true;
+      render();
+    } catch {
+      alert(t("psc_err_paste", state.lang));
+    }
+  });
+  root.querySelector("#pscClearPaste")?.addEventListener("click", () => {
+    state.pscUsePaste = false;
+    state.pscPasteCurrent = [];
+    state.pscPastePrior = null;
+    state.pscPasteCic = null;
+    state.pscPasteMou = null;
+    state.pscPasteLabel = "";
+    render();
+  });
+  root.querySelector("#expPscMd")?.addEventListener("click", () => {
+    downloadText("psc_memo.md", pscMarkdown(view, state.lang), "text/markdown");
+  });
+  root.querySelector("#expPscHtml")?.addEventListener("click", () => {
+    downloadText("psc_memo.html", pscHtml(view, state.lang), "text/html");
+  });
+}
+
 function render(): void {
   const app = document.querySelector("#app")!;
   app.innerHTML = `
@@ -578,6 +810,7 @@ function render(): void {
       <nav class="nav">
         <button type="button" class="btn ${state.tab === "uc2" ? "active" : ""}" data-tab="uc2">${escapeHtml(t("nav_uc2", state.lang))}</button>
         <button type="button" class="btn ${state.tab === "uc3" ? "active" : ""}" data-tab="uc3">${escapeHtml(t("nav_uc3", state.lang))}</button>
+        <button type="button" class="btn ${state.tab === "psc" ? "active" : ""}" data-tab="psc">${escapeHtml(t("nav_psc", state.lang))}</button>
         <label class="lang-select">
           <span class="sr-only">${escapeHtml(t("lang_label", state.lang))}</span>
           <select id="langSel" aria-label="${escapeHtml(t("lang_label", state.lang))}">
@@ -592,7 +825,8 @@ function render(): void {
   `;
   const main = app.querySelector("#main") as HTMLElement;
   if (state.tab === "uc2") renderUc2(main);
-  else renderUc3(main);
+  else if (state.tab === "uc3") renderUc3(main);
+  else renderPsc(main);
 
   app.querySelectorAll("[data-tab]").forEach((btn) => {
     btn.addEventListener("click", () => {
@@ -609,17 +843,26 @@ function render(): void {
 
 async function loadData(): Promise<void> {
   const base = import.meta.env.BASE_URL || "./";
-  const [rules, civil, jmat, npl] = await Promise.all([
+  const [rules, civil, jmat, npl, psc] = await Promise.all([
     fetch(`${base}data/fault_ratio_rules.json`).then((r) => r.json()),
     fetch(`${base}data/civil_precedent_catalog.json`).then((r) => r.json()),
     fetch(`${base}data/jmat_collision_eval.json`).then((r) => r.json()),
     fetch(`${base}data/negative_pattern_library.json`)
       .then((r) => (r.ok ? r.json() : null))
       .catch(() => null),
+    fetch(`${base}data/psc_inspection_fixtures.json`)
+      .then((r) => (r.ok ? r.json() : null))
+      .catch(() => null),
   ]);
   state.rules = rules as FaultRules;
   if (npl?.patterns) {
     state.nplScorer = createNplScorer(npl as NplLibrary);
+  }
+  if (psc?.cases && Array.isArray(psc.cases)) {
+    state.pscFixtures = psc.cases as PscFixtureCase[];
+    if (!state.pscFixtures.some((c) => c.id === state.pscCaseId) && state.pscFixtures[0]) {
+      state.pscCaseId = state.pscFixtures[0].id;
+    }
   }
   const seeds = (civil.seeds || []) as Array<Record<string, unknown>>;
   state.seeds = seeds.map((s) => ({

@@ -600,3 +600,37 @@ th { color: var(--muted); font-weight: 550; font-size: 0.78rem; }
 .muted { color: var(--muted); font-size: 0.85rem; }
 .ok { color: var(--ok); }
 .nav { display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: center; }
+.panel textarea {
+  display: block;
+  width: 100%;
+  margin-top: 0.35rem;
+  padding: 0.55rem 0.65rem;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: #0a1520;
+  color: var(--ink);
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  line-height: 1.45;
+  resize: vertical;
+}
+.risk-band {
+  display: inline-block;
+  padding: 0.12rem 0.5rem;
+  border-radius: 4px;
+  font-weight: 650;
+  font-size: 0.9rem;
+  letter-spacing: 0.02em;
+}
+.risk-band.band-low {
+  background: color-mix(in srgb, var(--ok) 35%, transparent);
+  color: #b6e3c7;
+}
+.risk-band.band-elevated {
+  background: color-mix(in srgb, var(--warn) 35%, transparent);
+  color: #f0d98a;
+}
+.risk-band.band-critical {
+  background: color-mix(in srgb, var(--danger) 35%, transparent);
+  color: #f0b4aa;
+}

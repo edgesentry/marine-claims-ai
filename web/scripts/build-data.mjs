@@ -18,6 +18,7 @@ const configFiles = [
   "civil_precedent_catalog.json",
   "jmat_collision_eval.json",
   "collision_geometries.json",
+  "psc_inspection_fixtures.json",
 ];
 
 for (const name of configFiles) {

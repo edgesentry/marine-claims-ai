@@ -12,7 +12,7 @@ export default defineConfig({
         name: "MarineClaims AI — Executive Demo",
         short_name: "MarineClaims",
         description:
-          "Offline Rule D5 / COLREGS claims appraisal suite (client-side WASM)",
+          "Offline Rule D5 / COLREGS / PSC claims appraisal suite (client-side WASM)",
         theme_color: "#0b1c2c",
         background_color: "#0b1c2c",
         display: "standalone",

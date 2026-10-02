@@ -17,16 +17,16 @@ uv run pytest -q
 
 ---
 
-## 0b. Executive demo (Issues #54 / #76)
+## 0b. Executive demo (Issues #54 / #76 / #83)
 
-Browser UI is the static WASM PWA under `web/` (no Python demo server/CLI).
+Browser UI is the static WASM PWA under `web/` (no Python demo server/CLI). Tabs: **Rule D5**, **COLREGS**, **PSC**.
 
 ```bash
 cd web && npm install && npm test && npm run gate-a
 cd web && npm run build && npm run preview
 ```
 
-Full design: [executive_demo_cli_and_web.md](executive_demo_cli_and_web.md).
+Full design: [executive_demo_cli_and_web.md](executive_demo_cli_and_web.md). Use-case I/O and **legal / rule basis** (AAA Rule D5 · COLREGS / 海上衝突予防法 · Tokyo/Paris MOU + IMO A.1155(32)): [demo_use_cases.md](demo_use_cases.md).
 
 ---
 
