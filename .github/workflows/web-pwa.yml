@@ -22,7 +22,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # PR + push: Vitest / Gate A / production build only.
+  # PR + push: Vitest / Gate A / Stage A / production build.
   # Do not reference Pages/upload-artifact actions here — GitHub resolves every
   # `uses:` at job start, and unpinned transitive deps fail sha_pinning_required.
   test-and-build:
@@ -53,6 +53,25 @@ jobs:
       - name: Build static PWA
         working-directory: web
         run: npm run build
+
+  # Issue #93: Stage A extraction accuracy — independent of Gate A / Stage B.
+  stage-a:
+    name: Stage A eval
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install & Stage A gates
+        working-directory: web
+        run: |
+          npm ci
+          npm run stage-a
 
   # main only: rebuild dist + Pages upload/deploy (isolated so PRs stay clean).
   pages-artifact:
