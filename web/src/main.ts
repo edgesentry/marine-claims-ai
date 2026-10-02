@@ -42,8 +42,6 @@ type Tab = "uc2" | "uc3";
 interface AppState {
   lang: Lang;
   tab: Tab;
-  duckReady: boolean;
-  offline: boolean;
   // UC2
   dailyDockRate: number;
   dockDays: number;
@@ -71,8 +69,6 @@ interface AppState {
 const state: AppState = {
   lang: (localStorage.getItem("lang") as Lang) || "en",
   tab: "uc2",
-  duckReady: false,
-  offline: !navigator.onLine,
   dailyDockRate: 860_000,
   dockDays: 5,
   hireRate: 4_000_000,
@@ -526,9 +522,6 @@ function render(): void {
     <header class="topbar">
       <div class="brand-group">
         <div class="brand"><img class="brand-logo" src="./icons/icon.svg" width="28" height="28" alt=""/> ${t("app_title", state.lang)}</div>
-        <span class="badge">${state.duckReady ? t("duckdb_ready", state.lang) : t("duckdb_loading", state.lang)}</span>
-        <span class="badge">${t("offline_badge", state.lang)}</span>
-        ${state.offline ? `<span class="badge warning">${t("pwa_offline_active", state.lang)}</span>` : ""}
       </div>
       <nav class="nav">
         <button type="button" class="btn ${state.tab === "uc2" ? "active" : ""}" data-tab="uc2">${t("nav_uc2", state.lang)}</button>
@@ -596,15 +589,6 @@ async function loadData(): Promise<void> {
 }
 
 function registerPwa(): void {
-  window.addEventListener("online", () => {
-    state.offline = false;
-    render();
-  });
-  window.addEventListener("offline", () => {
-    state.offline = true;
-    render();
-  });
-
   let deferred: BeforeInstallPromptEvent | null = null;
   window.addEventListener("beforeinstallprompt", (e) => {
     e.preventDefault();
@@ -635,11 +619,9 @@ async function main(): Promise<void> {
   }
   render();
   try {
-    await getDuckDb();
-    state.duckReady = true;
+    const db = await getDuckDb();
     // Warm Parquet if present
     try {
-      const db = await getDuckDb();
       const conn = await db.connect();
       const base = import.meta.env.BASE_URL || "./";
       try {
@@ -656,7 +638,6 @@ async function main(): Promise<void> {
   } catch (err) {
     console.warn("DuckDB-WASM init failed; using pure-TS engines", err);
   }
-  render();
 }
 
 main();

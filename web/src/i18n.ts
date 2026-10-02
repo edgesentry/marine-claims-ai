@@ -13,15 +13,7 @@ const MESSAGES: Record<string, Record<Lang, string>> = {
   nav_uc3: { en: "2. COLREGS", ja: "2. COLREGS 航法" },
   lang_en: { en: "English", ja: "English" },
   lang_ja: { en: "日本語", ja: "日本語" },
-  offline_badge: {
-    en: "Offline-ready · local WASM engines only",
-    ja: "オフライン対応 · ローカル WASM エンジンのみ",
-  },
   pwa_install_btn: { en: "Install App", ja: "アプリをインストール" },
-  pwa_offline_active: {
-    en: "Offline mode active (cached)",
-    ja: "オフラインモード稼働中（キャッシュ表示）",
-  },
   uc2_lead: {
     en: "Open a drydock repair PDF, split common dues under Rule D5, and estimate avoided off-hire.",
     ja: "入渠・修繕の PDF を開き、Rule D5 で共通入渠費を按分し、休航損失回避額を見積もります。",
@@ -133,8 +125,6 @@ const MESSAGES: Record<string, Record<Lang, string>> = {
     en: "Analysis finished. Results are shown below.",
     ja: "解析が完了しました。下に結果を表示しています。",
   },
-  duckdb_ready: { en: "DuckDB-WASM ready", ja: "DuckDB-WASM 準備完了" },
-  duckdb_loading: { en: "Loading DuckDB-WASM…", ja: "DuckDB-WASM 読込中…" },
 };
 
 export function t(key: string, lang: Lang = "en"): string {
