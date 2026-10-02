@@ -250,6 +250,10 @@ const MESSAGES: Record<string, Record<Lang, string>> = {
     en: "No repair line items were found in this specification PDF.",
     ja: "この修繕仕様 PDF から工事明細を抽出できませんでした。",
   },
+  err_schema_invalid: {
+    en: "Extracted data failed the Stage A schema check and was not scored.",
+    ja: "抽出結果が Stage A スキーマ検証に失敗したため、採点しませんでした。",
+  },
   analyzed_ok: {
     en: "Analysis finished. Results are shown below.",
     ja: "解析が完了しました。下に結果を表示しています。",

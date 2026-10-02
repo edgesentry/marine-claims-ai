@@ -18,6 +18,16 @@ Related: [Executive demo (WASM PWA)](executive_demo_cli_and_web.md) · [AAA Rule
 
 Detailed clause maps: [aaa_rule_d5_drydock_apportionment.md](aaa_rule_d5_drydock_apportionment.md) · [colregs_encounter_engine.md](colregs_encounter_engine.md) · [psc_deficiency_vector.md](psc_deficiency_vector.md).
 
+## Stage A extraction contract
+
+Before Stage B scoring, extractors wrap output in a shared **`ExtractionResult`** (`web/src/schemas/`, Issue #87):
+
+- `rule_d5.v1` — repair lines + docking context  
+- `colregs.v1` — headings / bearing / situation candidates + facts/ruling excerpts  
+- `psc.v1` — deficiency rows (+ optional prior window)
+
+Invalid envelopes never reach the Rule D5 / COLREGS / PSC scorers. JSON Schema copies for interoperability: [docs/schemas/](schemas/).
+
 ---
 
 ## UC1 (demo tab) — AAA Rule D5 & off-hire simulator

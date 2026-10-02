@@ -1,0 +1,34 @@
+/**
+ * Shared Stage A ExtractionResult envelope (Issue #87).
+ * Tier 1–3 extractors emit this shape; Stage B scorers only run after validation.
+ */
+import { z } from "zod";
+
+export const SCHEMA_IDS = ["rule_d5.v1", "colregs.v1", "psc.v1"] as const;
+export type SchemaId = (typeof SCHEMA_IDS)[number];
+
+export const SchemaIdSchema = z.enum(SCHEMA_IDS);
+
+export const GroundingRefSchema = z.object({
+  field: z.string().optional(),
+  source_quote: z.string().min(1),
+  page_number: z.number().int().nullable().optional(),
+  /** Reserved for Issue #88 PDF bbox grounding. */
+  pdf_coordinates: z.unknown().nullable().optional(),
+});
+
+export const AbstainSchema = z.object({
+  code: z.literal("HUMAN_REVIEW_REQUIRED"),
+  reason: z.string().min(1),
+});
+
+/** Envelope fields shared by every UC (payload validated separately). */
+export const ExtractionEnvelopeBaseSchema = z.object({
+  schema_id: SchemaIdSchema,
+  confidence: z.number().min(0).max(1),
+  grounding: z.array(GroundingRefSchema).default([]),
+  abstain: AbstainSchema.optional(),
+});
+
+export type GroundingRef = z.infer<typeof GroundingRefSchema>;
+export type Abstain = z.infer<typeof AbstainSchema>;
