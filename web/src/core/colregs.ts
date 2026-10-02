@@ -12,6 +12,10 @@ import {
   type FaultRules,
   type FaultPrediction,
 } from "../engines/fault";
+import { findGroundedQuote } from "../pipeline/spanValidate";
+import type { GroundingMode } from "../pipeline/groundingGate";
+import type { PdfContent } from "../pipeline/pdfLocate";
+import { locateQuoteInPdfSafe } from "../pipeline/pdfLocate";
 import {
   buildColregsExtraction,
   geometryFromExtraction,
@@ -32,6 +36,10 @@ export interface ColregsRunInput {
   }>;
   confidence?: number;
   grounding?: GroundingRef[];
+  groundingMode?: GroundingMode;
+  /** Source document text for Exact Span verification. */
+  sourceText?: string;
+  pdfContent?: PdfContent;
   rules?: FaultRules | null;
   seeds?: CatalogSeed[];
 }
@@ -44,31 +52,93 @@ export interface ColregsRunResult {
   prediction: FaultPrediction | null;
 }
 
+function groundExcerpt(
+  field: string,
+  excerpt: string | undefined,
+  sourceText: string | undefined,
+  pdfContent: PdfContent | undefined,
+): { excerpt?: string; grounding?: GroundingRef } {
+  const raw = (excerpt || "").trim();
+  if (!raw) return {};
+
+  if (!sourceText) {
+    return {
+      excerpt: raw,
+      grounding: { field, source_quote: raw.slice(0, 240) },
+    };
+  }
+
+  const quote = findGroundedQuote(raw, sourceText);
+  if (!quote) return {};
+
+  let page_number: number | null = null;
+  let pdf_coordinates = null as GroundingRef["pdf_coordinates"];
+  if (pdfContent) {
+    const loc = locateQuoteInPdfSafe(quote, pdfContent);
+    page_number = loc.page_number;
+    pdf_coordinates = loc.pdf_coordinates;
+  }
+
+  return {
+    excerpt: quote,
+    grounding: {
+      field,
+      source_quote: quote.slice(0, 240),
+      page_number,
+      pdf_coordinates,
+    },
+  };
+}
+
 export function runColregs(input: ColregsRunInput): ColregsRunResult {
-  const autoGrounding: GroundingRef[] = [];
-  if (input.factsExcerpt) {
-    autoGrounding.push({
-      field: "facts_excerpt",
-      source_quote: input.factsExcerpt.slice(0, 240),
-    });
+  const mode: GroundingMode =
+    input.groundingMode ??
+    (input.sourceText ? "require_span" : "paste_bypass");
+
+  let factsExcerpt = input.factsExcerpt;
+  let rulingExcerpt = input.rulingExcerpt;
+  let grounding = input.grounding;
+
+  if (!grounding) {
+    const facts = groundExcerpt(
+      "facts_excerpt",
+      input.factsExcerpt,
+      input.sourceText,
+      input.pdfContent,
+    );
+    const ruling = groundExcerpt(
+      "ruling_excerpt",
+      input.rulingExcerpt,
+      input.sourceText,
+      input.pdfContent,
+    );
+    factsExcerpt = facts.excerpt;
+    rulingExcerpt = ruling.excerpt;
+    grounding = [facts.grounding, ruling.grounding].filter(
+      (g): g is GroundingRef => g != null,
+    );
+
+    if (mode === "require_span" && input.sourceText) {
+      if (input.factsExcerpt?.trim() && !facts.excerpt) {
+        throw new Error("facts_excerpt not grounded in source text");
+      }
+      if (input.rulingExcerpt?.trim() && !ruling.excerpt) {
+        throw new Error("ruling_excerpt not grounded in source text");
+      }
+    }
   }
-  if (input.rulingExcerpt) {
-    autoGrounding.push({
-      field: "ruling_excerpt",
-      source_quote: input.rulingExcerpt.slice(0, 240),
-    });
-  }
-  const grounding = input.grounding ?? autoGrounding;
 
   const extraction = buildColregsExtraction({
     geometry: input.geometry,
-    factsExcerpt: input.factsExcerpt,
-    rulingExcerpt: input.rulingExcerpt,
+    factsExcerpt,
+    rulingExcerpt,
     faultRatioHint: input.faultRatioHint,
     documentKind: input.documentKind,
     situationCandidates: input.situationCandidates,
     confidence: input.confidence ?? 0.6,
     grounding,
+    groundingMode: mode,
+    sourceText: input.sourceText,
   });
   const geometry = geometryFromExtraction(extraction);
   const verdict = classifyEncounter(geometry);

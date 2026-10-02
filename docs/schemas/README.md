@@ -17,3 +17,5 @@ cd web && npm run build:schemas
 ```
 
 Invalid envelopes must not reach Stage B scorers.
+
+Grounding semantics (`source_quote`, `page_number`, `pdf_coordinates`) and Exact Span / `paste_bypass` rules: [../exact_span_grounding.md](../exact_span_grounding.md) (Issue #88).

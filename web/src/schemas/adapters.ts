@@ -6,6 +6,10 @@ import type { EncounterGeometry } from "../engines/colregs";
 import type { NormalizedDeficiency } from "../engines/psc";
 import type { GroundingRef } from "./envelope";
 import {
+  assertGroundingForStageB,
+  type GroundingMode,
+} from "../pipeline/groundingGate";
+import {
   assertValidForStageB,
   type ColregsExtraction,
   type ExtractionResult,
@@ -29,12 +33,30 @@ function deficiencyToExtract(d: NormalizedDeficiency): PscDeficiencyExtract {
   };
 }
 
+export interface ExtractionBuildOpts {
+  groundingMode?: GroundingMode;
+  sourceText?: string;
+}
+
+function gateEnvelope(
+  envelope: unknown,
+  opts: ExtractionBuildOpts,
+): ExtractionResult {
+  const shape = assertValidForStageB(envelope);
+  return assertGroundingForStageB(shape, {
+    mode: opts.groundingMode ?? "require_span",
+    sourceText: opts.sourceText,
+  });
+}
+
 export function buildRuleD5Extraction(opts: {
   dockingContext: DockingContext;
   lines: RepairLineItem[];
   assumeStatutoryOwnerWork?: boolean;
   confidence?: number;
   grounding?: GroundingRef[];
+  groundingMode?: GroundingMode;
+  sourceText?: string;
 }): RuleD5Extraction {
   const envelope = {
     schema_id: "rule_d5.v1" as const,
@@ -53,7 +75,7 @@ export function buildRuleD5Extraction(opts: {
       assume_statutory_owner_work: opts.assumeStatutoryOwnerWork,
     },
   };
-  return assertValidForStageB(envelope) as RuleD5Extraction;
+  return gateEnvelope(envelope, opts) as RuleD5Extraction;
 }
 
 export function buildColregsExtraction(opts: {
@@ -68,6 +90,8 @@ export function buildColregsExtraction(opts: {
   }>;
   confidence?: number;
   grounding?: GroundingRef[];
+  groundingMode?: GroundingMode;
+  sourceText?: string;
 }): ColregsExtraction {
   const envelope = {
     schema_id: "colregs.v1" as const,
@@ -91,7 +115,7 @@ export function buildColregsExtraction(opts: {
       document_kind: opts.documentKind,
     },
   };
-  return assertValidForStageB(envelope) as ColregsExtraction;
+  return gateEnvelope(envelope, opts) as ColregsExtraction;
 }
 
 export function buildPscExtraction(opts: {
@@ -102,6 +126,8 @@ export function buildPscExtraction(opts: {
   mouId?: string | null;
   confidence?: number;
   grounding?: GroundingRef[];
+  groundingMode?: GroundingMode;
+  sourceText?: string;
 }): PscExtraction {
   const toExtract = (
     rows: Array<NormalizedDeficiency | PscDeficiencyExtract>,
@@ -130,7 +156,7 @@ export function buildPscExtraction(opts: {
       mou_id: opts.mouId ?? undefined,
     },
   };
-  return assertValidForStageB(envelope) as PscExtraction;
+  return gateEnvelope(envelope, opts) as PscExtraction;
 }
 
 /** Map validated Rule D5 payload back to engine RepairLineItem[]. */
@@ -156,7 +182,15 @@ export function geometryFromExtraction(
 /**
  * Validate any unknown JSON (e.g. SLM/LLM output) as an ExtractionResult.
  * Throws ExtractionValidationError on failure.
+ * Grounding mode defaults to paste_bypass so raw envelope shape checks stay #87-compatible;
+ * callers that need Exact Span should pass groundingMode + sourceText via build* or assertGroundingForStageB.
  */
-export function gateExtraction(input: unknown): ExtractionResult {
-  return assertValidForStageB(input);
+export function gateExtraction(
+  input: unknown,
+  opts: ExtractionBuildOpts = {},
+): ExtractionResult {
+  return gateEnvelope(input, {
+    groundingMode: opts.groundingMode ?? "paste_bypass",
+    sourceText: opts.sourceText,
+  });
 }

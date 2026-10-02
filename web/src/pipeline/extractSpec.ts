@@ -2,9 +2,10 @@
  * Exact-span repair-spec extraction (port of pipeline/extract_spec.py).
  * Browser path takes already-extracted text + line items (pdf.js upstream).
  */
-import {
-  findGroundedQuote,
-} from "./spanValidate";
+import type { PdfCoordinates } from "../schemas/envelope";
+import type { PdfContent } from "./pdfLocate";
+import { locateQuoteInPdfSafe } from "./pdfLocate";
+import { findGroundedQuote } from "./spanValidate";
 
 export interface GroundedRepairItem {
   id: number;
@@ -14,7 +15,7 @@ export interface GroundedRepairItem {
   estimated_cost: number;
   source_quote: string;
   page_number: number | null;
-  pdf_coordinates: null;
+  pdf_coordinates: PdfCoordinates | null;
 }
 
 export interface RejectedItem {
@@ -40,14 +41,25 @@ export interface RawSpecLineItem {
   estimated_cost?: number;
 }
 
+export interface ExtractSpecOptions {
+  pdfPath?: string;
+  /** Optional pdf.js content for page / bbox enrichment. */
+  pdfContent?: PdfContent;
+}
+
 /**
  * Keep only span-grounded rows. Ungrounded descriptions go to rejected.
  */
 export function extractSpecWithSpansFromText(
   pdfText: string,
   rawItems: RawSpecLineItem[],
-  pdfPath = "in-memory",
+  pdfPathOrOpts: string | ExtractSpecOptions = "in-memory",
 ): ExactSpanExtractResult {
+  const opts: ExtractSpecOptions =
+    typeof pdfPathOrOpts === "string"
+      ? { pdfPath: pdfPathOrOpts }
+      : pdfPathOrOpts;
+  const pdfPath = opts.pdfPath ?? "in-memory";
   const grounded: GroundedRepairItem[] = [];
   const rejected: RejectedItem[] = [];
 
@@ -63,6 +75,15 @@ export function extractSpecWithSpansFromText(
       });
       continue;
     }
+
+    let page_number: number | null = null;
+    let pdf_coordinates: PdfCoordinates | null = null;
+    if (opts.pdfContent) {
+      const loc = locateQuoteInPdfSafe(quote, opts.pdfContent);
+      page_number = loc.page_number;
+      pdf_coordinates = loc.pdf_coordinates;
+    }
+
     grounded.push({
       id: Number(raw.id || 0),
       category: String(raw.category || ""),
@@ -70,8 +91,8 @@ export function extractSpecWithSpansFromText(
       description,
       estimated_cost: Number(raw.estimated_cost || 0),
       source_quote: quote,
-      page_number: null,
-      pdf_coordinates: null,
+      page_number,
+      pdf_coordinates,
     });
   }
 

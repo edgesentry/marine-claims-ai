@@ -4,7 +4,7 @@
  */
 import { z } from "zod";
 import type { SchemaId } from "./envelope";
-import { SCHEMA_IDS } from "./envelope";
+import { SCHEMA_IDS, PdfCoordinatesSchema } from "./envelope";
 import { ExtractionResultSchema } from "./validate";
 import { RuleD5PayloadSchema } from "./ruleD5";
 import { ColregsPayloadSchema } from "./colregs";
@@ -56,7 +56,7 @@ export function extractionJsonSchema(schemaId: SchemaId): JsonSchemaObject {
           field: z.string().optional(),
           source_quote: z.string().min(1),
           page_number: z.number().int().nullable().optional(),
-          pdf_coordinates: z.unknown().nullable().optional(),
+          pdf_coordinates: PdfCoordinatesSchema.nullable().optional(),
         }),
       )
       .default([]),

@@ -13,6 +13,10 @@ import {
   syntheticUc2Lines,
 } from "../pdf/repairLines";
 import type { Lang } from "../i18n";
+import type { PdfContent } from "../pipeline/pdfLocate";
+import { extractSpecWithSpansFromText } from "../pipeline/extractSpec";
+import { findGroundedQuote } from "../pipeline/spanValidate";
+import type { GroundingMode } from "../pipeline/groundingGate";
 import {
   buildRuleD5Extraction,
   ruleD5LinesFromExtraction,
@@ -26,6 +30,8 @@ export interface RuleD5RunInput {
   assumeStatutoryOwnerWork?: boolean;
   confidence?: number;
   grounding?: GroundingRef[];
+  groundingMode?: GroundingMode;
+  sourceText?: string;
   hireRate?: number;
   legacyLeadDays?: number;
   aiLeadMinutes?: number;
@@ -36,6 +42,7 @@ export interface RuleD5RunResult {
   apportionment: RuleDResult;
   days_saved: number;
   offhire_jpy: number;
+  discarded_ungrounded?: number;
 }
 
 function syncDockCosts(lines: RepairLineItem[], dockTotal: number): RepairLineItem[] {
@@ -51,6 +58,8 @@ export function runRuleD5(input: RuleD5RunInput): RuleD5RunResult {
     assumeStatutoryOwnerWork: input.assumeStatutoryOwnerWork,
     confidence: input.confidence,
     grounding: input.grounding,
+    groundingMode: input.groundingMode,
+    sourceText: input.sourceText,
   });
   const gated = ruleD5LinesFromExtraction(extraction);
   const apportionment = apportionRuleD(
@@ -82,13 +91,42 @@ export function runRuleD5FromRepairText(
     legacyLeadDays?: number;
     aiLeadMinutes?: number;
     confidence?: number;
+    pdfContent?: PdfContent;
+    /**
+     * Optional Tier-2/3 or eval candidates. When set, Exact Span filters these
+     * against `text` instead of heuristic extractRepairItemsFromText output.
+     */
+    candidateItems?: Array<{
+      description: string;
+      estimated_cost?: number;
+      id?: number | string;
+      category?: string;
+      num?: string;
+    }>;
   },
 ): RuleD5RunResult {
-  const items = extractRepairItemsFromText(text);
+  const items =
+    opts.candidateItems?.map((it) => ({
+      description: it.description,
+      estimated_cost: Number(it.estimated_cost || 0),
+    })) ?? extractRepairItemsFromText(text);
   if (!items.length) {
     throw new Error("No repair line items found in text");
   }
-  const rawLines = repairItemsToRuleDLines(items, {
+
+  const span = extractSpecWithSpansFromText(text, opts.candidateItems ?? items, {
+    pdfPath: "repair-text",
+    pdfContent: opts.pdfContent,
+  });
+  const acceptedDescriptions = new Set(span.items.map((g) => g.description));
+  const groundedItems = items.filter((it) => acceptedDescriptions.has(it.description));
+  if (!groundedItems.length) {
+    throw new Error(
+      `All repair line items ungrounded (rejected ${span.fabricated_line_items})`,
+    );
+  }
+
+  const rawLines = repairItemsToRuleDLines(groundedItems, {
     dailyDockRate: opts.dailyDockRate,
     dockDays: opts.dockDays,
     includeStatutory: opts.includeStatutory,
@@ -96,19 +134,51 @@ export function runRuleD5FromRepairText(
   });
   const dockTotal = opts.dailyDockRate * opts.dockDays;
   const lines = syncDockCosts(rawLines, dockTotal);
-  return runRuleD5({
+
+  const spanByDescription = new Map(
+    span.items.map((g) => [g.description, g] as const),
+  );
+  const grounding: GroundingRef[] = [];
+  for (const ln of lines) {
+    const fromTitle = ln.title ? spanByDescription.get(ln.title) : undefined;
+    if (fromTitle) {
+      grounding.push({
+        field: `lines.${ln.id}`,
+        source_quote: fromTitle.source_quote,
+        page_number: fromTitle.page_number,
+        pdf_coordinates: fromTitle.pdf_coordinates,
+      });
+      continue;
+    }
+    if (String(ln.id).startsWith("pdf-") && ln.title) {
+      const quote = findGroundedQuote(ln.title, text);
+      if (quote) {
+        grounding.push({
+          field: `lines.${ln.id}`,
+          source_quote: quote,
+          page_number: null,
+          pdf_coordinates: null,
+        });
+      }
+    }
+  }
+
+  const result = runRuleD5({
     dockingContext: opts.dockingContext,
     lines,
     assumeStatutoryOwnerWork: opts.includeStatutory,
     confidence: opts.confidence ?? 0.65,
-    grounding: items.slice(0, 12).map((it, i) => ({
-      field: `lines.pdf-${i + 1}`,
-      source_quote: it.description.slice(0, 200),
-    })),
+    grounding,
+    groundingMode: "require_span",
+    sourceText: text,
     hireRate: opts.hireRate,
     legacyLeadDays: opts.legacyLeadDays,
     aiLeadMinutes: opts.aiLeadMinutes,
   });
+  return {
+    ...result,
+    discarded_ungrounded: span.fabricated_line_items,
+  };
 }
 
 export function runRuleD5Synthetic(opts: {
@@ -143,6 +213,7 @@ export function runRuleD5Synthetic(opts: {
         field: `lines.${ln.id}`,
         source_quote: String(ln.title),
       })),
+    groundingMode: "paste_bypass",
     hireRate: opts.hireRate,
     legacyLeadDays: opts.legacyLeadDays,
     aiLeadMinutes: opts.aiLeadMinutes,

@@ -4,10 +4,12 @@
 export {
   SCHEMA_IDS,
   SchemaIdSchema,
+  PdfCoordinatesSchema,
   GroundingRefSchema,
   AbstainSchema,
   ExtractionEnvelopeBaseSchema,
   type SchemaId,
+  type PdfCoordinates,
   type GroundingRef,
   type Abstain,
 } from "./envelope";
@@ -72,3 +74,11 @@ export {
   geometryFromExtraction,
   gateExtraction,
 } from "./adapters";
+
+export {
+  assertGroundingForStageB,
+  criticalFieldsFor,
+  GroundingValidationError,
+  type GroundingMode,
+  type GroundingGateOptions,
+} from "../pipeline/groundingGate";

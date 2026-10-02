@@ -165,6 +165,7 @@ function cmdRuleD5(flags: Record<string, string | boolean>): void {
         hireRate,
         legacyLeadDays,
         aiLeadMinutes,
+        groundingMode: "paste_bypass",
       }),
     );
     return;

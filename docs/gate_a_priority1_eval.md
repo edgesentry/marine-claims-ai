@@ -18,7 +18,7 @@ PDF-free lite report: `runGateAPriority1Lite()` in [`web/src/benchmarks/gateAPri
 
 Also covered in the WASM path:
 
-- **A4** exact-span grounding (`web/src/pipeline/spanValidate.ts`) on in-memory fixtures
+- **A4** exact-span grounding (`web/src/pipeline/spanValidate.ts`) on in-memory fixtures; Issue #88 extends the same gate to COLREGS / PSC / Rule D5 runners ([exact_span_grounding.md](exact_span_grounding.md))
 - **A8** Field3 MAPE (`web/src/benchmarks/verify3Fields.ts`) with yard tolerance 1.03
 
 The former Python Gate A harness was removed; use Vitest only.

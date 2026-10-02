@@ -31,6 +31,10 @@ Tier 1 heuristics (and later Tier 2 SLM / Tier 3 LLM) must emit a validated **`E
 
 Envelope fields: `{ schema_id, payload, confidence, grounding[], abstain? }`. Invalid JSON is rejected (`ExtractionValidationError`) and does **not** reach Rule D5 / COLREGS / PSC scorers. Public JSON Schema exports live under [`docs/schemas/`](schemas/); regenerate with `cd web && npm run build:schemas`. Guided-decode helpers (`guidedDecodeSpec`) prepare SLM/LLM paths (#77 / #5) without invoking models here.
 
+### Exact Span grounding (Issue #88)
+
+Shape-valid envelopes still need source grounding for critical fields before Stage B, unless the caller sets `groundingMode: "paste_bypass"` (hand-pasted PSC JSON, fixtures, synthetic UI). See [exact_span_grounding.md](exact_span_grounding.md).
+
 ```bash
 cd web
 npm install
