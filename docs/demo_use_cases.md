@@ -39,6 +39,8 @@ Before Stage B scoring, extractors wrap output in a shared **`ExtractionResult`*
 
 Invalid envelopes never reach the Rule D5 / COLREGS / PSC scorers. JSON Schema copies for interoperability: [docs/schemas/](schemas/). Document-derived fields also need **Exact Span** grounding (or an explicit paste bypass): [exact_span_grounding.md](exact_span_grounding.md) (Issue #88). When Stage A document confidence is below engineering defaults, the PWA shows **`HUMAN_REVIEW_REQUIRED`** and blocks Stage B until Confirm & score ([confidence_abstention.md](confidence_abstention.md#try-it-in-the-pwa), Issue #89) — e.g. Rule D5 repair PDF upload, not the synthetic demo lines.
 
+**UI language ≠ extraction language (Issue #90):** The PWA locale switch (`web/src/i18n.ts`) only changes **display** strings. Schema enums consumed by Stage B (`crossing`, `04102`, `casualty_immediate`, `ENG-02`, …) stay language-agnostic. JA/EN shipyard jargon is mapped via the lexicon (`config/lexicons/shipyard_jargon.v1.json`, `web/src/pipeline/normalizeLabels.ts`) — not full-document MT. Vector candidate recall is a separate track (#104).
+
 ---
 
 ## UC1 (demo tab) — AAA Rule D5 & off-hire simulator

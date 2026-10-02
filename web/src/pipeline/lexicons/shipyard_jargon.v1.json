@@ -1,0 +1,110 @@
+{
+  "version": 1,
+  "description": "JA/EN shipyard & inspection jargon → language-agnostic UC / ontology codes (Issue #90). Display i18n is separate.",
+  "domains": {
+    "repair": [
+      {
+        "id": "dock-dues",
+        "tokens": ["入出渠", "滞渠", "入渠", "dock dues", "drydock dues", "docking dues", "docking fee"],
+        "trade_code": "DOCK-01"
+      },
+      {
+        "id": "statutory",
+        "tokens": ["法定", "検査証書", "SOLAS", "船級", "年次検査", "中間検査", "statutory survey", "class survey", "annual survey", "intermediate survey"],
+        "trade_code": "SAFE-01",
+        "necessity": "statutory_seaworthiness"
+      },
+      {
+        "id": "main-engine",
+        "tokens": ["主機関", "ピストン抜出", "ピストン", "プロペラ軸", "減速機", "発電機関", "カロリー", "piston draw", "piston pull", "main engine", "propeller shaft", "reduction gear", "generator engine", "megger", "メガテスト", "メガ"],
+        "trade_code": "ENG-02",
+        "necessity": "deferred"
+      },
+      {
+        "id": "hull-coating",
+        "tokens": ["外板", "ケレン", "球状船首", "船首", "バウスラスター", "塗装", "洗浄", "shell plating", "scaling", "scaling and painting", "blasting", "bow thruster", "bulbous bow", "hull painting", "hull cleaning"],
+        "trade_code": "HULL-01",
+        "work_party": "casualty"
+      },
+      {
+        "id": "packing",
+        "tokens": ["パッキン交換", "パッキン", "packing renewal", "gasket renewal", "目皿"],
+        "trade_code": "OWN-01",
+        "necessity": "deferred"
+      }
+    ],
+    "docking": [
+      {
+        "id": "casualty-immediate",
+        "tokens": ["事故入渠", "casualty docking", "casualty_immediate", "immediate docking", "緊急入渠", "海損入渠"],
+        "docking_context": "casualty_immediate"
+      },
+      {
+        "id": "deferred-routine",
+        "tokens": ["定期入渠", "routine docking", "deferred_to_routine", "scheduled docking", "定期入渠時", "オーナー工事併施"],
+        "docking_context": "deferred_to_routine"
+      }
+    ],
+    "situation": [
+      {
+        "id": "crossing",
+        "tokens": ["横切", "crossing", "交差", "crossing situation"],
+        "situation": "crossing"
+      },
+      {
+        "id": "head-on",
+        "tokens": ["行き会い", "行会い", "head-on", "head_on", "head on", "正面", "nearly reciprocal"],
+        "situation": "head_on"
+      },
+      {
+        "id": "overtaking",
+        "tokens": ["追越し", "追越", "overtaking", "overtake"],
+        "situation": "overtaking"
+      },
+      {
+        "id": "safe-passing",
+        "tokens": ["安全航行", "safe passing", "safe_passing", "clear passing"],
+        "situation": "safe_passing"
+      }
+    ],
+    "psc_action": [
+      {
+        "id": "detention",
+        "tokens": ["留置", "拘留", "detention", "detained", "detain"],
+        "action_code": "30"
+      },
+      {
+        "id": "rectify-before-depart",
+        "tokens": ["出港前是正", "rectify before departure", "code 17", "action 17"],
+        "action_code": "17"
+      },
+      {
+        "id": "rectify-next-port",
+        "tokens": ["次港是正", "rectify at next port", "code 16", "action 16"],
+        "action_code": "16"
+      },
+      {
+        "id": "rectify-within",
+        "tokens": ["是正", "rectify", "rectification", "code 15", "action 15"],
+        "action_code": "15"
+      }
+    ],
+    "psc_critical": [
+      {
+        "id": "emergency-fire-pump",
+        "tokens": ["非常用消火ポンプ", "緊急消火ポンプ", "emergency fire pump", "emergency fire-pump"],
+        "critical_system": "emergency_fire_pump"
+      },
+      {
+        "id": "steering-gear",
+        "tokens": ["操舵装置", "舵取機", "steering gear", "steering"],
+        "critical_system": "steering_gear"
+      },
+      {
+        "id": "ism",
+        "tokens": ["安全管理システム", "ISMコード", "ism code", "ism"],
+        "critical_system": "ism"
+      }
+    ]
+  }
+}

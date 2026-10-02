@@ -10,6 +10,7 @@
 | Stage A schemas | `web/src/schemas/` (Zod `ExtractionResult`; JSON Schema in `docs/schemas/`) |
 | Appraisal + NPL | `web/src/appraisal/` |
 | Exact Span A4 | `web/src/pipeline/` |
+| Multilingual lexicon (#90) | `web/src/pipeline/normalizeLabels.ts`, `detectLanguage.ts`, `lexicon.ts`; SoT `config/lexicons/shipyard_jargon.v1.json` |
 | Civil A7 | `web/src/ingest/civilJudgmentExtractor.ts` |
 | Field3 A8 | `web/src/benchmarks/verify3Fields.ts` |
 | Gate A | `web/src/benchmarks/gateAPriority{1,2}.ts` |
@@ -29,7 +30,7 @@ Tier 1 heuristics (and later Tier 2 SLM / Tier 3 LLM) must emit a validated **`E
 | `colregs.v1` | `geometry` + facts/ruling excerpts + optional situation candidates | `classifyEncounter` / `predictFaultRatio` |
 | `psc.v1` | normalized-ready `deficiencies[]` (+ optional priors) | `scoreSeaworthiness` |
 
-Envelope fields: `{ schema_id, payload, confidence, field_confidence?, grounding[], abstain? }`. Invalid JSON is rejected (`ExtractionValidationError`) and does **not** reach Rule D5 / COLREGS / PSC scorers. Low confidence under `enforce` stamps `HUMAN_REVIEW_REQUIRED` and skips Stage B until Confirm & score ([confidence abstention](confidence_abstention.md)). Public JSON Schema exports live under [`docs/schemas/`](schemas/); regenerate with `cd web && npm run build:schemas`. Guided-decode helpers (`guidedDecodeSpec`) prepare SLM/LLM paths (#77 / #5) without invoking models here.
+Envelope fields: `{ schema_id, payload, confidence, field_confidence?, grounding[], abstain? }`. Invalid JSON is rejected (`ExtractionValidationError`) and does **not** reach Rule D5 / COLREGS / PSC scorers. Low confidence under `enforce` stamps `HUMAN_REVIEW_REQUIRED` and skips Stage B until Confirm & score ([confidence abstention](confidence_abstention.md)). Public JSON Schema exports live under [`docs/schemas/`](schemas/); regenerate with `cd web && npm run build:schemas`. Guided-decode helpers (`guidedDecodeSpec`) prepare SLM/LLM paths (#77 / #5) without invoking models here. **Display i18n ≠ extraction language:** UI locale (`i18n.ts`) does not change schema enums; JA/EN jargon → ontology codes via lexicon (#90). Vector candidates are #104, not the default path.
 
 ### Exact Span grounding (Issue #88)
 

@@ -2,6 +2,7 @@
  * Paris / Tokyo MOU PSC deficiency taxonomy + seaworthiness Defect Score.
  * Port of marine_claims_ai.ontology.psc + ingest.psc_deficiencies (Issues #31 / #42 / #83).
  */
+import { normalizeCriticalSystemPhrase, normalizePscActionPhrase } from "../pipeline/normalizeLabels";
 
 export const ACTION_RECTIFY_BEFORE_DEPARTURE = "15";
 export const ACTION_RECTIFY_WITHIN_14_DAYS = "16";
@@ -257,7 +258,11 @@ export function normalizeActionCode(actionCode: string | null | undefined): stri
   const text = String(actionCode).trim();
   if (!text) return null;
   const match = text.match(/(\d{1,3})/);
-  return match ? match[1]! : text;
+  if (match) return match[1]!;
+  // JA/EN phrase → action code (Issue #90)
+  const fromLexicon = normalizePscActionPhrase(text);
+  if (fromLexicon) return fromLexicon;
+  return text;
 }
 
 export function isDetentionAction(actionCode: string | null | undefined): boolean {
@@ -346,7 +351,8 @@ export function criticalSystemId(
       return systemId;
     }
   }
-  return null;
+  // JA / additional EN jargon via lexicon (Issue #90)
+  return normalizeCriticalSystemPhrase(description);
 }
 
 export function citationForCode(code: string | null | undefined): string | null {

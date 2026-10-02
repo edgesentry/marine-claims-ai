@@ -1,0 +1,30 @@
+{
+  "description": "Issue #90 — JA/EN PSC description pairs with same codes must yield identical Defect Score / critical_system.",
+  "cases": [
+    {
+      "id": "fire-pump-detention",
+      "code": "04102",
+      "action_code": "30",
+      "ja_description": "非常用消火ポンプ作動不良",
+      "en_description": "Emergency fire pump inoperative",
+      "expect_critical_system": "emergency_fire_pump"
+    },
+    {
+      "id": "steering-phrase",
+      "code": "99",
+      "action_code": "17",
+      "ja_description": "操舵装置の点検記録不備",
+      "en_description": "Steering gear maintenance records incomplete",
+      "expect_critical_system": "steering_gear"
+    },
+    {
+      "id": "action-detention-phrase",
+      "code": "07105",
+      "ja_action": "留置",
+      "en_action": "detention",
+      "ja_description": "防火扉閉鎖不良",
+      "en_description": "Fire door closing defect",
+      "expect_action_code": "30"
+    }
+  ]
+}
