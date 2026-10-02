@@ -300,7 +300,7 @@ uv run python scripts/eval_colregs_end_to_end.py \
 
 Stage A (messy docs → UC-fixed schemas) is gated **independently** of Gate A / Stage B rule agreement. A Stage A regression must fail CI even when Stage B synthetic fixtures still pass.
 
-**Canonical implementation**
+#### Canonical implementation
 
 | Artifact | Path |
 | :--- | :--- |
@@ -316,7 +316,7 @@ cd web
 npm run stage-a
 ```
 
-**Metrics (vs public gold; Zero-Dataset allowlist)**
+#### Metrics (vs public gold; Zero-Dataset allowlist)
 
 | Metric | Definition |
 | :--- | :--- |
@@ -326,7 +326,7 @@ npm run stage-a
 | Abstain precision / recall | Abstain when `expect_abstain`; do not abstain when the document is clear |
 | Stage A→B agreement | On grounded/scored rows only: COLREGS situation/roles, PSC detention, Rule D5 apportionment / JA·EN insurer parity |
 
-**CI thresholds (`config/stage_a_eval.json`)**
+#### CI thresholds (`config/stage_a_eval.json`)
 
 | Gate | Threshold |
 | :--- | :--- |
@@ -340,7 +340,7 @@ npm run stage-a
 | **Multilingual** subset (#90 / #14-style) `min_field_exact_match_rate` | ≥ 0.90 |
 | **Multilingual** `min_stage_b_agreement_rate` | 1.0 |
 
-**Current baseline (public fixtures, Tier-1 heuristics)**
+#### Current baseline (public fixtures, Tier-1 heuristics)
 
 | Subset | Schema | Field EM | Grounding | Abstain P/R | Stage A→B |
 | :--- | ---: | ---: | ---: | ---: | ---: |
