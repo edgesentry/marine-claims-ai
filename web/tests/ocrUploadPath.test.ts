@@ -115,4 +115,53 @@ describe("Issue #94 — OCR upload path", () => {
     expect(items.length).toBeGreaterThanOrEqual(2);
     expect(items.some((it) => it.estimated_cost === 850_000)).toBe(true);
   });
+
+  it("Issue #45 gold: broken table lines → schema-valid costs (≥95%)", () => {
+    // Shared gold with config/degraded_invoice_fixtures/manifest.json case ocr-broken-lines.
+    const broken = [
+      "修繕仕様書（合成スキャン）",
+      "",
+      "甲板部 外板補修工事（球状船首）",
+      "1,200,000円",
+      "甲板部 塗装工事 850.000円",
+      "機関部 ピストン抜出し整備",
+      "3,500,000円",
+      "共通 入渠料 日額 860,000円 × 5日 4,300,000円",
+      "",
+    ].join("\n");
+    const expected = [
+      { description: "外板補修", estimated_cost: 1_200_000 },
+      { description: "塗装工事", estimated_cost: 850_000 },
+      { description: "ピストン", estimated_cost: 3_500_000 },
+      { description: "入渠料", estimated_cost: 4_300_000 },
+    ];
+    const items = extractRepairItemsFromText(broken);
+    let matched = 0;
+    for (const gold of expected) {
+      if (
+        items.some(
+          (it) =>
+            it.estimated_cost === gold.estimated_cost &&
+            it.description.includes(gold.description),
+        )
+      ) {
+        matched += 1;
+      }
+    }
+    expect(matched / expected.length).toBeGreaterThanOrEqual(0.95);
+
+    // Contract: ExtractedItem shape matches Python RepairItem JSON fields.
+    for (const it of items) {
+      expect(typeof it.description).toBe("string");
+      expect(typeof it.estimated_cost).toBe("number");
+    }
+  });
+
+  it("reconstructTableLines merges description + amount-only row", async () => {
+    const { reconstructTableLines } = await import("../src/pdf/repairLines");
+    const merged = reconstructTableLines(
+      "甲板部 外板補修工事（球状船首）\n1,200,000円\n甲板部 塗装工事 850,000円",
+    );
+    expect(merged).toMatch(/外板補修.*1,200,000/);
+  });
 });
