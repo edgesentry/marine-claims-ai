@@ -7,7 +7,12 @@ export default defineConfig({
     VitePWA({
       registerType: "autoUpdate",
       minify: false,
-      includeAssets: ["icons/icon.svg", "data/**/*"],
+      includeAssets: [
+        "icons/icon.svg",
+        "data/**/*",
+        "tessdata/**/*",
+        "tesseract/**/*",
+      ],
       manifest: {
         name: "MarineClaims AI — Executive Demo",
         short_name: "MarineClaims",
@@ -27,7 +32,11 @@ export default defineConfig({
         ],
       },
       workbox: {
-        globPatterns: ["**/*.{js,css,html,svg,wasm,parquet,json,ico,mjs}"],
+        globPatterns: [
+          "**/*.{js,css,html,svg,wasm,parquet,json,ico,mjs}",
+          "tessdata/**/*.gz",
+          "tesseract/**/*",
+        ],
         maximumFileSizeToCacheInBytes: 40 * 1024 * 1024,
         mode: "development",
       },

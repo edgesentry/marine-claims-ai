@@ -21,6 +21,12 @@ import {
   type SeaworthinessRiskReport,
 } from "./engines/psc";
 import { extractPdfText } from "./pdf/parseTender";
+import {
+  extractPdfTextWithOcr,
+  stageAConfidenceForSource,
+  OCR_STAGE_A_CONFIDENCE,
+  type PdfExtractionSource,
+} from "./pdf/ocrPages";
 import { extractRepairItemsFromText, syntheticUc2Lines } from "./pdf/repairLines";
 import {
   extractFactsExcerpt,
@@ -83,6 +89,8 @@ interface PendingUpload {
   classification: DocumentClassification;
   /** null = use detected type */
   override: DocumentType | null;
+  /** How Stage A text was obtained (#94). */
+  extractionSource: PdfExtractionSource;
 }
 
 interface AppState {
@@ -102,6 +110,8 @@ interface AppState {
   uc2Analyzed: AnalyzedItem[];
   uc2Pending: PendingReview | null;
   uc2Upload: PendingUpload | null;
+  /** Non-null while in-browser OCR runs (#94). */
+  ocrBusy: string | null;
   // UC3
   caseId: string;
   headingA: number;
@@ -148,6 +158,7 @@ const state: AppState = {
   uc2Analyzed: [],
   uc2Pending: null,
   uc2Upload: null,
+  ocrBusy: null,
   caseId: "civil_7",
   headingA: 30,
   headingB: 300,
@@ -197,12 +208,17 @@ function routerPanelHtml(tab: Tab, upload: PendingUpload | null, analyzeId: stri
         ? t("router_blocked_mismatch", state.lang)
         : t("router_ready", state.lang);
   const statusClass = decision.allowed ? "ok" : "warn";
+  const ocrHint =
+    upload.extractionSource === "ocr"
+      ? `<p class="warn">${escapeHtml(t("ocr_source_hint", state.lang))}</p>`
+      : "";
   return `
     <div class="router-panel" data-router-tab="${escapeHtml(tab)}">
       <p><strong>${escapeHtml(t("router_detected", state.lang))}:</strong>
         <code>${escapeHtml(detectedLabel)}</code>
-        · ${escapeHtml(t("router_confidence", state.lang))}: <code>${escapeHtml(confPct)}%</code>
+        · ${escapeHtml(t("router_confidence", state.lang))}: <code>${escapeHtml(String(confPct))}%</code>
       </p>
+      ${ocrHint}
       <label>${escapeHtml(t("router_override", state.lang))}
         <select id="routerOverride_${escapeHtml(tab)}">
           <option value="" ${upload.override == null ? "selected" : ""}>${escapeHtml(t("router_override_none", state.lang))}</option>
@@ -567,6 +583,7 @@ function renderUc2(root: HTMLElement): void {
         </label>
         <label class="check"><input type="checkbox" id="inclStat" ${state.includeStatutory ? "checked" : ""}> ${escapeHtml(t("include_statutory", state.lang))}</label>
         <div class="dropzone" id="pdfDrop">${escapeHtml(t("drop_pdf", state.lang))}<input type="file" id="pdfFile" accept="application/pdf" hidden></div>
+        ${state.ocrBusy && state.tab === "uc2" ? `<p class="warn" id="ocrBusy">${escapeHtml(state.ocrBusy)}</p>` : ""}
         ${routerPanelHtml("uc2", state.uc2Upload, "analyzeUc2")}
         <div class="actions">
           <button type="button" class="btn" id="useSynthetic">${escapeHtml(t("use_synthetic", state.lang))}</button>
@@ -684,17 +701,34 @@ function renderUc2(root: HTMLElement): void {
 }
 
 async function handlePdf(file: File): Promise<void> {
-  const text = await extractPdfText(file);
-  if (!text.trim()) {
-    alert(t("err_pdf_empty_text", state.lang));
+  state.ocrBusy = t("ocr_in_progress", state.lang);
+  render();
+  const extracted = await extractPdfTextWithOcr(file, {
+    extractText: extractPdfText,
+    onProgress: (p) => {
+      const pct = Math.round(p.progress * 100);
+      state.ocrBusy = `${t("ocr_in_progress", state.lang)} (${pct}%)`;
+      const el = document.querySelector("#ocrBusy");
+      if (el) el.textContent = state.ocrBusy;
+      else render();
+    },
+  });
+  state.ocrBusy = null;
+
+  if (!extracted.text.trim()) {
+    console.error("[ocr] upload failed", extracted.error);
+    alert(t(extracted.error ? "ocr_failed" : "err_pdf_empty_text", state.lang));
+    render();
     return;
   }
-  const classification = classifyDocument(text, { filename: file.name });
+
+  const classification = classifyDocument(extracted.text, { filename: file.name });
   state.uc2Upload = {
-    text,
+    text: extracted.text,
     filename: file.name,
     classification,
     override: null,
+    extractionSource: extracted.source,
   };
   // Reset prior Stage B until Analyze (Issue #86).
   state.uc2Lines = [];
@@ -734,6 +768,7 @@ async function analyzeUc2Upload(): Promise<void> {
       hireRate: state.hireRate,
       legacyLeadDays: state.legacyLeadDays,
       aiLeadMinutes: state.aiLeadMinutes,
+      confidence: stageAConfidenceForSource(upload.extractionSource),
     });
     state.uc2Lines = ruleD5LinesFromExtraction(run.extraction);
     state.uc2FromPdf = true;
@@ -882,6 +917,7 @@ function renderUc3(root: HTMLElement): void {
           <input type="number" id="brg" value="${state.bearingAb}" ${state.overrideGeom || state.caseId === "civil_7" ? "" : "disabled"}>
         </label>
         <div class="dropzone" id="pdfDrop3">${escapeHtml(t("drop_pdf", state.lang))}<input type="file" id="pdfFile3" accept="application/pdf" hidden></div>
+        ${state.ocrBusy && state.tab === "uc3" ? `<p class="warn" id="ocrBusy">${escapeHtml(state.ocrBusy)}</p>` : ""}
         ${routerPanelHtml("uc3", state.uc3Upload, "analyzeUc3")}
       </section>
       ${resultsPanel}
@@ -957,17 +993,30 @@ function renderUc3(root: HTMLElement): void {
   fileInput?.addEventListener("change", async () => {
     const f = fileInput.files?.[0];
     if (!f) return;
-    const text = await extractPdfText(f);
-    if (!text.trim()) {
-      alert(t("err_pdf_empty_text", state.lang));
+    state.ocrBusy = null;
+    const extracted = await extractPdfTextWithOcr(f, {
+      extractText: extractPdfText,
+      onProgress: (p) => {
+        const pct = Math.round(p.progress * 100);
+        state.ocrBusy = `${t("ocr_in_progress", state.lang)} (${pct}%)`;
+        const el = document.querySelector("#ocrBusy");
+        if (el) el.textContent = state.ocrBusy;
+        else render();
+      },
+    });
+    state.ocrBusy = null;
+    if (!extracted.text.trim()) {
+      alert(t(extracted.error ? "ocr_failed" : "err_pdf_empty_text", state.lang));
+      render();
       return;
     }
-    const classification = classifyDocument(text, { filename: f.name });
+    const classification = classifyDocument(extracted.text, { filename: f.name });
     state.uc3Upload = {
-      text,
+      text: extracted.text,
       filename: f.name,
       classification,
       override: null,
+      extractionSource: extracted.source,
     };
     state.uc3Pending = null;
     state.uc3Confirmed = false;
@@ -1019,7 +1068,8 @@ async function analyzeUc3Upload(): Promise<void> {
       rulingExcerpt: holding || undefined,
       faultRatioHint: extracted.fault_ratio || undefined,
       documentKind,
-      confidence: 0.55,
+      confidence:
+        upload.extractionSource === "ocr" ? OCR_STAGE_A_CONFIDENCE : 0.55,
       grounding: [
         facts ? { field: "facts_excerpt", source_quote: facts.slice(0, 240) } : null,
         holding ? { field: "ruling_excerpt", source_quote: holding.slice(0, 240) } : null,
@@ -1275,6 +1325,7 @@ function renderPsc(root: HTMLElement): void {
       filename: "paste.txt",
       classification,
       override: null,
+      extractionSource: "text_layer",
     };
     const decision = resolveDocumentRoute("psc", classification, null);
     if (!decision.allowed) {

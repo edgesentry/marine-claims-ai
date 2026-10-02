@@ -100,5 +100,6 @@ Expectations also covered in `groundingGate.test.ts` / `spanA4A8.test.ts`:
 | :--- | :--- |
 | #91 | COLREGS telemetry extraction (headings / bearings) — must carry grounding |
 | #92 | PSC MOU PDF/HTML/image → deficiencies under `require_span` |
-| #45 / #94 | OCR bboxes into the same `pdf_coordinates` shape |
+| #45 | Full deskew / table-grid OCR → `pdf_coordinates` (Python ingest) |
+| #94 | Client OCR text wired into PWA upload (Tesseract.js); bbox geometry still #45 |
 | #93 | Broader Stage A eval harness / ungrounded-rate gates across corpora |

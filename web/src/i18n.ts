@@ -246,6 +246,18 @@ const MESSAGES: Record<string, Record<Lang, string>> = {
     en: "No text could be extracted from this PDF (it may be image-only).",
     ja: "この PDF から文字を取り出せませんでした（画像のみの可能性）。",
   },
+  ocr_in_progress: {
+    en: "No text layer — running in-browser OCR (jpn+eng)…",
+    ja: "テキスト層なし — ブラウザ内 OCR（日本語+英語）を実行中…",
+  },
+  ocr_failed: {
+    en: "OCR could not read this PDF. Stage B was not run. Try a clearer scan or a text-embedded PDF.",
+    ja: "OCR でこの PDF を読み取れませんでした。Stage B は実行していません。鮮明なスキャンか、テキスト埋め込み PDF をお試しください。",
+  },
+  ocr_source_hint: {
+    en: "Text from in-browser OCR — Stage A confidence is lowered; confirm before Stage B.",
+    ja: "ブラウザ内 OCR 由来のテキストです — Stage A 信頼度を下げています。Stage B 前に確認してください。",
+  },
   err_no_line_items: {
     en: "No repair line items were found in this specification PDF.",
     ja: "この修繕仕様 PDF から工事明細を抽出できませんでした。",

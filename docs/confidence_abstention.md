@@ -22,7 +22,8 @@ If an older Service Worker is serving a stale bundle, hard-reload or unregister 
 | Tab | What to upload | Hard-coded Stage A `confidence` | Expected UI |
 | :--- | :--- | :--- | :--- |
 | **1. Rule D5** | Drydock / repair-spec PDF (text layer; lines with yen amounts) | `0.65` (`< document_min 0.70`) | Right panel: `HUMAN_REVIEW_REQUIRED` + editable lines + **Confirm & score**. No Rule D5 split until confirm. |
-| **2. COLREGS** | Judgment / JTSB-style narrative PDF (facts / ruling extractable) | `0.55` | Same abstention panel for geometry + excerpts; Confirm & score then classifies. |
+| **1. Rule D5 (scan)** | Image-only PDF → in-browser OCR (#94) | `0.52` | Same HUMAN_REVIEW path; OCR hint in router panel. See [pwa_ocr_offline.md](pwa_ocr_offline.md). |
+| **2. COLREGS** | Judgment / JTSB-style narrative PDF (facts / ruling extractable) | `0.55` (OCR: `0.52`) | Same abstention panel for geometry + excerpts; Confirm & score then classifies. |
 | **3. PSC** | — | fixtures / paste use `bypass` | Auto-scores (no abstention on the default path). |
 
 ### Does not abstain
@@ -40,7 +41,7 @@ After `scripts/fetch_public_datasets.py` (or an existing `_inputs/` / `_data/` c
 | `_inputs/poc_datasets/fukuoka_kaiyomaru_spec.pdf` (or `_data/poc_datasets/…`) | Rule D5 |
 | `_inputs/poc_datasets/jtsb_cargo_collision_report.pdf` / other `jtsb_*.pdf` | COLREGS |
 
-Image-only PDFs fail earlier (“no text extracted”) and never reach the confidence gate. Repair specs need extractable cost lines; otherwise the UI reports “no repair line items”.
+Image-only PDFs attempt **in-browser OCR** (Issue #94). If OCR yields repair lines, Stage A proceeds with lowered confidence (`0.52`) and abstains into HUMAN_REVIEW. If OCR fails, the UI reports failure and never runs Stage B. Repair specs still need extractable cost lines; otherwise the UI reports “no repair line items”. Details: [pwa_ocr_offline.md](pwa_ocr_offline.md).
 
 After **Confirm & score**, Stage B runs with `confidenceMode: "confirmed"`.
 
