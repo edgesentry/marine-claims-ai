@@ -6,6 +6,7 @@
  *   npm run cli -- help
  *   npm run cli -- rule-d5
  *   npm run cli -- colregs --heading-a 30 --heading-b 300 --bearing 70
+ *   npm run cli -- colregs --text narrative.txt
  *   npm run cli -- psc --fixture repeat_ism_major
  *   npm run cli -- validate path/to/envelope.json
  *   npm run cli -- classify-encounter --heading-a 0 --heading-b 180 --bearing 0
@@ -76,7 +77,7 @@ UC commands (same Stage A → Stage B path as the PWA):
           [--docking casualty_immediate|deferred_to_routine]
           [--dock-rate N] [--dock-days N] [--no-statutory] [--hire N]
           [--confidence N] [--confirm]
-  colregs --heading-a N --heading-b N --bearing N
+  colregs (--heading-a N --heading-b N --bearing N | --text FILE)
           [--facts TEXT] [--ruling TEXT] [--fault-hint R]
           [--confidence N] [--confirm]
   psc [--fixture ID | --json FILE | --csv FILE] [--lookback N]
@@ -233,11 +234,13 @@ function cmdRuleD5(flags: Record<string, string | boolean>): void {
 }
 
 function cmdColregs(flags: Record<string, string | boolean>): void {
+  const textPath = flagStr(flags, "text");
   const headingA = flagNum(flags, "heading-a", Number.NaN);
   const headingB = flagNum(flags, "heading-b", Number.NaN);
   const bearing = flagNum(flags, "bearing", Number.NaN);
-  if (![headingA, headingB, bearing].every(Number.isFinite)) {
-    fail("colregs requires --heading-a --heading-b --bearing");
+  const hasGeom = [headingA, headingB, bearing].every(Number.isFinite);
+  if (!textPath && !hasGeom) {
+    fail("colregs requires --heading-a --heading-b --bearing, or --text FILE");
   }
   const confidenceRaw = flagStr(flags, "confidence");
   const confidence = confidenceRaw != null ? Number(confidenceRaw) : undefined;
@@ -245,23 +248,31 @@ function cmdColregs(flags: Record<string, string | boolean>): void {
     fail(`Invalid --confidence: ${confidenceRaw}`);
   }
   const confidenceMode = flagBool(flags, "confirm") ? ("confirmed" as const) : undefined;
+  const narrativeText = textPath ? readText(textPath) : undefined;
+  const facts = flagStr(flags, "facts") ?? (narrativeText ? narrativeText.slice(0, 4500) : undefined);
   printRun(
     runColregs({
-      geometry: {
-        heading_a_deg: headingA,
-        heading_b_deg: headingB,
-        true_bearing_a_to_b_deg: bearing,
-        speed_a_kn: flagNum(flags, "speed-a", 12),
-        speed_b_kn: flagNum(flags, "speed-b", 10),
-        range_nm: flagNum(flags, "range", 0.8),
-      },
-      factsExcerpt: flagStr(flags, "facts"),
+      geometry: hasGeom
+        ? {
+            heading_a_deg: headingA,
+            heading_b_deg: headingB,
+            true_bearing_a_to_b_deg: bearing,
+            speed_a_kn: flagNum(flags, "speed-a", 12),
+            speed_b_kn: flagNum(flags, "speed-b", 10),
+            range_nm: flagNum(flags, "range", 0.8),
+          }
+        : undefined,
+      narrativeText,
+      preferNarrativeGeometry: Boolean(narrativeText) && !hasGeom,
+      factsExcerpt: facts,
       rulingExcerpt: flagStr(flags, "ruling"),
       faultRatioHint: flagStr(flags, "fault-hint"),
       documentKind:
         (flagStr(flags, "document-kind") as "judgment" | "jtsb" | undefined) || undefined,
-      confidence,
-      confidenceMode,
+      confidence: confidence ?? (narrativeText && !hasGeom ? 0.85 : undefined),
+      confidenceMode: confidenceMode ?? (narrativeText && !hasGeom ? "bypass" : undefined),
+      groundingMode: narrativeText && !hasGeom ? "paste_bypass" : undefined,
+      sourceText: narrativeText,
     }),
   );
 }

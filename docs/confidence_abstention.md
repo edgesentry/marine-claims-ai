@@ -23,7 +23,7 @@ If an older Service Worker is serving a stale bundle, hard-reload or unregister 
 | :--- | :--- | :--- | :--- |
 | **1. Rule D5** | Drydock / repair-spec PDF (text layer; lines with yen amounts) | `0.65` (`< document_min 0.70`) | Right panel: `HUMAN_REVIEW_REQUIRED` + editable lines + **Confirm & score**. No Rule D5 split until confirm. |
 | **1. Rule D5 (scan)** | Image-only PDF → in-browser OCR (#94) | `0.52` | Same HUMAN_REVIEW path; OCR hint in router panel. See [pwa_ocr_offline.md](pwa_ocr_offline.md). |
-| **2. COLREGS** | Judgment / JTSB-style narrative PDF (facts / ruling extractable) | `0.55` (OCR: `0.52`) | Same abstention panel for geometry + excerpts; Confirm & score then classifies. |
+| **2. COLREGS** | Judgment / JTSB-style narrative PDF (facts / ruling extractable) | `0.55` (OCR: `0.52`) | Same abstention panel for geometry + excerpts; Confirm & score then classifies. Headings / bearings are pulled from the narrative when present (#91); if the triad is missing, reason includes `geometry_missing`. |
 | **3. PSC** | — | fixtures / paste use `bypass` | Auto-scores (no abstention on the default path). |
 
 ### Does not abstain
