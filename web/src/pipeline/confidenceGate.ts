@@ -107,8 +107,16 @@ export function assessConfidence(
   }
 
   const fieldMap = enrichFieldConfidence(extraction);
+  // Issue #91: narrative path stamped geometry_missing when triad absent.
+  const geomMissing = fieldMap.geometry_missing;
+  if (geomMissing != null && geomMissing < t.field_min) {
+    reason_codes.push("geometry_missing");
+    field_failures.push({ field: "geometry_missing", confidence: geomMissing });
+  }
+
   const critical = new Set(criticalFieldsFor(extraction));
   for (const [field, conf] of Object.entries(fieldMap)) {
+    if (field === "geometry_missing") continue;
     if (!critical.has(field) && field !== "situation_candidates") continue;
     if (conf < t.field_min) {
       reason_codes.push(`field_below_min:${field}`);

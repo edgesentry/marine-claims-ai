@@ -44,7 +44,7 @@ Mode lives on runner / `build*Extraction` options (not on the published envelope
 | `schema_id` | Required grounding fields |
 | :--- | :--- |
 | `rule_d5.v1` | `lines.pdf-*` (PDF-derived ids). Synthetic injects (`dock-1`, `hull-1`, …) are not Exact-Span critical. |
-| `colregs.v1` | `facts_excerpt` / `ruling_excerpt` when present; telemetry fields (`geometry.*`) when those grounding entries exist (#91). Slider-only geometry with no excerpts is allowed with empty grounding. |
+| `colregs.v1` | `facts_excerpt` / `ruling_excerpt` when present; telemetry fields (`geometry.*`) when extracted from narrative (#91) — those grounding entries are then Exact-Span critical. Slider-only geometry with no excerpts is allowed with empty grounding. Narrative paths with no numeric triad stamp `geometry_missing` and abstain (#89). |
 | `psc.v1` | `deficiencies.{i}.code` for each row — unless `paste_bypass`. PDF/OCR path lands in #92 on top of this gate. |
 
 ## Envelope fields
@@ -98,7 +98,7 @@ Expectations also covered in `groundingGate.test.ts` / `spanA4A8.test.ts`:
 
 | Issue | Adds |
 | :--- | :--- |
-| #91 | COLREGS telemetry extraction (headings / bearings) — must carry grounding |
+| #91 | COLREGS telemetry extraction (headings / bearings) — implemented; extracted `geometry.*` carries Exact Span grounding |
 | #92 | PSC MOU PDF/HTML/image → deficiencies under `require_span` |
 | #45 | Full deskew / table-grid OCR → `pdf_coordinates` (Python ingest) |
 | #94 | Client OCR text wired into PWA upload (Tesseract.js); bbox geometry still #45 |

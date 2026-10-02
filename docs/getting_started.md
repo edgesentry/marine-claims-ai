@@ -35,6 +35,8 @@ Image-only PDF OCR (Issue #94): [pwa_ocr_offline.md](pwa_ocr_offline.md) (~52 MB
 cd web && npm run cli -- help
 cd web && npm run cli -- rule-d5
 cd web && npm run cli -- colregs --heading-a 30 --heading-b 300 --bearing 70
+# Extract headings/bearings from a narrative (#91), then score:
+cd web && npm run cli -- colregs --text path/to/narrative.txt
 cd web && npm run cli -- psc --fixture repeat_ism_major
 cd web && npm run cli -- classify-encounter --heading-a 0 --heading-b 180 --bearing 0
 ```
@@ -44,6 +46,8 @@ Full design: [executive_demo_cli_and_web.md](executive_demo_cli_and_web.md). Use
 **Document-type router (Issue #86):** after you drop a PDF (Rule D5 / COLREGS) or paste deficiencies (PSC), the PWA shows the **detected document type** and confidence. Confirm or **override** the type, then click **Analyze**. `unknown` or a type that does not match the current tab never runs Stage B until you override to an allowed type. Router tests: `cd web && npm test -- tests/documentRouter.test.ts`. CLI check: `cd web && npm run cli -- route --text path.txt --tab uc2` (exit `3` = abstain / mismatch).
 
 **HUMAN_REVIEW_REQUIRED (Issue #89):** after Analyze, a low-confidence repair PDF on the Rule D5 tab (or a judgment/JTSB PDF on COLREGS) pauses Stage B until Confirm & score — see [confidence_abstention.md](confidence_abstention.md#try-it-in-the-pwa). Synthetic Rule D5 lines and PSC fixtures still auto-score.
+
+**COLREGS narrative telemetry (Issue #91):** JMAT / judgment / JTSB text yields headings and bearings when present (Exact Span grounded). Catalog cases score from `facts_text` without slider overrides; missing numeric geometry abstains with `geometry_missing`. Tests: `cd web && npm test -- tests/issue91DoD.test.ts`.
 
 ---
 

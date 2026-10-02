@@ -35,6 +35,12 @@ import {
   isLikelyJtsbReport,
 } from "./ingest/civilJudgmentExtractor";
 import {
+  extractColregsTelemetry,
+  telemetryGrounding,
+  telemetryToGeometry,
+  telemetryFieldConfidence,
+} from "./ingest/colregsTelemetryExtractor";
+import {
   evaluateClaimsDynamically,
   noOpNplScorer,
   type AnalyzedItem,
@@ -362,6 +368,13 @@ function geometryForCase(): EncounterGeometry {
     };
   }
   const jmat = state.jmatCases.find((c) => c.case_id === state.caseId);
+  if (jmat?.facts_text) {
+    const extracted = telemetryToGeometry(
+      extractColregsTelemetry(jmat.facts_text),
+      { speed_a_kn: 12, speed_b_kn: 10, range_nm: 1 },
+    );
+    if (extracted) return extracted;
+  }
   const sit = jmat?.expected_situation || "crossing";
   const defaults: Record<string, [number, number, number]> = {
     head_on: [0, 180, 0],
@@ -1054,25 +1067,43 @@ async function analyzeUc3Upload(): Promise<void> {
   }
   const facts = extractFactsExcerpt(text);
   const documentKind = jtsbReport ? "jtsb" : "judgment";
+  const telemetry = extractColregsTelemetry(text);
+  const extractedGeom = telemetryToGeometry(telemetry, {
+    speed_a_kn: 12,
+    speed_b_kn: 10,
+    range_nm: 0.8,
+  });
+  const geometryComplete = extractedGeom != null;
+  if (extractedGeom) {
+    state.headingA = extractedGeom.heading_a_deg;
+    state.headingB = extractedGeom.heading_b_deg;
+    state.bearingAb = extractedGeom.true_bearing_a_to_b_deg;
+  }
+  const geometry: EncounterGeometry = extractedGeom ?? {
+    heading_a_deg: state.headingA,
+    heading_b_deg: state.headingB,
+    true_bearing_a_to_b_deg: state.bearingAb,
+    speed_a_kn: 12,
+    speed_b_kn: 10,
+    range_nm: 0.8,
+  };
   try {
     const extraction = buildColregsExtraction({
-      geometry: {
-        heading_a_deg: state.headingA,
-        heading_b_deg: state.headingB,
-        true_bearing_a_to_b_deg: state.bearingAb,
-        speed_a_kn: 12,
-        speed_b_kn: 10,
-        range_nm: 0.8,
-      },
+      geometry,
       factsExcerpt: facts || undefined,
       rulingExcerpt: holding || undefined,
       faultRatioHint: extracted.fault_ratio || undefined,
       documentKind,
       confidence:
         upload.extractionSource === "ocr" ? OCR_STAGE_A_CONFIDENCE : 0.55,
+      field_confidence: {
+        ...telemetryFieldConfidence(telemetry),
+        ...(geometryComplete ? {} : { geometry_missing: 0 }),
+      },
       grounding: [
         facts ? { field: "facts_excerpt", source_quote: facts.slice(0, 240) } : null,
         holding ? { field: "ruling_excerpt", source_quote: holding.slice(0, 240) } : null,
+        ...(geometryComplete ? telemetryGrounding(telemetry) : []),
       ].filter((g): g is { field: string; source_quote: string } => g != null),
       groundingMode: "require_span",
       confidenceMode: "enforce",
