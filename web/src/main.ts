@@ -51,6 +51,7 @@ import {
   buildColregsExtraction,
   buildPscExtraction,
   ExtractionValidationError,
+  GroundingValidationError,
   ruleD5LinesFromExtraction,
 } from "./schemas";
 import { runColregs, runPsc, runPscFixture, runRuleD5, runRuleD5FromRepairText } from "./core";
@@ -166,6 +167,7 @@ function buildUc2(): Uc2View {
         field: `lines.${ln.id}`,
         source_quote: String(ln.title),
       })),
+    groundingMode: state.uc2FromPdf ? "require_span" : "paste_bypass",
     hireRate: state.hireRate,
     legacyLeadDays: state.legacyLeadDays,
     aiLeadMinutes: state.aiLeadMinutes,
@@ -263,6 +265,12 @@ function buildUc3(): Uc3View {
     faultRatioHint: catalogFault || undefined,
     documentKind: docKind,
     confidence: state.civil7?.case_id === "upload" ? 0.55 : 0.7,
+    groundingMode:
+      state.civil7?.case_id === "upload" ? "require_span" : "paste_bypass",
+    sourceText:
+      state.civil7?.case_id === "upload"
+        ? [facts, ruling].filter(Boolean).join("\n") || undefined
+        : undefined,
     rules: state.rules,
     seeds: state.seeds,
   });
@@ -467,11 +475,14 @@ async function handlePdf(file: File): Promise<void> {
     });
     state.uc2Lines = ruleD5LinesFromExtraction(run.extraction);
   } catch (err) {
-    if (err instanceof ExtractionValidationError) {
+    if (
+      err instanceof ExtractionValidationError ||
+      err instanceof GroundingValidationError
+    ) {
       alert(t("err_schema_invalid", state.lang));
       return;
     }
-    if (err instanceof Error && /No repair line items/.test(err.message)) {
+    if (err instanceof Error && /No repair line items|ungrounded/i.test(err.message)) {
       alert(t("err_no_line_items", state.lang));
       return;
     }
@@ -642,9 +653,14 @@ function renderUc3(root: HTMLElement): void {
           facts ? { field: "facts_excerpt", source_quote: facts.slice(0, 240) } : null,
           holding ? { field: "ruling_excerpt", source_quote: holding.slice(0, 240) } : null,
         ].filter((g): g is { field: string; source_quote: string } => g != null),
+        groundingMode: "require_span",
+        sourceText: text,
       });
     } catch (err) {
-      if (err instanceof ExtractionValidationError) {
+      if (
+        err instanceof ExtractionValidationError ||
+        err instanceof GroundingValidationError
+      ) {
         alert(t("err_schema_invalid", state.lang));
         return;
       }
@@ -680,6 +696,7 @@ function buildPscReport(): { report: SeaworthinessRiskReport; title: string } {
       cicWeights: state.pscPasteCic,
       lookbackMonths: state.pscLookbackMonths,
       confidence: 0.75,
+      groundingMode: "paste_bypass",
     });
     return { report, title: state.pscPasteLabel || "pasted" };
   }
@@ -851,6 +868,7 @@ function renderPsc(root: HTMLElement): void {
         cicWeights: parsed.cicWeights,
         lookbackMonths: state.pscLookbackMonths,
         confidence: 0.75,
+        groundingMode: "paste_bypass",
       });
       state.pscPasteCurrent = parsed.current;
       state.pscPastePrior = parsed.prior;
@@ -860,7 +878,10 @@ function renderPsc(root: HTMLElement): void {
       state.pscUsePaste = true;
       render();
     } catch (err) {
-      if (err instanceof ExtractionValidationError) {
+      if (
+        err instanceof ExtractionValidationError ||
+        err instanceof GroundingValidationError
+      ) {
         alert(t("err_schema_invalid", state.lang));
         return;
       }

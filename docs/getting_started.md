@@ -4,7 +4,7 @@ Install, ingest, index, evaluate, and run the claims pipeline. Local caches defa
 
 This guide is the canonical how-to formerly kept in the repository README.
 
-Related: [Executive demo](executive_demo_cli_and_web.md) · [Demo use cases](demo_use_cases.md) · [Public benchmarks](public_benchmarks_and_accuracy_evaluation.md) · [Technical stack](technical_stack.md) · [Database lifecycle](database_architecture_and_lifecycle.md).
+Related: [Executive demo](executive_demo_cli_and_web.md) · [Demo use cases](demo_use_cases.md) · [Exact Span grounding](exact_span_grounding.md) · [Public benchmarks](public_benchmarks_and_accuracy_evaluation.md) · [Technical stack](technical_stack.md) · [Database lifecycle](database_architecture_and_lifecycle.md).
 
 ---
 

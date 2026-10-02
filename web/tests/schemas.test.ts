@@ -206,6 +206,7 @@ describe("Tier-1 adapters", () => {
     const ext = buildRuleD5Extraction({
       dockingContext: "casualty_immediate",
       lines: [{ id: "a", cost: 100, trade_code: "DOCK-01" }],
+      groundingMode: "paste_bypass",
     });
     expect(ext.schema_id).toBe("rule_d5.v1");
     expect(ruleD5LinesFromExtraction(ext)[0]!.id).toBe("a");
@@ -219,6 +220,8 @@ describe("Tier-1 adapters", () => {
         true_bearing_a_to_b_deg: 0,
       },
       factsExcerpt: "head-on approach",
+      grounding: [{ field: "facts_excerpt", source_quote: "head-on approach" }],
+      groundingMode: "paste_bypass",
     });
     expect(ext.payload.geometry.heading_b_deg).toBe(180);
   });
@@ -243,6 +246,7 @@ describe("Tier-1 adapters", () => {
           is_repeat_critical: false,
         },
       ],
+      groundingMode: "paste_bypass",
     });
     expect(ext.payload.deficiencies[0]!.code).toBe("07105");
     expect(ext.payload.deficiencies[0]).not.toHaveProperty("severity_weight");

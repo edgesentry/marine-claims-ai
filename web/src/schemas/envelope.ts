@@ -1,5 +1,5 @@
 /**
- * Shared Stage A ExtractionResult envelope (Issue #87).
+ * Shared Stage A ExtractionResult envelope (Issue #87 / #88).
  * Tier 1–3 extractors emit this shape; Stage B scorers only run after validation.
  */
 import { z } from "zod";
@@ -9,12 +9,20 @@ export type SchemaId = (typeof SCHEMA_IDS)[number];
 
 export const SchemaIdSchema = z.enum(SCHEMA_IDS);
 
+/** PDF text-layer / OCR bounding box (Issue #88). */
+export const PdfCoordinatesSchema = z.object({
+  page: z.number().int().positive(),
+  x0: z.number().finite(),
+  y0: z.number().finite(),
+  x1: z.number().finite(),
+  y1: z.number().finite(),
+});
+
 export const GroundingRefSchema = z.object({
   field: z.string().optional(),
   source_quote: z.string().min(1),
   page_number: z.number().int().nullable().optional(),
-  /** Reserved for Issue #88 PDF bbox grounding. */
-  pdf_coordinates: z.unknown().nullable().optional(),
+  pdf_coordinates: PdfCoordinatesSchema.nullable().optional(),
 });
 
 export const AbstainSchema = z.object({
@@ -30,5 +38,6 @@ export const ExtractionEnvelopeBaseSchema = z.object({
   abstain: AbstainSchema.optional(),
 });
 
+export type PdfCoordinates = z.infer<typeof PdfCoordinatesSchema>;
 export type GroundingRef = z.infer<typeof GroundingRefSchema>;
 export type Abstain = z.infer<typeof AbstainSchema>;

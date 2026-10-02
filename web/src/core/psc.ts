@@ -10,6 +10,7 @@ import {
   type PscFixtureCase,
   type SeaworthinessRiskReport,
 } from "../engines/psc";
+import type { GroundingMode } from "../pipeline/groundingGate";
 import {
   buildPscExtraction,
   type GroundingRef,
@@ -24,6 +25,8 @@ export interface PscRunInput {
   lookbackMonths?: number;
   confidence?: number;
   grounding?: GroundingRef[];
+  groundingMode?: GroundingMode;
+  sourceText?: string;
 }
 
 export interface PscRunResult {
@@ -43,6 +46,8 @@ export function runPsc(input: PscRunInput): PscRunResult {
     lookbackMonths: input.lookbackMonths ?? DEFAULT_LOOKBACK_MONTHS,
     confidence: input.confidence ?? 0.75,
     grounding: input.grounding,
+    groundingMode: input.groundingMode ?? "require_span",
+    sourceText: input.sourceText,
   });
   const report = scoreSeaworthiness(input.deficiencies, {
     prior: input.prior,
@@ -71,6 +76,7 @@ export function runPscFromPaste(
     cicWeights: parsed.cicWeights,
     lookbackMonths: opts.lookbackMonths,
     confidence: opts.confidence,
+    groundingMode: "paste_bypass",
   });
   return { ...result, label: parsed.label };
 }
@@ -94,6 +100,7 @@ export function runPscFixture(
         : null,
     lookbackMonths: opts.lookbackMonths ?? DEFAULT_LOOKBACK_MONTHS,
     confidence: opts.confidence ?? 0.9,
+    groundingMode: "paste_bypass",
   });
   return { extraction, report };
 }

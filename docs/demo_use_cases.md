@@ -26,7 +26,7 @@ Before Stage B scoring, extractors wrap output in a shared **`ExtractionResult`*
 - `colregs.v1` — headings / bearing / situation candidates + facts/ruling excerpts  
 - `psc.v1` — deficiency rows (+ optional prior window)
 
-Invalid envelopes never reach the Rule D5 / COLREGS / PSC scorers. JSON Schema copies for interoperability: [docs/schemas/](schemas/).
+Invalid envelopes never reach the Rule D5 / COLREGS / PSC scorers. JSON Schema copies for interoperability: [docs/schemas/](schemas/). Document-derived fields also need **Exact Span** grounding (or an explicit paste bypass): [exact_span_grounding.md](exact_span_grounding.md) (Issue #88).
 
 ---
 
