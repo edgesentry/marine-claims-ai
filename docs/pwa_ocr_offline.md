@@ -52,6 +52,101 @@ If tessdata was never fetched, OCR fails closed with an explicit message — Sta
 | **Offline preprocess (#45)** | Prep before meeting / CI ≥95% gate | No browser OCR weights | Small (Python `[ocr]` extra) | Higher (deskew / tables) |
 | Cloud OCR API | Convenient | No | Small | High | **Avoided** for Gate B / FISC narrative |
 
+## Hand-off: Python #45 → Stage A (CLI / PWA)
+
+The WASM PWA does **not** call Python at runtime. Preprocess offline, then feed the **same yen-line text** (or a PDF that embeds that text) into the shared Stage A → Rule D5 path.
+
+### 1. Preprocess a scan (Python)
+
+```bash
+uv sync --extra ocr
+# requires system tesseract-ocr + tesseract-ocr-jpn
+
+uv run python - <<'PY'
+from pathlib import Path
+from marine_claims_ai.ingest.ocr_cleanup import process_invoice_image
+from marine_claims_ai.paths import DEFAULT_OCR_CACHE_DIR
+
+# Input: PNG/JPEG of a drydock invoice (keep under _inputs/ or a local path; do not commit).
+items = process_invoice_image(Path("_inputs/repairs/specs/my_scan.png"), cache_key="demo_scan")
+print(f"{len(items)} lines → {DEFAULT_OCR_CACHE_DIR / 'demo_scan.json'}")
+for it in items:
+    print(f"{it.description}\t{it.estimated_cost}")
+PY
+```
+
+Cache JSON shape (Zero-Dataset; gitignored):
+
+```json
+{
+  "source": "...",
+  "items": [
+    { "description": "甲板部 外板補修工事（球状船首）", "estimated_cost": 1200000, "row_index": 0, "source_quote": "...", "bbox": null }
+  ],
+  "ocr_text": "...",
+  "cells": []
+}
+```
+
+`items[].description` + `items[].estimated_cost` match PWA `ExtractedItem` / CLI repair-line heuristics.
+
+### 2. Export yen lines for Stage A
+
+```bash
+uv run python - <<'PY'
+import json
+from pathlib import Path
+from marine_claims_ai.paths import DEFAULT_OCR_CACHE_DIR
+
+cache = json.loads((DEFAULT_OCR_CACHE_DIR / "demo_scan.json").read_text(encoding="utf-8"))
+out = Path("_data/cache/ocr/demo_scan_lines.txt")
+lines = []
+for it in cache["items"]:
+    cost = f"{int(it['estimated_cost']):,}"
+    lines.append(f"{it['description']} {cost}円")
+# Prefer full-page OCR text when present (better Exact Span quotes).
+text = (cache.get("ocr_text") or "").strip() or "\n".join(lines)
+out.write_text(text + "\n", encoding="utf-8")
+print(out)
+PY
+```
+
+### 3a. Score with the shared CLI (recommended hand-off)
+
+Same `web/src/core` runners as the PWA — no browser OCR weights needed:
+
+```bash
+cd web
+npm run cli -- rule-d5 --text ../_data/cache/ocr/demo_scan_lines.txt
+```
+
+Expect schema-valid repair lines; low confidence / missing spans still abstain into `HUMAN_REVIEW_REQUIRED` (#89) when the runner enforces Stage A gates.
+
+### 3b. Show it in the PWA Rule D5 tab
+
+The Rule D5 tab accepts **PDF drop only** (not a free-text paste). Options:
+
+| Goal | What to drop |
+| :--- | :--- |
+| Live closed-room demo | Original image-only PDF → in-browser OCR (#94) |
+| Pre-cleaned meeting deck | A **text-layer PDF** whose pages contain the exported yen lines (so pdf.js skips OCR). Build any way you like (Word → PDF, `enscript`, etc.); keep under `_data/` / `_inputs/`, never commit customer scans |
+| Verify core only | Use **3a CLI**; skip the browser |
+
+After drop → router Confirm → **Analyze** → Confirm & score if abstaining.
+
+There is **no** “Load `_data/cache/ocr/*.json`” button in the PWA. The contract is the shared field shape + text/PDF carrying those lines.
+
+### 4. Quick contract check (no image deps)
+
+```bash
+uv run python - <<'PY'
+from marine_claims_ai.ingest.ocr_cleanup import extract_tabular_lines
+text = open("web/tests/fixtures/ocr_scan_synthetic/repair_lines.txt", encoding="utf-8").read()
+print([it.model_dump() for it in extract_tabular_lines(text)])
+PY
+cd web && npm test -- tests/ocrUploadPath.test.ts
+```
+
 ## Python OCR extra (Issue #45)
 
 ```bash

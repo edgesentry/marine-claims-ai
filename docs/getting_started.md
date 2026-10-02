@@ -29,7 +29,7 @@ cd web && npm install && npm run fetch:tessdata && npm test && npm run gate-a
 cd web && npm run build && npm run preview
 ```
 
-Image-only PDF OCR (Issue #94): [pwa_ocr_offline.md](pwa_ocr_offline.md) (~52 MB same-origin weights, airplane after first SW cache). Offline deskew / table reconstruction (Issue #45): `uv sync --extra ocr` then `uv run pytest tests/test_ocr_cleanup.py`; cache under `_data/cache/ocr/`.
+Image-only PDF OCR (Issue #94): [pwa_ocr_offline.md](pwa_ocr_offline.md) (~52 MB same-origin weights, airplane after first SW cache). Offline deskew / table reconstruction (Issue #45): `uv sync --extra ocr` then preprocess → `_data/cache/ocr/` → CLI `rule-d5 --text` or a text-layer PDF drop; step-by-step hand-off is in [pwa_ocr_offline.md § Hand-off](pwa_ocr_offline.md#hand-off-python-45--stage-a-cli--pwa).
 
 ```bash
 # CLI (same core as PWA)
