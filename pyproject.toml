@@ -11,11 +11,8 @@ license = { text = "Apache-2.0" }
 requires-python = ">=3.11"
 dependencies = [
     "polars>=1.0.0",
-    "lancedb>=0.17.0",
     "pyarrow>=15.0.0",
     "duckdb>=1.1.0",
-    "fastembed>=0.4.0",
-    "networkx>=3.2",
     "certifi>=2024.0.0",
     "pydantic>=2",
 ]
@@ -25,11 +22,8 @@ marine-claims-fetch = "marine_claims_ai.ingest.public_datasets:main"
 marine-claims-index = "marine_claims_ai.index.build:main"
 marine-claims-search = "marine_claims_ai.index.search:main"
 marine-claims-apportion = "marine_claims_ai.analytics.apportion:main"
-marine-claims-compartments = "marine_claims_ai.ontology.compartments:main"
 marine-claims-eval-retrieval = "marine_claims_ai.benchmarks.retrieval_scale:main"
 marine-claims-civil-coverage = "marine_claims_ai.benchmarks.civil_coverage:main"
-marine-claims-validate-civil-extractor = "marine_claims_ai.benchmarks.civil_extractor_eval:main"
-marine-claims-demo = "marine_claims_ai.demo.cli:main"
 
 [dependency-groups]
 dev = [
@@ -39,29 +33,16 @@ dev = [
     "pyright>=1.1.414",
     "pip-licenses>=5.0.0",
 ]
-demo = [
-    "fastapi>=0.115.0",
-    "uvicorn[standard]>=0.32.0",
-    "jinja2>=3.1.0",
-    "python-multipart>=0.0.12",
-]
 
 [tool.setuptools.packages.find]
 where = ["src"]
 
 [tool.setuptools.package-data]
-marine_claims_ai = [
-    "demo/templates/**/*.html",
-    "demo/static/**/*",
-]
+marine_claims_ai = []
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src"]
-markers = [
-    "demo: local executive demo CLI/Web tests (not required in CI; run with: pytest -m demo)",
-]
-addopts = "-m 'not demo'"
 
 [tool.ruff]
 target-version = "py311"

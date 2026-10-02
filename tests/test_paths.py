@@ -15,12 +15,10 @@ from marine_claims_ai.paths import (
     DEFAULT_INPUT_REPAIRS_DIR,
     DEFAULT_INPUTS_DIR,
     DEFAULT_JURISDICTIONS_DIR,
-    DEFAULT_LANCE_DIR,
     DEFAULT_LOG_DIR,
     DEFAULT_NEGATIVE_PATTERN_PATH,
     LEGACY_DATASET_DIR,
     LEGACY_DUCK_PATH,
-    LEGACY_LANCE_DIR,
     REPO_ROOT,
 )
 
@@ -46,7 +44,6 @@ def test_tier_data_paths():
     assert DEFAULT_DATA_DIR == REPO_ROOT / "_data"
     assert DEFAULT_DUCK_DIR == DEFAULT_DATA_DIR / "duckdb"
     assert DEFAULT_DUCK_PATH == DEFAULT_DUCK_DIR / "marine_claims.duckdb"
-    assert DEFAULT_LANCE_DIR == DEFAULT_DATA_DIR / "lancedb"
     assert DEFAULT_BENCHMARK_DIR == DEFAULT_DATA_DIR / "benchmarks"
     assert DEFAULT_CACHE_DIR == DEFAULT_DATA_DIR / "cache"
     assert DEFAULT_DATASET_DIR == DEFAULT_DATA_DIR / "poc_datasets"
@@ -59,7 +56,6 @@ def test_tier_log_path():
 def test_legacy_fallback_paths():
     assert LEGACY_DATASET_DIR == DEFAULT_INPUTS_DIR / "poc_datasets"
     assert LEGACY_DUCK_PATH == DEFAULT_DATA_DIR / "marine_claims.duckdb"
-    assert LEGACY_LANCE_DIR == REPO_ROOT / ".lancedb"
 
 
 def test_tracked_config_paths_exist():

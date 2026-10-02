@@ -21,7 +21,7 @@ Any autonomous or semi-autonomous AI agent operating in this codebase MUST stric
 - All evaluation data must be generated or fetched on-demand into gitignored local cache directories (`_inputs/`, `_data/`, `_logs/`).
 - The canonical directory layout and subfolder rules are defined in **[docs/directory_structure_and_data_governance.md](docs/directory_structure_and_data_governance.md)**:
   - `_inputs/`: Raw external documents only (PDF, HTML). Read-only; no databases or generated files.
-  - `_data/`: Derived databases (DuckDB, LanceDB), benchmark evaluation JSONs, and rendering/OCR caches.
+  - `_data/`: Derived databases (DuckDB), benchmark evaluation JSONs, and rendering/OCR caches.
   - `_logs/`: Runtime operational logs, benchmark evaluation logs, and audit trails.
 - Resolve filesystem locations via `marine_claims_ai.paths` (do not hardcode `_inputs/` / `_data/` / `_logs/` relative paths).
 - Only source code (`src/marine_claims_ai/`, thin `scripts/` entrypoints), configuration schemas (`config/benchmark_rules.json`), and architectural documentation (`docs/`) are tracked in version control.
@@ -30,13 +30,13 @@ Any autonomous or semi-autonomous AI agent operating in this codebase MUST stric
 - Keep all domain logic generalized and standard-compliant (e.g., standard COLREGS rules, classification society survey intervals, physical compartment ontologies).
 - Do not introduce proprietary insurer-specific policy riders, custom warranty interpretation heuristics, or private legacy system API connectors into this repository.
 
-## 3. Executive demo (CLI + Web)
-When changing or extending the Issue #54 executive demo, follow **[docs/executive_demo_cli_and_web.md](docs/executive_demo_cli_and_web.md)** and the per-tab I/O write-up **[docs/demo_use_cases.md](docs/demo_use_cases.md)**:
-- Keep CLI and Web on the shared `marine_claims_ai.demo.ops` layer (no duplicated UC logic).
+## 3. Executive demo (WASM PWA)
+When changing or extending the Issue #54 / #76 executive demo, follow **[docs/executive_demo_cli_and_web.md](docs/executive_demo_cli_and_web.md)** and the per-tab I/O write-up **[docs/demo_use_cases.md](docs/demo_use_cases.md)**:
+- Runtime SoT is `web/` (TypeScript + DuckDB-WASM). Do not reintroduce a Python demo CLI or FastAPI demo server.
 - Prefer local caches under `_data/`; never commit demo datasets.
-- Keep EN/JA strings in `demo/i18n.py`; do not embed confidential pitch narratives or hard-coded commercial metrics.
+- Keep EN/JA copy in the PWA; do not embed confidential pitch narratives or hard-coded commercial metrics.
 - Vendor offline front-end assets; do not introduce CDN runtime dependencies for the demo.
-- Each Web tab should surface use case / inputs / processing / outputs (see `partials/explain_box.html`) and keep interactive conditions wired through ops params.
+- Each Web tab should surface use case / inputs / processing / outputs and keep interactive conditions in the PWA state layer.
 
 Install / ingest / eval how-tos for humans and agents: **[docs/getting_started.md](docs/getting_started.md)**.
 

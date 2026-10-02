@@ -1,0 +1,92 @@
+[
+  {
+    "id": "kencho_yugyo_65_35",
+    "case_id": 1,
+    "text": "両船の責任割合は、建昌六・五、有漁丸三・五である。建昌の責任割合は前記のとおり六五パーセントである。請求額は八〇七万二三三五円であり、認容額は一一七〇万五〇〇〇円とした。",
+    "fault_ratio": "65:35",
+    "claimed_repair_jpy": 8072335,
+    "awarded_damages_jpy": 11705000,
+    "disallowed_jpy": null
+  },
+  {
+    "id": "arabic_70_30",
+    "case_id": null,
+    "text": "過失割合は 70:30 である。請求額は 20,000,000円、認容額は 12,345,678円、否認は 3,000,000円 とした。",
+    "fault_ratio": "70:30",
+    "claimed_repair_jpy": 20000000,
+    "awarded_damages_jpy": 12345678,
+    "disallowed_jpy": 3000000
+  },
+  {
+    "id": "kanji_pair_80_20",
+    "case_id": null,
+    "text": "裁判所は過失割合を八〇対二〇と認めるのが相当である。",
+    "fault_ratio": "80:20",
+    "claimed_repair_jpy": null,
+    "awarded_damages_jpy": null,
+    "disallowed_jpy": null
+  },
+  {
+    "id": "wari_plaintiff_30",
+    "case_id": null,
+    "text": "原告の過失割合を三割と認めるのが相当である。",
+    "fault_ratio": "30:70",
+    "claimed_repair_jpy": null,
+    "awarded_damages_jpy": null,
+    "disallowed_jpy": null
+  },
+  {
+    "id": "named_tenths_80_20",
+    "case_id": null,
+    "text": "金宝丸にも一因があるが、その責任割合はしんえい丸八、金宝丸二である。",
+    "fault_ratio": "80:20",
+    "claimed_repair_jpy": null,
+    "awarded_damages_jpy": null,
+    "disallowed_jpy": null
+  },
+  {
+    "id": "shuin_ichin_70_30",
+    "case_id": 4,
+    "text": "本件衝突の主因はA船にあり、B船の協力動作懈怠も一因をなすものである。",
+    "fault_ratio": "70:30",
+    "claimed_repair_jpy": null,
+    "awarded_damages_jpy": null,
+    "disallowed_jpy": null
+  },
+  {
+    "id": "hassei_ichin_70_30",
+    "case_id": 4,
+    "text": "本件衝突は、見張り不十分で進路を避けなかったことによって発生したが、警告信号を行わず協力動作をとらなかったことも一因をなすものである。",
+    "fault_ratio": "70:30",
+    "claimed_repair_jpy": null,
+    "awarded_damages_jpy": null,
+    "disallowed_jpy": null
+  },
+  {
+    "id": "catalog_holding_case1",
+    "case_id": 1,
+    "text": "双方の過失を認定し、責任割合を建昌65・有漁丸35と判示。人損・物損を責任割合で按分。",
+    "fault_ratio": "65:35",
+    "claimed_repair_jpy": null,
+    "awarded_damages_jpy": null,
+    "disallowed_jpy": null
+  },
+  {
+    "id": "fullwidth_60_40",
+    "case_id": null,
+    "text": "過失割合は６０対４０である。請求額は１２５，０００，０００円、認容額は７２，０００，０００円。",
+    "fault_ratio": "60:40",
+    "claimed_repair_jpy": 125000000,
+    "awarded_damages_jpy": 72000000,
+    "disallowed_jpy": null
+  },
+  {
+    "id": "percent_symbol_75",
+    "case_id": null,
+    "text": "責任割合を七五％と認定した。",
+    "fault_ratio": "75:25",
+    "claimed_repair_jpy": null,
+    "awarded_damages_jpy": null,
+    "disallowed_jpy": null
+  }
+]

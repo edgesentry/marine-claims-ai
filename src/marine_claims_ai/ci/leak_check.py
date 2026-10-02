@@ -19,14 +19,20 @@ from marine_claims_ai.paths import REPO_ROOT
 
 BANNED_EXTENSIONS = {".pdf", ".csv", ".tsv", ".html", ".htm"}
 
-# Configuration schemas under config/, plus tiny synthetic demo E2E fixtures.
+# Configuration schemas under config/, plus WASM PWA package/fixtures (not corpora).
 JSON_ALLOWLIST_PREFIXES = (
     "config/",
+    "web/package.json",
+    "web/package-lock.json",
+    "web/tsconfig.json",
+    "web/tsconfig.node.json",
+    "web/tests/fixtures/",
 )
 
-# Application UI templates (Jinja2), not scraped dataset HTML.
+# Static WASM PWA shell (Issue #76), not scraped dataset HTML.
 HTML_ALLOWLIST_PREFIXES = (
-    "src/marine_claims_ai/demo/templates/",
+    "web/index.html",
+    "web/dist/",
 )
 
 # Scanner sources embed detection literals; skip during content scan.

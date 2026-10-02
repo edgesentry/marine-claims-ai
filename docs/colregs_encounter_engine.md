@@ -19,7 +19,7 @@ Issue #30 asks for a deterministic, hallucination-free classifier that maps enco
 | Rules **16–17** role labels (`GIVE_WAY` / `STAND_ON`) as obligations attached to 13–15 | Full Rule 17 close-quarters branch tree as a separate state machine |
 | Unit tests on synthetic + anonymized historical-pattern fixtures | Committing raw JMAT/JTSB PDFs or identifiable vessel tracks |
 
-**Architecture boundary.** `legal/colregs_engine.py` is Universal Open Core. `adapters.base.EncounterSituation` (precedent-lookup DTO) is a different type from `legal.colregs_engine.EncounterSituation` (geometry enum).
+**Architecture boundary.** COLREGS situation geometry lives in `web/src/engines/` (WASM PWA SoT). `adapters.base.EncounterSituation` (precedent-lookup DTO) is a different type from the engine geometry enum.
 
 ---
 

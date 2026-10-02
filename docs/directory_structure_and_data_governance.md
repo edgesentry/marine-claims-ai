@@ -24,7 +24,7 @@ flowchart LR
     subgraph DATA["2. _data/ (Derived / Storage)"]
         direction TB
         DUCK[("DuckDB (_data/duckdb/)")]
-        LANCE[("LanceDB (_data/lancedb/)")]
+        DUCK[("DuckDB (_data/duckdb/)")]
         BENCH["Benchmarks & Gold JSON"]
         CACHE["Render & OCR Caches"]
     end
@@ -43,7 +43,7 @@ flowchart LR
    - Houses only un-manipulated external source documents (PDFs, HTML files, official gazettes).
    - Treated strictly as **read-only** by application pipelines and agents; no generated intermediate artifacts or database files may be written here.
 2. **`_data/` (Derived Storage & Structured Artifacts — Ephemeral / Rebuildable)**:
-   - Houses embedded databases (DuckDB, LanceDB), pre-extracted benchmark evaluation JSON files, and rendering/OCR caches.
+   - Houses embedded databases (DuckDB), pre-extracted benchmark evaluation JSON files, and rendering/OCR caches.
    - All files in `_data/` must be 100% regenerable on-demand from `_inputs/` via scripts.
 3. **`_logs/` (Operational Logs & Audit Trail)**:
    - Houses runtime diagnostics, evaluation benchmark metrics, and adjuster override audit logs.
@@ -101,8 +101,8 @@ _data/
 │   ├── marine_claims.duckdb      # Primary analytical database (Rule D5 apportionment, line items)
 │   └── marine_claims_thin.duckdb # Lightweight fixture database for fast CI test suites
 │
-├── lancedb/                      # Embedded Hybrid Vector + FTS Search Engine
-│   └── (LanceDB tables: precedents.lance, repair_packages.lance, 384-dim embeddings)
+├── duckdb/                       # Embedded analytics + vector/keyword retrieval
+│   └── marine_claims.duckdb      # precedents (embeddings) + line_items + Rule D5 VIEW
 │
 ├── benchmarks/                   # Standardized Benchmark Ground Truth & Structured Corpora
 │   ├── field1_jmat_cases.json    # JMAT 100-case structured benchmark
@@ -120,7 +120,7 @@ _data/
 
 ```text
 _logs/
-├── demo.log                      # Web demo server (FastAPI/Starlette) diagnostic log
+├── demo.log                      # Demo CLI diagnostic log (rotating)
 ├── appraisal_eval.log            # Accuracy benchmark test execution & metric reports
 └── audit_trail/                  # Immutable adjuster review & override audit logs (enterprise copilot)
 ```
@@ -145,7 +145,7 @@ All internal modules and CLI scripts must resolve file locations via **`marine_c
 | `DEFAULT_DATA_DIR` | `<repo>/_data` | Base directory for derived databases and caches |
 | `DEFAULT_DUCK_DIR` | `<repo>/_data/duckdb` | DuckDB database directory |
 | `DEFAULT_DUCK_PATH` | `<repo>/_data/duckdb/marine_claims.duckdb` | Primary DuckDB database file |
-| `DEFAULT_LANCE_DIR` | `<repo>/_data/lancedb` | LanceDB vector database directory |
+| `DEFAULT_DUCK_PATH` | `<repo>/_data/duckdb/marine_claims.duckdb` | DuckDB analytics + retrieval database |
 | `DEFAULT_BENCHMARK_DIR` | `<repo>/_data/benchmarks` | Benchmark JSON corpora |
 | `DEFAULT_CACHE_DIR` | `<repo>/_data/cache` | Intermediate preview and OCR caches |
 | `DEFAULT_LOG_DIR` | `<repo>/_logs` | Operational and audit log directory |

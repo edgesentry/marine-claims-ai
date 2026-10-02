@@ -1,0 +1,52 @@
+[
+  {
+    "name": "pkg-1",
+    "ground_truth_cost_jpy": 1000000,
+    "trade_code": "HULL-01"
+  },
+  {
+    "name": "pkg-2",
+    "ground_truth_cost_jpy": 2500000,
+    "trade_code": "ENG-01"
+  },
+  {
+    "name": "pkg-3",
+    "ground_truth_cost_jpy": 800000,
+    "trade_code": "DOCK-01"
+  },
+  {
+    "name": "pkg-4",
+    "ground_truth_cost_jpy": 3200000,
+    "trade_code": "SAFE-01"
+  },
+  {
+    "name": "pkg-5",
+    "ground_truth_cost_jpy": 1500000,
+    "trade_code": "PUMP-01"
+  },
+  {
+    "name": "pkg-6",
+    "ground_truth_cost_jpy": 900000,
+    "trade_code": "VALVE-01"
+  },
+  {
+    "name": "pkg-7",
+    "ground_truth_cost_jpy": 4000000,
+    "trade_code": "ENG-02"
+  },
+  {
+    "name": "pkg-8",
+    "ground_truth_cost_jpy": 1100000,
+    "trade_code": "HULL-02"
+  },
+  {
+    "name": "pkg-9",
+    "ground_truth_cost_jpy": 2000000,
+    "trade_code": "PUMP-02"
+  },
+  {
+    "name": "pkg-10",
+    "ground_truth_cost_jpy": 750000,
+    "trade_code": "DOCK-02"
+  }
+]

@@ -69,6 +69,11 @@ class _HTMLTextExtractor(HTMLParser):
         return re.sub(r"\s+", " ", "".join(self._chunks))
 
 
+def is_synthetic_placeholder_url(url: str) -> bool:
+    """Offline Gate A style seeds use non-fetchable placeholder URLs."""
+    return "gate_a59_" in url or "/hanrei_jp/" in url
+
+
 def is_generic_portal(url: str) -> bool:
     normalized = url.strip()
     if normalized in GENERIC_EXACT:
@@ -216,6 +221,11 @@ def verify_record(record: dict[str, Any], mode: str, tmp_dir: str) -> dict[str, 
         result["notes"].append("missing url")
         return result
 
+    if is_synthetic_placeholder_url(url):
+        result["status"] = "skip_synthetic"
+        result["notes"].append("synthetic placeholder URL; no live fetch")
+        return result
+
     if is_generic_portal(url) or not is_verifiable_document_url(url):
         result["status"] = "skip_generic"
         result["notes"].append("generic/non-document URL; no document-level check")
@@ -292,6 +302,7 @@ def verify_catalog(
         "total": len(results),
         "ok": sum(1 for r in results if r["status"] == "ok"),
         "skip_generic": sum(1 for r in results if r["status"] == "skip_generic"),
+        "skip_synthetic": sum(1 for r in results if r["status"] == "skip_synthetic"),
         "fail": sum(1 for r in results if r["status"] == "fail"),
         "results": results,
     }
@@ -320,7 +331,8 @@ def main() -> int:
     else:
         print(
             f"civil catalog verify mode={summary['mode']}: total={summary['total']} "
-            f"ok={summary['ok']} skip_generic={summary['skip_generic']} fail={summary['fail']}"
+            f"ok={summary['ok']} skip_generic={summary['skip_generic']} "
+            f"skip_synthetic={summary['skip_synthetic']} fail={summary['fail']}"
         )
         for r in summary["results"]:
             if r["status"] == "fail":
@@ -328,7 +340,8 @@ def main() -> int:
 
     if summary["fail"]:
         return 1
-    skip_ratio = summary["skip_generic"] / max(1, summary["total"])
+    live = summary["total"] - summary["skip_synthetic"]
+    skip_ratio = summary["skip_generic"] / max(1, live)
     if skip_ratio > args.fail_on_skip_ratio:
         print(
             f"[ERROR] skip_generic ratio {skip_ratio:.2f} > {args.fail_on_skip_ratio} "

@@ -29,7 +29,6 @@ DEFAULT_INPUT_STANDARDS_DIR = DEFAULT_INPUTS_DIR / "standards"
 DEFAULT_DATA_DIR = REPO_ROOT / "_data"
 DEFAULT_DUCK_DIR = DEFAULT_DATA_DIR / "duckdb"
 DEFAULT_DUCK_PATH = DEFAULT_DUCK_DIR / "marine_claims.duckdb"
-DEFAULT_LANCE_DIR = DEFAULT_DATA_DIR / "lancedb"
 DEFAULT_BENCHMARK_DIR = DEFAULT_DATA_DIR / "benchmarks"
 DEFAULT_CACHE_DIR = DEFAULT_DATA_DIR / "cache"
 
@@ -42,7 +41,6 @@ DEFAULT_LOG_DIR = REPO_ROOT / "_logs"
 # --- Legacy locations (read fallbacks; prefer constants above) ----------------
 LEGACY_DATASET_DIR = DEFAULT_INPUTS_DIR / "poc_datasets"
 LEGACY_DUCK_PATH = DEFAULT_DATA_DIR / "marine_claims.duckdb"
-LEGACY_LANCE_DIR = REPO_ROOT / ".lancedb"
 
 # --- Tracked config -----------------------------------------------------------
 DEFAULT_CONFIG_PATH = REPO_ROOT / "config" / "benchmark_rules.json"

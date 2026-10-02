@@ -1,15 +1,24 @@
-# Gate A Priority 1 (Issue #58) — local scale eval notes
+# Gate A Priority 1 (Issue #58) — WASM / Vitest harness
 
-Run after fetching repair tenders:
+**Canonical implementation:** `web/src/benchmarks/` (TypeScript).
 
 ```bash
-uv run python -m marine_claims_ai.ingest.repair_tenders
-uv run python scripts/eval_gate_a_priority1.py \
-  --json-out _data/benchmarks/gate_a_priority1_report.json \
-  --fail-on-gate
+cd web
+npm install
+npm run gate-a
+# or: npm test
 ```
 
-- **Zero-tolerance** (must pass on whatever corpus is present): Critical FA = 0, Rule D5 recon error = 0 JPY, Exact Span fabricated accepted = 0.
-- **Scale**: issue targets are ≥10 vessels / ≥2,500 line items / ≥20 bid notices. When below target the report sets `scale.scale_incomplete=true` but still requires zero-tolerance.
-- Provisional gold dumps: `uv run python scripts/eval_public_appraisal.py --write-gold-dir _data/benchmarks/gold`
-- PDF bodies stay gitignored under `_inputs/repairs/` and `_data/`.
+Zero-tolerance (must pass):
+
+- Critical FA = 0 (`evaluateA1A2Synthetic` / pipeline)
+- Rule D5 reconciliation error = 0 JPY (`evaluateA3RuleD5Synthetic` + `evaluateA3RuleD5Pipeline`)
+
+PDF-free lite report: `runGateAPriority1Lite()` in [`web/src/benchmarks/gateAPriority1.ts`](../web/src/benchmarks/gateAPriority1.ts).
+
+Also covered in the WASM path:
+
+- **A4** exact-span grounding (`web/src/pipeline/spanValidate.ts`) on in-memory fixtures
+- **A8** Field3 MAPE (`web/src/benchmarks/verify3Fields.ts`) with yard tolerance 1.03
+
+The former Python Gate A harness was removed; use Vitest only.

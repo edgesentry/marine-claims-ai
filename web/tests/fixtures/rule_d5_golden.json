@@ -1,0 +1,55 @@
+[
+  {
+    "id": "case_a_d5_2a",
+    "docking_context": "casualty_immediate",
+    "items": [
+      { "id": "hull-1", "trade_code": "HULL-01", "cost": 450000, "work_party": "casualty", "title": "外板損傷修繕" },
+      { "id": "safe-1", "trade_code": "SAFE-01", "cost": 550000, "title": "JG 定期検査" },
+      { "id": "dock-1", "trade_code": "DOCK-01", "cost": 4300000, "title": "入出渠・滞渠" }
+    ],
+    "expect": {
+      "has_statutory_owner_repair": true,
+      "apportionment_rule": "RULE_D5_50_50",
+      "common_dues_total": 4300000,
+      "insurer_common_share": 2150000,
+      "owner_common_share": 2150000,
+      "insurer_total": 2600000,
+      "owner_total": 2700000
+    }
+  },
+  {
+    "id": "case_b_d5_1_no_statutory",
+    "docking_context": "casualty_immediate",
+    "items": [
+      { "id": "hull-1", "trade_code": "HULL-01", "cost": 450000, "work_party": "casualty", "title": "外板損傷修繕" },
+      { "id": "eng-1", "trade_code": "ENG-02", "cost": 1800000, "necessity": "deferred", "title": "ピストン抜出" },
+      { "id": "dock-1", "trade_code": "DOCK-01", "cost": 4300000, "title": "入出渠・滞渠" }
+    ],
+    "expect": {
+      "has_statutory_owner_repair": false,
+      "apportionment_rule": "RULE_D5_100_UNDERWRITER",
+      "common_dues_total": 4300000,
+      "insurer_common_share": 4300000,
+      "owner_common_share": 0,
+      "insurer_total": 4750000,
+      "owner_total": 1800000
+    }
+  },
+  {
+    "id": "case_c_deferred_5050",
+    "docking_context": "deferred_to_routine",
+    "items": [
+      { "id": "hull-1", "trade_code": "HULL-01", "cost": 450000, "work_party": "casualty", "title": "外板損傷修繕" },
+      { "id": "dock-1", "trade_code": "DOCK-01", "cost": 4300000, "title": "入出渠・滞渠" }
+    ],
+    "expect": {
+      "has_statutory_owner_repair": false,
+      "apportionment_rule": "RULE_D5_50_50",
+      "common_dues_total": 4300000,
+      "insurer_common_share": 2150000,
+      "owner_common_share": 2150000,
+      "insurer_total": 2600000,
+      "owner_total": 2150000
+    }
+  }
+]

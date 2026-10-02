@@ -2,7 +2,7 @@
 """
 DuckDB analytical apportionment over local line_items (50/50 drydock + leakage).
 
-Search/retrieval belongs in LanceDB; this script is the financial SQL plane.
+Search/retrieval belongs in DuckDB (``precedents`` + embeddings); this script is the financial SQL plane.
 """
 
 from __future__ import annotations

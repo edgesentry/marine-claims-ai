@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""CLI: rebuild LanceDB + DuckDB local indexes."""
+"""CLI: rebuild DuckDB local indexes (precedents + analytics)."""
 
 from marine_claims_ai.index.build import main
 

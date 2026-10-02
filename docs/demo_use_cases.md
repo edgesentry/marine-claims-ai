@@ -2,7 +2,7 @@
 
 Explains the executive-demo tabs (Issue #54): **what** each use case is, **inputs**, **internal processing**, and **what outputs mean**. The Web UI analyzes **real business PDFs** (list or open file); interactive controls still change results live.
 
-Related: [Executive demo CLI & Web](executive_demo_cli_and_web.md) · [AAA Rule D5](aaa_rule_d5_drydock_apportionment.md) · [COLREGS engine](colregs_encounter_engine.md) · [Getting started](getting_started.md).
+Related: [Executive demo (WASM PWA)](executive_demo_cli_and_web.md) · [AAA Rule D5](aaa_rule_d5_drydock_apportionment.md) · [COLREGS engine](colregs_encounter_engine.md) · [Getting started](getting_started.md).
 
 **UI language:** Business terms only on screen (no library/function names). Developer notes below may mention modules.
 
@@ -15,7 +15,7 @@ Related: [Executive demo CLI & Web](executive_demo_cli_and_web.md) · [AAA Rule 
 | | |
 | :--- | :--- |
 | **Use case** | Split drydock common dues under London AAA Rule D5 and estimate off-hire avoided by faster pre-approval. |
-| **Tab** | `1. Rule D5` / `/uc2` · CLI `marine-claims-demo uc2 --analyze --spec …` |
+| **Tab** | `1. Rule D5` / `/uc2` (WASM PWA) |
 
 ### Inputs (Rule D5)
 
@@ -39,7 +39,7 @@ How dues are split, insurer/owner shares, timeline, off-hire estimate, statement
 | | |
 | :--- | :--- |
 | **Use case** | Classify encounter geometry (Rules 13–15), assign give-way / stand-on, and show fault-ratio evidence. |
-| **Tab** | `2. COLREGS` / `/uc3` · CLI `marine-claims-demo uc3 --analyze --doc …` |
+| **Tab** | `2. COLREGS` / `/uc3` (WASM PWA) |
 
 ### Inputs (COLREGS)
 

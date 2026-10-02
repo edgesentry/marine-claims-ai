@@ -148,7 +148,7 @@ flowchart TD
   - **Geometry unit fixtures** (`tests/test_colregs_engine.py` + `config/collision_geometries.json`): 20 synthetic / historical-pattern geometries → `classify_encounter` (100% situation accuracy).
   - **E2E raw-narrative pipeline** (`scripts/eval_colregs_end_to_end.py`):
     - Catalog: `config/jmat_collision_eval.json` (≥10 public-style JMAT/JTSB collision narratives with independent gold Arts. 13–15).
-    - Stage A extractor: `src/marine_claims_ai/ingest/jmat_extractor.py` (headings, relative bearings, speeds, statutory article).
+    - Stage A extractor (historical): Python `jmat_extractor` was removed after WASM migration; Field1 validation lives in `scripts/validate_field1_jmat.py` and COLREGS UI logic in `web/src/engines/`.
     - Stage B: `colregs_engine.classify_encounter()` vs catalog gold (not vs extractor-echoed labels).
     - Offline Zero-Dataset: embedded `facts_text` / `ruling_text`; optional `source_file` under `_inputs/poc_datasets` when present.
 - **Metrics**:
@@ -293,7 +293,7 @@ uv run python scripts/eval_colregs_end_to_end.py \
   - `min_extraction_rate`: ≥ 90.0%.
   - `min_situation_agreement`: ≥ 90.0%.
   - `max_critical_role_inversions`: Strictly 0.
-- Offline unit coverage: `tests/test_jmat_extractor.py` (fullwidth digits, half-width katakana, compass points, role-inversion gate).
+- Offline unit coverage: COLREGS / encounter tests under `web/tests/` (Vitest). Legacy `tests/test_jmat_extractor.py` was removed with the Python extractor.
 
 ---
 

@@ -1,1 +1,1 @@
-"""Local index build and hybrid search (LanceDB + DuckDB analytics tables)."""
+"""Local index build and DuckDB retrieval (vector + keyword RRF)."""
