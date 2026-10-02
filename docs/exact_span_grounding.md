@@ -74,10 +74,19 @@ Each `grounding[]` entry:
 ```bash
 cd web
 npm test
-npm run gate-a   # includes tests/groundingGate.test.ts + span A4
+npm run gate-a   # includes tests/groundingGate.test.ts + tests/issue88DoD.test.ts + span A4
 ```
 
-Expectations covered in Vitest:
+Web PWA workflow (`.github/workflows/web-pwa.yml`) runs both `npm test` and `npm run gate-a` on every PR that touches `web/**`.
+
+Issue #88 DoD is asserted explicitly in `web/tests/issue88DoD.test.ts`:
+
+| DoD | Assertion |
+| :--- | :--- |
+| Critical fields need grounding or `paste_bypass` | COLREGS / PSC / Rule D5 `pdf-*` reject under `require_span`; paste_bypass accepts |
+| Fabricated / ungrounded rate gate | Accepted set `fabricated_line_items === 0`; discarded fabricated counted; Gate A lite `max_fabricated_line_items: 0` |
+
+Expectations also covered in `groundingGate.test.ts` / `spanA4A8.test.ts`:
 
 - Ungrounded COLREGS / Rule D5 / PSC candidates → reject
 - Grounded quotes → accept and attach `grounding`
