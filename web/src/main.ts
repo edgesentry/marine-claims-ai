@@ -41,6 +41,11 @@ import {
   telemetryToGeometry,
   telemetryFieldConfidence,
 } from "./ingest/colregsTelemetryExtractor";
+import {
+  geometryForCatalogCase,
+  resolveDisplayDegrees,
+  type CatalogJmatCase,
+} from "./demo/catalogGeometry";
 import { looksLikeHtml } from "./ingest/pscDeficiencyExtractor";
 import {
   evaluateClaimsDynamically,
@@ -369,39 +374,37 @@ function buildUc2(): Uc2View {
 }
 
 function geometryForCase(): EncounterGeometry {
-  if (state.overrideGeom || state.caseId === "civil_7") {
-    return {
-      heading_a_deg: state.headingA,
-      heading_b_deg: state.headingB,
-      true_bearing_a_to_b_deg: state.bearingAb,
-      speed_a_kn: 12,
-      speed_b_kn: 10,
-      range_nm: 0.8,
-    };
-  }
-  const jmat = state.jmatCases.find((c) => c.case_id === state.caseId);
-  if (jmat?.facts_text) {
-    const extracted = telemetryToGeometry(
-      extractColregsTelemetry(jmat.facts_text),
-      { speed_a_kn: 12, speed_b_kn: 10, range_nm: 1 },
-    );
-    if (extracted) return extracted;
-  }
-  const sit = jmat?.expected_situation || "crossing";
-  const defaults: Record<string, [number, number, number]> = {
-    head_on: [0, 180, 0],
-    overtaking: [0, 0, 180],
-    crossing: [0, 270, 45],
-  };
-  const [a, b, brg] = defaults[sit] || defaults.crossing!;
-  return {
-    heading_a_deg: a,
-    heading_b_deg: b,
-    true_bearing_a_to_b_deg: brg,
-    speed_a_kn: 12,
-    speed_b_kn: 10,
-    range_nm: 1,
-  };
+  return geometryForCatalogCase({
+    caseId: state.caseId,
+    overrideGeom: state.overrideGeom,
+    slider: {
+      headingA: state.headingA,
+      headingB: state.headingB,
+      bearingAb: state.bearingAb,
+    },
+    jmatCases: state.jmatCases as CatalogJmatCase[],
+  });
+}
+
+/** Sync disabled heading/bearing inputs to the geometry Stage B already uses (#102). */
+function syncDisplayGeometryFromCase(): void {
+  if (state.overrideGeom) return;
+  const preserve =
+    state.caseId === "civil_7" && state.civil7?.case_id === "upload"
+      ? {
+          headingA: state.headingA,
+          headingB: state.headingB,
+          bearingAb: state.bearingAb,
+        }
+      : null;
+  const d = resolveDisplayDegrees({
+    caseId: state.caseId,
+    jmatCases: state.jmatCases as CatalogJmatCase[],
+    preserveDegrees: preserve,
+  });
+  state.headingA = d.headingA;
+  state.headingB = d.headingB;
+  state.bearingAb = d.bearingAb;
 }
 
 function emptyUc3View(title: string, facts: string, ruling: string, documentKind?: "judgment" | "jtsb"): Uc3View {
@@ -933,14 +936,19 @@ function renderUc3(root: HTMLElement): void {
         </label>
         <label class="check"><input type="checkbox" id="ovrGeom" ${state.overrideGeom ? "checked" : ""}> ${escapeHtml(t("geometry_override", state.lang))}</label>
         <label>${escapeHtml(t("heading_a", state.lang))}
-          <input type="number" id="hdgA" value="${state.headingA}" ${state.overrideGeom || state.caseId === "civil_7" ? "" : "disabled"}>
+          <input type="number" id="hdgA" value="${state.headingA}" ${state.overrideGeom ? "" : "disabled"}>
         </label>
         <label>${escapeHtml(t("heading_b", state.lang))}
-          <input type="number" id="hdgB" value="${state.headingB}" ${state.overrideGeom || state.caseId === "civil_7" ? "" : "disabled"}>
+          <input type="number" id="hdgB" value="${state.headingB}" ${state.overrideGeom ? "" : "disabled"}>
         </label>
         <label>${escapeHtml(t("bearing_ab", state.lang))}
-          <input type="number" id="brg" value="${state.bearingAb}" ${state.overrideGeom || state.caseId === "civil_7" ? "" : "disabled"}>
+          <input type="number" id="brg" value="${state.bearingAb}" ${state.overrideGeom ? "" : "disabled"}>
         </label>
+        ${
+          !state.overrideGeom
+            ? `<p class="muted">${escapeHtml(t("geometry_narrative_derived", state.lang))}</p>`
+            : ""
+        }
         <div class="dropzone" id="pdfDrop3">${escapeHtml(t("drop_pdf", state.lang))}<input type="file" id="pdfFile3" accept="application/pdf" hidden></div>
         ${state.ocrBusy && state.tab === "uc3" ? `<p class="warn" id="ocrBusy">${escapeHtml(state.ocrBusy)}</p>` : ""}
         ${routerPanelHtml("uc3", state.uc3Upload, "analyzeUc3")}
@@ -954,15 +962,17 @@ function renderUc3(root: HTMLElement): void {
     state.uc3Pending = null;
     state.uc3Confirmed = false;
     state.uc3Upload = null;
+    state.overrideGeom = false;
     if (state.caseId === "civil_7") {
-      state.headingA = 30;
-      state.headingB = 300;
-      state.bearingAb = 70;
+      const seed = state.seeds.find((s) => s.case_id === "7" || s.case_id === "civil_7");
+      if (seed) state.civil7 = { ...seed, case_id: "civil_7" };
     }
+    syncDisplayGeometryFromCase();
     render();
   });
   root.querySelector("#ovrGeom")?.addEventListener("change", (e) => {
     state.overrideGeom = (e.target as HTMLInputElement).checked;
+    if (!state.overrideGeom) syncDisplayGeometryFromCase();
     render();
   });
   for (const [id, key] of [
@@ -1130,7 +1140,9 @@ async function analyzeUc3Upload(): Promise<void> {
       fault_ratio: extracted.fault_ratio || "",
       document_kind: documentKind,
     };
-    state.overrideGeom = true;
+    // Complete triad: keep override off so fields stay disabled and match Stage B (#102).
+    // Incomplete triad: enable override so the operator can edit via review / inputs.
+    state.overrideGeom = !geometryComplete;
     state.uc3Confirmed = false;
     if (extraction.abstain) {
       state.uc3Pending = {

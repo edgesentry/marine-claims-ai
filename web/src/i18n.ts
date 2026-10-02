@@ -88,6 +88,10 @@ const MESSAGES: Record<string, Record<Lang, string>> = {
   heading_b: { en: "Heading B (deg)", ja: "相手針路 B（度）" },
   bearing_ab: { en: "True bearing A→B (deg)", ja: "真方位 A→B（度）" },
   geometry_override: { en: "Adjust encounter angles", ja: "局面の角度を調整" },
+  geometry_narrative_derived: {
+    en: "Values shown are taken from the case narrative (not manually set).",
+    ja: "表示角度は叙述から抽出した値です（手動設定ではありません）。",
+  },
   sit_crossing: { en: "Crossing", ja: "横切" },
   sit_head_on: { en: "Head-on", ja: "行会い" },
   sit_overtaking: { en: "Overtaking", ja: "追越し" },
