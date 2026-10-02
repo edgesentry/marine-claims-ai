@@ -13,6 +13,10 @@ def test_json_allowlist_only_config():
     assert is_json_allowed("config/benchmark_rules.json") is True
     assert is_json_allowed("config/nested/rules.json") is True
     assert is_json_allowed("config/demo_e2e_claims_analysis_min.json") is True
+    assert is_json_allowed("web/package.json") is True
+    assert is_json_allowed("web/package-lock.json") is True
+    assert is_json_allowed("web/tsconfig.json") is True
+    assert is_json_allowed("web/tests/fixtures/rule_d5_golden.json") is True
     assert is_json_allowed("datasets/benchmark.json") is False
     assert is_json_allowed("src/marine_claims_ai/foo.py") is False
 

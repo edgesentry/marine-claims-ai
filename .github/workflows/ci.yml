@@ -160,4 +160,7 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y poppler-utils
 
       - name: Verify catalog document URLs are alive
-        run: uv run python scripts/ci/verify_civil_catalog.py --mode alive
+        run: >-
+          uv run python scripts/ci/verify_civil_catalog.py
+          --mode alive
+          --fail-on-skip-ratio 0.25
