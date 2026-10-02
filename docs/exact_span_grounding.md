@@ -100,6 +100,6 @@ Expectations also covered in `groundingGate.test.ts` / `spanA4A8.test.ts`:
 | :--- | :--- |
 | #91 | COLREGS telemetry extraction (headings / bearings) — implemented; extracted `geometry.*` carries Exact Span grounding |
 | #92 | PSC MOU PDF/HTML/image → deficiencies under `require_span` — implemented (`web/src/ingest/pscDeficiencyExtractor.ts`, PWA dropzone + sample HTML) |
-| #45 | Full deskew / table-grid OCR → `pdf_coordinates` (Python ingest) |
-| #94 | Client OCR text wired into PWA upload (Tesseract.js); bbox geometry still #45 |
+| #45 | Full deskew / table-grid OCR → `RepairItem` + optional cache under `_data/cache/ocr/` (`marine_claims_ai.ingest.ocr_cleanup`; install `[ocr]` extra) |
+| #94 | Client OCR text wired into PWA upload (Tesseract.js) + `reconstructTableLines`; bbox geometry still #45 |
 | #93 | Stage A eval harness / field F1 · grounding · abstain gates (CI job `stage-a`) — see [public_benchmarks §3.4](public_benchmarks_and_accuracy_evaluation.md#34-stage-a-extraction-accuracy-issue-93) |

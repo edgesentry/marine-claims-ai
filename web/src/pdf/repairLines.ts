@@ -7,6 +7,7 @@ import { lineTitle, type Lang } from "../i18n";
 import { normalizeRepairPhrase } from "../pipeline/normalizeLabels";
 
 const YEN_RE = /(?:¥|￥|JPY)?\s*([0-9]{1,3}(?:,[0-9]{3})+|[0-9]{4,})/g;
+const HAS_AMOUNT_RE = /(?:¥|￥|JPY)?\s*[0-9]{1,3}(?:,[0-9]{3})+|[0-9]{4,}/;
 
 export interface ExtractedItem {
   description: string;
@@ -23,9 +24,42 @@ export function normalizeOcrYenText(text: string): string {
     .replace(/(\d)\.(?=\d{3}(?:\D|$))/g, "$1,");
 }
 
+/**
+ * Merge broken OCR table rows (Issue #45 / #94): description without amount
+ * followed by an amount-only (or amount-leading) next line.
+ * Mirrors Python ``reconstruct_table_lines`` in ``ocr_cleanup.py``.
+ */
+export function reconstructTableLines(text: string): string {
+  const lines = text.split(/\n/).map((ln) => ln.trim());
+  const merged: string[] = [];
+  let i = 0;
+  while (i < lines.length) {
+    const line = lines[i]!;
+    if (!line) {
+      i += 1;
+      continue;
+    }
+    if (!HAS_AMOUNT_RE.test(line) && i + 1 < lines.length) {
+      const nxt = lines[i + 1]!;
+      HAS_AMOUNT_RE.lastIndex = 0;
+      if (nxt && HAS_AMOUNT_RE.test(nxt)) {
+        const amountOnly = /^[¥￥JPY\s0-9,円.]+$/i.test(nxt);
+        if (amountOnly || nxt.length < 40) {
+          merged.push(`${line} ${nxt}`.trim());
+          i += 2;
+          continue;
+        }
+      }
+    }
+    merged.push(line);
+    i += 1;
+  }
+  return merged.join("\n");
+}
+
 export function extractRepairItemsFromText(text: string): ExtractedItem[] {
   const items: ExtractedItem[] = [];
-  const normalized = normalizeOcrYenText(text);
+  const normalized = reconstructTableLines(normalizeOcrYenText(text));
   for (const raw of normalized.split(/\n+/)) {
     const line = raw.trim();
     if (line.length < 4) continue;

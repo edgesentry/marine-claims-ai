@@ -150,6 +150,7 @@ All internal modules and CLI scripts must resolve file locations via **`marine_c
 | `DEFAULT_DUCK_PATH` | `<repo>/_data/duckdb/marine_claims.duckdb` | DuckDB analytics + retrieval database |
 | `DEFAULT_BENCHMARK_DIR` | `<repo>/_data/benchmarks` | Benchmark JSON corpora |
 | `DEFAULT_CACHE_DIR` | `<repo>/_data/cache` | Intermediate preview and OCR caches |
+| `DEFAULT_OCR_CACHE_DIR` | `<repo>/_data/cache/ocr` | Issue #45 OCR JSON / cleaned PNG (never commit) |
 | `DEFAULT_LOG_DIR` | `<repo>/_logs` | Operational and audit log directory |
 
 ---

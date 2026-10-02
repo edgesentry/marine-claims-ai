@@ -31,6 +31,7 @@ DEFAULT_DUCK_DIR = DEFAULT_DATA_DIR / "duckdb"
 DEFAULT_DUCK_PATH = DEFAULT_DUCK_DIR / "marine_claims.duckdb"
 DEFAULT_BENCHMARK_DIR = DEFAULT_DATA_DIR / "benchmarks"
 DEFAULT_CACHE_DIR = DEFAULT_DATA_DIR / "cache"
+DEFAULT_OCR_CACHE_DIR = DEFAULT_CACHE_DIR / "ocr"
 
 # Compat: flat PoC PDF cache used by current demo / eval scripts.
 DEFAULT_DATASET_DIR = DEFAULT_DATA_DIR / "poc_datasets"

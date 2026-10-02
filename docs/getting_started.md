@@ -12,6 +12,7 @@ Related: [Executive demo](executive_demo_cli_and_web.md) · [Demo use cases](dem
 
 ```bash
 uv sync
+uv sync --extra ocr   # optional: Issue #45 deskew / table OCR (OpenCV + Tesseract)
 uv run pytest -q
 ```
 
@@ -28,7 +29,7 @@ cd web && npm install && npm run fetch:tessdata && npm test && npm run gate-a
 cd web && npm run build && npm run preview
 ```
 
-Image-only PDF OCR (Issue #94): [pwa_ocr_offline.md](pwa_ocr_offline.md) (~52 MB same-origin weights, airplane after first SW cache).
+Image-only PDF OCR (Issue #94): [pwa_ocr_offline.md](pwa_ocr_offline.md) (~52 MB same-origin weights, airplane after first SW cache). Offline deskew / table reconstruction (Issue #45): `uv sync --extra ocr` then `uv run pytest tests/test_ocr_cleanup.py`; cache under `_data/cache/ocr/`.
 
 ```bash
 # CLI (same core as PWA)
