@@ -9,7 +9,6 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
-from marine_claims_ai.ingest.civil_judgment_extractor import extract_from_judgment
 from marine_claims_ai.ingest.download import download_url, polite_sleep
 from marine_claims_ai.ingest.jtsb import apply_limit
 from marine_claims_ai.ingest.pdf_text import pdf_to_text
@@ -111,29 +110,24 @@ def enrich_from_text(
     *,
     excerpt_tag: str = "pdf_excerpt",
 ) -> dict[str, Any]:
-    """Pull fault ratios and yen figures from judgment / saiketsu text."""
+    """Attach a compact judgment excerpt to ``input_facts`` (no field re-extraction).
+
+    Fault-ratio / yen extraction for Gate A lives in
+    ``web/src/ingest/civilJudgmentExtractor.ts``. Catalog seeds already carry gold
+    fields; this helper only preserves searchable text for the local corpus.
+    """
     if not text:
         return record
     out = dict(record)
-    extracted = extract_from_judgment(text)
-
-    if not out.get("fault_ratio") and extracted.fault_ratio:
-        out["fault_ratio"] = extracted.fault_ratio
-
-    if out.get("claimed_repair_jpy") is None and extracted.claimed_repair_jpy is not None:
-        out["claimed_repair_jpy"] = extracted.claimed_repair_jpy
-
-    if out.get("awarded_damages_jpy") is None and extracted.awarded_damages_jpy is not None:
-        out["awarded_damages_jpy"] = extracted.awarded_damages_jpy
-
-    if out.get("disallowed_jpy") is None and extracted.disallowed_jpy is not None:
-        out["disallowed_jpy"] = extracted.disallowed_jpy
-
     compact = re.sub(r"\s+", " ", text)[:3500]
     if compact:
         base_facts = out.get("input_facts") or ""
         marker = f"[{excerpt_tag}]"
-        if marker not in base_facts and "[pdf_excerpt]" not in base_facts and "[html_excerpt]" not in base_facts:
+        if (
+            marker not in base_facts
+            and "[pdf_excerpt]" not in base_facts
+            and "[html_excerpt]" not in base_facts
+        ):
             out["input_facts"] = f"{base_facts}\n{marker} {compact}".strip()
     return out
 

@@ -1,13 +1,13 @@
 # Gate A Priority 2 (Issue #59) — COLREGS A5/A6 + civil A7
 
-Run the integrated harness:
+**Canonical (WASM / Vitest):**
 
 ```bash
-uv run python scripts/eval_gate_a_priority2.py \
-  --json-out _data/benchmarks/gate_a_priority2_report.json \
-  --fail-on-gate
+cd web && npm run gate-a
+# A5/A6 geometries + A7 offline snippets: web/src/benchmarks/gateAPriority2.ts
 ```
 
+The former Python Gate A Priority 2 harness was removed.
 ## Metrics
 
 | ID | What | Threshold |

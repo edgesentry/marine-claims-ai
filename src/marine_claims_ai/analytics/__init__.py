@@ -1,29 +1,5 @@
-"""DuckDB financial apportionment analytics (AAA Rule D5) and fault-ratio prediction."""
+"""DuckDB financial apportionment analytics helpers."""
 
-from marine_claims_ai.analytics.fault_predictor import (
-    FaultPrediction,
-    ModifierHit,
-    predict_fault_ratio,
-)
-from marine_claims_ai.analytics.rule_d_solver import (
-    ApportionmentRule,
-    DockingContext,
-    OwnerNecessity,
-    RepairLineItem,
-    RuleDResult,
-    WorkParty,
-    apportion_rule_d,
-)
+from marine_claims_ai.analytics.drydock_sql import DRYDOCK_APPORTIONMENT_VIEW_SQL
 
-__all__ = [
-    "ApportionmentRule",
-    "DockingContext",
-    "FaultPrediction",
-    "ModifierHit",
-    "OwnerNecessity",
-    "RepairLineItem",
-    "RuleDResult",
-    "WorkParty",
-    "apportion_rule_d",
-    "predict_fault_ratio",
-]
+__all__ = ["DRYDOCK_APPORTIONMENT_VIEW_SQL"]

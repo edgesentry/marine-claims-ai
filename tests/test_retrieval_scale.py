@@ -53,7 +53,7 @@ def test_run_eval_with_stub_search(tmp_path: Path):
     def stub_search(_lance, _q, _d, _t, top_k):
         return [{"id": "repair-1", "domain": "repair"}][:top_k]
 
-    report = run_eval(str(tmp_path / "lance"), qpath, search_fn=stub_search)
+    report = run_eval(str(tmp_path / "marine.duckdb"), qpath, search_fn=stub_search)
     assert report["aggregate"]["hit@5"] == 1.0
     assert report["per_query"][0]["top_ids"] == ["repair-1"]
 

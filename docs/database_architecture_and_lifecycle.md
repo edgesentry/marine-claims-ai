@@ -1,5 +1,11 @@
 # Database Architecture, Design Rationales & Lifecycle Management
 
+> **2026-10 update:** LanceDB was removed. **DuckDB** is the single local store for
+> analytics (`line_items` / Rule D5 VIEW) and retrieval (`precedents` + hashed
+> embeddings + keyword RRF). The offline PWA uses DuckDB-WASM + Parquet with the
+> same hashEmbed. Sections below that still mention LanceDB are historical.
+
+
 **Target Project**: `marine-claims-ai` (Public Open-Core)  
 **Audience**: Software Architects, Data Engineers, Claims Appraisal Engineers, PoC Technical Leads  
 **Last Updated**: 2026-09-27  

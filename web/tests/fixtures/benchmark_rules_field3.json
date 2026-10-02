@@ -1,0 +1,13 @@
+{
+  "field3_repair_cost": {
+    "display_name": "Field 3: 船舶修繕工事の適正価格・落札金額ベンチマーク",
+    "metric_name": "積算価格推定精度 (100 - MAPE)",
+    "concurrent_repair_trade_codes": [
+      "ENG",
+      "VALVE"
+    ],
+    "concurrent_classification_label": "便乗修理 (定期検査固有)",
+    "covered_classification_label": "事故復旧 / 按分",
+    "yard_tolerance_factor": 1.03
+  }
+}

@@ -1,6 +1,5 @@
-"""Interactive executive-pitch demo (CLI + FastAPI/HTMX Web UI).
+"""Demo package — CLI shim only. Runtime UI is ``web/`` PWA."""
 
-Shared operations: ``marine_claims_ai.demo.ops``
-CLI: ``marine-claims-demo`` / ``scripts/run_demo_cli.py``
-Web: ``scripts/run_demo_app.py`` or ``marine-claims-demo serve``
-"""
+from marine_claims_ai.demo.cli import main
+
+__all__ = ["main"]

@@ -24,9 +24,10 @@ JSON_ALLOWLIST_PREFIXES = (
     "config/",
 )
 
-# Application UI templates (Jinja2), not scraped dataset HTML.
+# Static WASM PWA shell (Issue #76), not scraped dataset HTML.
 HTML_ALLOWLIST_PREFIXES = (
-    "src/marine_claims_ai/demo/templates/",
+    "web/index.html",
+    "web/dist/",
 )
 
 # Scanner sources embed detection literals; skip during content scan.

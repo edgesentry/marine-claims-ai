@@ -1,5 +1,9 @@
 # Technical Stack Architecture: Public Open-Core
 
+> **2026-10 update:** Search/analytics are **DuckDB-only** (no LanceDB / fastembed).
+> Offline PWA uses `@duckdb/duckdb-wasm` + hashEmbed. See `index/build.py` and
+> `index/search.py`. Diagrams below that still show LanceDB are historical.
+
 This document details the open-core architectural foundation, data processing pipelines, and analytical engine powering **MarineClaims AI**.
 
 ---

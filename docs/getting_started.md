@@ -15,28 +15,21 @@ uv sync
 uv run pytest -q
 ```
 
-Optional Web demo dependencies:
-
-```bash
-uv sync --group demo
-```
-
 ---
 
-## 0b. Executive demo (Issue #54)
+## 0b. Executive demo (Issues #54 / #76)
 
-CLI and Web share `marine_claims_ai.demo.ops`. Full design: [executive_demo_cli_and_web.md](executive_demo_cli_and_web.md). Per-tab I/O: [demo_use_cases.md](demo_use_cases.md).
+CLI uses `marine_claims_ai.demo.ops`. Browser UI is the static WASM PWA under `web/`. Full design: [executive_demo_cli_and_web.md](executive_demo_cli_and_web.md). Per-tab I/O: [demo_use_cases.md](demo_use_cases.md).
 
 ```bash
 uv run marine-claims-demo uc2 --lang ja --dock-days 5 --no-statutory --export-md _data/rule_d5.md
 uv run marine-claims-demo list-cases
 uv run marine-claims-demo uc3 --case civil_7 --heading-a 0 --heading-b 180 --bearing-ab 0 --export-md _data/colregs.md
 
-uv sync --group demo
-uv run marine-claims-demo serve
-# → http://127.0.0.1:8765/
+# Browser PWA (no Python server)
+cd web && npm install && npm run build && npm run preview
 
-# Optional local E2E (excluded from default/CI pytest)
+# Optional local CLI E2E (excluded from default/CI pytest)
 uv run pytest -m demo -q
 ```
 
@@ -91,16 +84,16 @@ uv run python scripts/validate_civil_judgment_extractor.py --mode local
 
 ---
 
-## 2. Rebuild local indexes (Polars → LanceDB + DuckDB)
+## 2. Rebuild local indexes (Polars → DuckDB)
 
 ```bash
 uv run python scripts/init_duckdb_vector.py --force
 uv run python scripts/hybrid_search.py --query "外板高圧洗浄" --domain repair --top-k 5
 uv run python scripts/apportion_analytics.py
-uv run python scripts/validate_compartment_path.py --damage-zone 球状船首 --repair-zone 機関室
 ```
 
-DuckDB path defaults to `_data/marine_claims.duckdb` (`marine_claims_ai.paths.DEFAULT_DUCK_PATH`).
+DuckDB path defaults to `_data/duckdb/marine_claims.duckdb` (`marine_claims_ai.paths.DEFAULT_DUCK_PATH`).
+Search uses hashed embeddings (same as the offline PWA) plus keyword RRF.
 
 ---
 
@@ -144,20 +137,23 @@ If PDFs still live under legacy `_inputs/poc_datasets/`, pass those paths explic
 
 JPY amounts on public specs without tender prices are **standard unit-price heuristics** (see `summary.pricing_note`). The optional `--export-report` writes a deterministic English Preliminary Survey Report (no LLM).
 
-### Public appraisal accuracy
+### Public appraisal accuracy / Gate A
 
-Measure item-status agreement against **provisional founder gold v1** on tracked public casualty×spec pairs (`config/public_appraisal_eval.json`). PDFs remain local under `_data/` / `_inputs/`.
+**Canonical (PDF-free):** TypeScript Vitest harness.
 
 ```bash
-uv run python scripts/eval_public_appraisal.py \
-  --json-out _data/poc_datasets/public_appraisal_eval_report.json \
-  --write-gold-dir _data/poc_datasets/public_appraisal_gold \
+cd web && npm run gate-a
+```
+
+Optional legacy Python PDF corpus:
+
+```bash
+uv run python scripts/eval_gate_a_priority1.py --legacy-python \
+  --json-out _data/benchmarks/gate_a_priority1_report.json \
   --fail-on-gate
 ```
 
-Gates (config): ≥3 runnable cases, critical False Accept = 0, mean status agreement ≥ 85%.
-
-**Interpretation:** provisional gold v1 is an independent *code path* (not a call into `pipeline.py`), but it encodes the same naval-architecture checklist. High agreement today is mainly a **regression signal** (parser/ontology breaks show up as FA/FR). It is **not** a substitute for surveyor-labeled gold or Gate B. Dump `public_appraisal_gold/` and hand-edit statuses to create a true held-out gold set.
+Gates: Critical FA = 0, Rule D5 recon = 0 JPY, (at scale) mean status agreement ≥ 85%.
 
 ---
 
@@ -174,4 +170,4 @@ marine-claims-AI/
 └── docs/
 ```
 
-`_data/`, `_inputs/` (legacy), `.lancedb/`, and `*.duckdb` are gitignored local caches. Core logic lives under `src/marine_claims_ai/`; `scripts/` only wraps `main()` entrypoints.
+`_data/`, `_inputs/` (legacy), and `*.duckdb` are gitignored local caches. Core logic lives under `src/marine_claims_ai/`; `scripts/` only wraps `main()` entrypoints.

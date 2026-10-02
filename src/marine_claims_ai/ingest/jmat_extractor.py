@@ -14,7 +14,7 @@ import unicodedata
 from dataclasses import asdict, dataclass
 from typing import Any
 
-from marine_claims_ai.legal.colregs_engine import EncounterGeometry, normalize_deg
+from marine_claims_ai.ingest.geometry import EncounterGeometry, normalize_deg
 
 # ---------------------------------------------------------------------------
 # Numeral / encoding normalization

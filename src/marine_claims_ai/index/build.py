@@ -2,10 +2,11 @@
 """
 Rebuild local open-core indexes from cached public JSON.
 
-Pipeline (see docs/technical_stack.md):
-  Polars normalize → LanceDB hybrid index (vector + BM25) → DuckDB analytical tables
+Pipeline:
+  Polars normalize → DuckDB (precedents + embeddings + analytics VIEW)
 
-Binary artifacts under _data/ (and legacy _inputs/) and .lancedb/ are gitignored and never committed.
+Binary artifacts under ``_data/duckdb/`` are gitignored and never committed.
+Aligned with the offline PWA: hashed 384-dim embeddings (same as web hashEmbed).
 """
 
 from __future__ import annotations
@@ -13,20 +14,16 @@ from __future__ import annotations
 import argparse
 import json
 import os
-import shutil
 import sys
 
 import duckdb
-import lancedb
 import polars as pl
-from fastembed import TextEmbedding
 
-from marine_claims_ai.analytics.rule_d_solver import DRYDOCK_APPORTIONMENT_VIEW_SQL
-from marine_claims_ai.paths import DEFAULT_DATASET_DIR, DEFAULT_DUCK_PATH, DEFAULT_LANCE_DIR
+from marine_claims_ai.analytics.drydock_sql import DRYDOCK_APPORTIONMENT_VIEW_SQL
+from marine_claims_ai.index.embed import EMBED_DIM, embed_texts
+from marine_claims_ai.paths import DEFAULT_DATASET_DIR, DEFAULT_DUCK_PATH
 
-EMBED_MODEL = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
-EMBED_DIM = 384
-LANCE_TABLE = "precedents"
+PRECEDENTS_TABLE = "precedents"
 
 
 def load_json(path: str):
@@ -119,7 +116,6 @@ def rows_from_sources(dataset_dir: str) -> list[dict]:
         "benchmark_field3_repair_20packages.json",
     )
     if isinstance(repair, list):
-        # Owners' account / concurrent trades (ENG/VALVE deferred; SAFE/PROP statutory class).
         concurrent_trades = {"ENG", "VALVE", "SAFE", "PROP"}
         for p in repair:
             trade = p.get("trade_code") or ""
@@ -234,7 +230,7 @@ def rows_from_sources(dataset_dir: str) -> list[dict]:
 
 
 def normalize_with_polars(rows: list[dict]) -> pl.DataFrame:
-    """Typed Arrow-backed frame for zero-copy handoff to LanceDB / DuckDB."""
+    """Typed Arrow-backed frame for DuckDB."""
     df = pl.DataFrame(rows)
     return df.with_columns(
         [
@@ -256,86 +252,61 @@ def normalize_with_polars(rows: list[dict]) -> pl.DataFrame:
     )
 
 
-def embed_texts(texts: list[str]) -> list[list[float]]:
-    model = TextEmbedding(model_name=EMBED_MODEL)
-    return [list(map(float, v)) for v in model.embed(texts)]
-
-
-def _table_names(db) -> list[str]:
-    tables = db.list_tables()
-    if hasattr(tables, "tables"):
-        return list(tables.tables or [])
-    if isinstance(tables, list):
-        return [t if isinstance(t, str) else getattr(t, "name", str(t)) for t in tables]
-    # Fallback for older clients
-    try:
-        return list(db.table_names())
-    except Exception:
-        return []
-
-
-def build_lancedb(lance_dir: str, df: pl.DataFrame, force: bool) -> None:
-    if force and os.path.isdir(lance_dir):
-        shutil.rmtree(lance_dir)
-    os.makedirs(lance_dir, exist_ok=True)
-
-    print(f"[EMBED] Encoding {df.height} passages with {EMBED_MODEL}...")
-    vectors = embed_texts(df["text"].to_list())
-    if any(len(v) != EMBED_DIM for v in vectors):
-        raise RuntimeError(f"Expected embedding dim {EMBED_DIM}")
-
-    records = df.to_dicts()
-    for row, vec in zip(records, vectors, strict=True):
-        row["vector"] = vec
-
-    db = lancedb.connect(lance_dir)
-    if LANCE_TABLE in _table_names(db) and not force:
-        print(f"[SKIP] LanceDB table '{LANCE_TABLE}' exists (pass --force)")
-        return
-
-    print(f"[LANCE] Writing table '{LANCE_TABLE}' -> {lance_dir}")
-    table = db.create_table(LANCE_TABLE, data=records, mode="overwrite")
-    from lancedb.index import FTS
-
-    table.create_index("text", config=FTS(), replace=True)
-    print(f"[OK] LanceDB rows={table.count_rows()}")
-
-
-def build_duckdb_analytics(duck_path: str, df: pl.DataFrame, force: bool) -> None:
-    """DuckDB holds analytical / apportionment tables — not vector search."""
+def build_duckdb(duck_path: str, df: pl.DataFrame, force: bool) -> None:
+    """Write precedents (vector search) + line_items analytics into one DuckDB file."""
     if os.path.exists(duck_path):
         if not force:
             print(f"[SKIP] DuckDB already exists: {duck_path}")
             return
         os.remove(duck_path)
 
-    os.makedirs(os.path.dirname(duck_path), exist_ok=True)
-    # Drop vector intent; keep typed financial / triage columns
+    os.makedirs(os.path.dirname(duck_path) or ".", exist_ok=True)
+
+    print(f"[EMBED] Hash-embedding {df.height} passages (dim={EMBED_DIM}, PWA-aligned)...")
+    vectors = embed_texts(df["text"].to_list())
+    if any(len(v) != EMBED_DIM for v in vectors):
+        raise RuntimeError(f"Expected embedding dim {EMBED_DIM}")
+
+    precedents = df.with_columns(pl.Series("embedding", vectors))
     analytics = df.drop("text") if "text" in df.columns else df
 
     con = duckdb.connect(duck_path)
     try:
+        con.register("precedents_df", precedents.to_arrow())
+        con.execute(
+            f"CREATE TABLE {PRECEDENTS_TABLE} AS SELECT * FROM precedents_df"
+        )
         con.register("analytics_df", analytics.to_arrow())
         con.execute("CREATE TABLE line_items AS SELECT * FROM analytics_df")
-        # AAA Rule D5 VIEW (default docking_context = casualty_immediate).
         con.execute(DRYDOCK_APPORTIONMENT_VIEW_SQL)
         counts = con.execute(
-            "SELECT domain, COUNT(*) FROM line_items GROUP BY domain ORDER BY domain"
+            f"SELECT domain, COUNT(*) FROM {PRECEDENTS_TABLE} GROUP BY domain ORDER BY domain"
         ).fetchall()
-        print(f"[OK] DuckDB analytics -> {duck_path}")
+        print(f"[OK] DuckDB -> {duck_path}")
         for domain, n in counts:
             print(f"  {domain}: {n}")
     finally:
         con.close()
 
 
+# Back-compat alias used by older tests / callers
+def build_duckdb_analytics(duck_path: str, df: pl.DataFrame, force: bool) -> None:
+    build_duckdb(duck_path, df, force=force)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--data-dir", default=str(DEFAULT_DATASET_DIR))
-    parser.add_argument("--lance-dir", default=str(DEFAULT_LANCE_DIR))
     parser.add_argument("--duck-path", default=str(DEFAULT_DUCK_PATH))
+    parser.add_argument(
+        "--lance-dir",
+        default=None,
+        help="Deprecated (LanceDB removed). Ignored if passed.",
+    )
     parser.add_argument("--force", action="store_true")
     args = parser.parse_args()
+    if args.lance_dir:
+        print("[WARN] --lance-dir ignored; LanceDB was removed. Use DuckDB only.", file=sys.stderr)
 
     rows = rows_from_sources(args.data_dir)
     if not rows:
@@ -344,8 +315,7 @@ def main() -> int:
 
     print(f"[POLARS] Normalizing {len(rows)} rows")
     df = normalize_with_polars(rows)
-    build_lancedb(args.lance_dir, df, force=args.force)
-    build_duckdb_analytics(args.duck_path, df, force=args.force)
+    build_duckdb(args.duck_path, df, force=args.force)
     return 0
 
 

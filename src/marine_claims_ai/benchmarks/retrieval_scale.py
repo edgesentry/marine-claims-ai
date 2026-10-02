@@ -1,4 +1,4 @@
-"""Fixed-query retrieval scale evaluation (hit@k) over local LanceDB."""
+"""Fixed-query retrieval scale evaluation (hit@k) over local DuckDB."""
 
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from marine_claims_ai.index import search as search_mod
-from marine_claims_ai.paths import DEFAULT_DATASET_DIR, DEFAULT_LANCE_DIR, REPO_ROOT
+from marine_claims_ai.paths import DEFAULT_DATASET_DIR, DEFAULT_DUCK_PATH, REPO_ROOT
 
 DEFAULT_QUERIES = REPO_ROOT / "config" / "retrieval_eval_queries.json"
 DEFAULT_REPORT = DEFAULT_DATASET_DIR / "retrieval_scale_report.json"
@@ -62,7 +62,7 @@ def diff_reports(baseline: dict, current: dict) -> dict[str, Any]:
 
 
 def run_eval(
-    lance_dir: str,
+    duck_path: str,
     queries_path: str | Path,
     search_fn=None,
 ) -> dict[str, Any]:
@@ -74,7 +74,7 @@ def run_eval(
     per_query: list[dict] = []
     for q in cfg.get("queries") or []:
         query_text = q["query"]
-        hits = search_fn(lance_dir, query_text, None, None, max_k)
+        hits = search_fn(duck_path, query_text, None, None, max_k)
         hit_map = {
             f"hit@{k}": hit_at_k(
                 hits,
@@ -95,7 +95,7 @@ def run_eval(
         )
 
     report = {
-        "lance_dir": lance_dir,
+        "duck_path": duck_path,
         "queries_path": str(queries_path),
         "k_values": k_values,
         "n_queries": len(per_query),
@@ -107,7 +107,12 @@ def run_eval(
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--lance-dir", default=str(DEFAULT_LANCE_DIR))
+    parser.add_argument("--duck-path", default=str(DEFAULT_DUCK_PATH))
+    parser.add_argument(
+        "--lance-dir",
+        default=None,
+        help="Deprecated; LanceDB removed. Use --duck-path.",
+    )
     parser.add_argument("--queries", default=str(DEFAULT_QUERIES))
     parser.add_argument("--out", default=str(DEFAULT_REPORT))
     parser.add_argument(
@@ -116,8 +121,11 @@ def main() -> int:
         help="Optional prior report JSON to compare aggregate hit@k deltas",
     )
     args = parser.parse_args()
+    duck_path = args.duck_path
+    if args.lance_dir and not args.duck_path:
+        duck_path = str(DEFAULT_DUCK_PATH)
 
-    report = run_eval(args.lance_dir, args.queries)
+    report = run_eval(duck_path, args.queries)
     if args.baseline:
         with open(args.baseline, encoding="utf-8") as f:
             baseline = json.load(f)

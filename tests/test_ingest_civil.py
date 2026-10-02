@@ -33,7 +33,7 @@ def test_real_and_synthetic_catalogs_are_separated():
     assert catalog_stats(syn)["synthetic"] == len(syn)
 
 
-def test_enrich_from_pdf_text_extracts_ratio_and_amounts():
+def test_enrich_from_pdf_text_attaches_excerpt_only():
     seed = {
         "case_id": 99,
         "input_facts": "基礎事実",
@@ -47,11 +47,13 @@ def test_enrich_from_pdf_text_extracts_ratio_and_amounts():
         "請求額は 20,000,000円、認容額は 12,345,678円、否認は 3,000,000円 とした。"
     )
     out = enrich_from_text(seed, text)
-    assert out["fault_ratio"] == "70:30"
-    assert out["claimed_repair_jpy"] == 20000000
-    assert out["awarded_damages_jpy"] == 12345678
-    assert out["disallowed_jpy"] == 3000000
+    # Extraction moved to web/; enrich only stores searchable excerpt.
+    assert out["fault_ratio"] is None
+    assert out["claimed_repair_jpy"] is None
+    assert out["awarded_damages_jpy"] is None
+    assert out["disallowed_jpy"] is None
     assert "[pdf_excerpt]" in out["input_facts"]
+    assert "70:30" in out["input_facts"]
 
 
 def test_enrich_does_not_overwrite_seed_values():
@@ -67,12 +69,13 @@ def test_enrich_does_not_overwrite_seed_values():
     assert out["fault_ratio"] == "65:35"
     assert out["awarded_damages_jpy"] == 100
     assert out["claimed_repair_jpy"] == 200
+    assert "[pdf_excerpt]" in out["input_facts"]
 
 
-def test_enrich_main_cause_fallback():
-    seed = {"fault_ratio": None, "input_facts": "x"}
+def test_enrich_skips_duplicate_excerpt_marker():
+    seed = {"fault_ratio": None, "input_facts": "x [pdf_excerpt] already"}
     out = enrich_from_text(seed, "本件衝突の主因はAにあり、Bの過失も一因をなす。")
-    assert out["fault_ratio"] == "70:30"
+    assert out["input_facts"] == "x [pdf_excerpt] already"
 
 
 def test_local_cache_name_routes_pdf_and_html():
