@@ -35,6 +35,28 @@ export interface Uc3View {
   document_kind?: "judgment" | "jtsb";
 }
 
+export interface PscView {
+  title: string;
+  mou_id: string | null;
+  lookback_months: number;
+  defect_score: number;
+  risk_band: "low" | "elevated" | "critical";
+  detention_present: boolean;
+  repeat_critical_flags: string[];
+  notes: string;
+  convention_citations: string[];
+  deficiencies: Array<{
+    code: string;
+    action_code: string | null;
+    description: string;
+    category_label: string | null;
+    convention: string | null;
+    critical_system: string | null;
+    is_repeat_critical: boolean;
+    contribution: number;
+  }>;
+}
+
 function rulingHeading(uc3: Uc3View, lang: Lang): string {
   if (uc3.document_kind === "jtsb") {
     return lang === "ja" ? "原因認定（調査結果）" : "Cause finding (investigation)";
@@ -235,6 +257,119 @@ export function colregsHtml(uc3: Uc3View, lang: Lang): string {
 <p>${escapeHtml(uc3.facts || "—")}</p>
 <h2>${escapeHtml(rulingHeading(uc3, lang))}</h2>
 <p>${escapeHtml(uc3.ruling || "—")}</p>
+<p class="note">${
+    ja
+      ? "印刷する場合は、ブラウザの「印刷」→「PDFに保存」を使ってください。"
+      : "To make a PDF, use the browser Print dialog and choose Save as PDF."
+  }</p>`;
+  return wrapHtml(body, t("app_title", lang));
+}
+
+export function pscMarkdown(view: PscView, lang: Lang): string {
+  const ja = lang === "ja";
+  const band = t(`psc_band_${view.risk_band}`, lang);
+  const lines = ja
+    ? [
+        "# 引受・堪航性スクリーニングメモ（PSC）",
+        "",
+        `**案件:** ${view.title}`,
+        `**MOU:** ${view.mou_id || "—"}`,
+        `**Lookback:** ${view.lookback_months} か月`,
+        `**Defect Score:** ${view.defect_score}`,
+        `**リスク帯:** ${band}`,
+        `**拘留アクション (Code 30):** ${view.detention_present ? "あり" : "なし"}`,
+        `**繰返し重大システム:** ${view.repeat_critical_flags.join(", ") || "—"}`,
+        "",
+        "## 公開タクソノミ引用",
+        "",
+      ]
+    : [
+        "# Underwriter Seaworthiness Screening Memo (PSC)",
+        "",
+        `**Case:** ${view.title}`,
+        `**MOU:** ${view.mou_id || "—"}`,
+        `**Lookback:** ${view.lookback_months} months`,
+        `**Defect Score:** ${view.defect_score}`,
+        `**Risk band:** ${band}`,
+        `**Detention action (Code 30):** ${view.detention_present ? "present" : "absent"}`,
+        `**Repeat critical systems:** ${view.repeat_critical_flags.join(", ") || "—"}`,
+        "",
+        "## Public taxonomy citations",
+        "",
+      ];
+  for (const c of view.convention_citations) lines.push(`- ${c}`);
+  if (!view.convention_citations.length) lines.push("- —");
+  lines.push("", ja ? "## 欠陥一覧" : "## Deficiencies", "");
+  for (const d of view.deficiencies) {
+    const repeat = d.is_repeat_critical ? (ja ? " / 繰返し" : " / repeat") : "";
+    lines.push(
+      `- \`${d.code}\` action ${d.action_code || "—"} — ${d.description || d.category_label || "—"}${repeat} (contrib ${d.contribution})`,
+    );
+  }
+  if (!view.deficiencies.length) lines.push(ja ? "- （なし）" : "- (none)");
+  if (view.notes) {
+    lines.push("", ja ? "## 注記" : "## Notes", "", view.notes);
+  }
+  lines.push(
+    "",
+    ja
+      ? "_本メモは公開 PSC タクソノミに基づくスクリーニングであり、堪航性保証（warranty of seaworthiness）に関する法的意見ではありません。_"
+      : "_This memo is a public-taxonomy screening draft, not a legal warranty-of-seaworthiness opinion._",
+  );
+  return lines.join("\n");
+}
+
+export function pscHtml(view: PscView, lang: Lang): string {
+  const ja = lang === "ja";
+  const band = t(`psc_band_${view.risk_band}`, lang);
+  const citations = (view.convention_citations || [])
+    .map((c) => `<li>${escapeHtml(c)}</li>`)
+    .join("");
+  const rows = view.deficiencies
+    .map(
+      (d) => `<tr>
+  <td><code>${escapeHtml(d.code)}</code></td>
+  <td>${escapeHtml(d.action_code || "—")}</td>
+  <td>${escapeHtml(d.description || d.category_label || "—")}</td>
+  <td>${d.is_repeat_critical ? (ja ? "繰返し" : "repeat") : "—"}</td>
+  <td class="num">${escapeHtml(d.contribution)}</td>
+</tr>`,
+    )
+    .join("");
+  const body = `
+<h1>${ja ? "引受・堪航性スクリーニングメモ（PSC）" : "Underwriter Seaworthiness Screening Memo (PSC)"}</h1>
+<ul>
+  <li><strong>${ja ? "案件" : "Case"}:</strong> ${escapeHtml(view.title)}</li>
+  <li><strong>MOU:</strong> ${escapeHtml(view.mou_id || "—")}</li>
+  <li><strong>Lookback:</strong> ${escapeHtml(view.lookback_months)} ${ja ? "か月" : "months"}</li>
+  <li><strong>Defect Score:</strong> ${escapeHtml(view.defect_score)}</li>
+  <li><strong>${ja ? "リスク帯" : "Risk band"}:</strong> ${escapeHtml(band)}</li>
+  <li><strong>${ja ? "拘留アクション (Code 30)" : "Detention action (Code 30)"}:</strong> ${
+    view.detention_present ? (ja ? "あり" : "present") : ja ? "なし" : "absent"
+  }</li>
+  <li><strong>${ja ? "繰返し重大システム" : "Repeat critical systems"}:</strong> ${escapeHtml(
+    view.repeat_critical_flags.join(", ") || "—",
+  )}</li>
+</ul>
+<h2>${ja ? "公開タクソノミ引用" : "Public taxonomy citations"}</h2>
+<ul>${citations || "<li>—</li>"}</ul>
+<h2>${ja ? "欠陥一覧" : "Deficiencies"}</h2>
+<table>
+  <thead><tr>
+    <th>${ja ? "コード" : "Code"}</th>
+    <th>${ja ? "アクション" : "Action"}</th>
+    <th>${ja ? "内容" : "Nature"}</th>
+    <th>${ja ? "繰返し" : "Repeat"}</th>
+    <th>${ja ? "寄与" : "Contrib"}</th>
+  </tr></thead>
+  <tbody>${rows || `<tr><td colspan="5">${ja ? "（なし）" : "(none)"}</td></tr>`}</tbody>
+</table>
+${view.notes ? `<h2>${ja ? "注記" : "Notes"}</h2><p>${escapeHtml(view.notes)}</p>` : ""}
+<p class="note">${
+    ja
+      ? "本メモは公開 PSC タクソノミに基づくスクリーニングであり、堪航性保証に関する法的意見ではありません。"
+      : "This memo is a public-taxonomy screening draft, not a legal warranty-of-seaworthiness opinion."
+  }</p>
 <p class="note">${
     ja
       ? "印刷する場合は、ブラウザの「印刷」→「PDFに保存」を使ってください。"

@@ -11,6 +11,7 @@ const MESSAGES: Record<string, Record<Lang, string>> = {
   },
   nav_uc2: { en: "1. Rule D5", ja: "1. Rule D5 按分" },
   nav_uc3: { en: "2. COLREGS", ja: "2. COLREGS 航法" },
+  nav_psc: { en: "3. PSC", ja: "3. PSC 耐航性" },
   lang_en: { en: "English", ja: "English" },
   lang_ja: { en: "日本語", ja: "日本語" },
   lang_label: { en: "Language", ja: "言語" },
@@ -22,6 +23,10 @@ const MESSAGES: Record<string, Record<Lang, string>> = {
   uc3_lead: {
     en: "Open a ruling or casualty PDF below, adjust headings if needed, and draft that COLREGS memo here.",
     ja: "下の裁決・事故報告 PDF を開き、必要なら針路を調整して、その航法メモをこの場で作れます。",
+  },
+  psc_lead: {
+    en: "Pick a public MOU-style fixture or paste a deficiency list, set the lookback window, and draft an underwriter screening memo here.",
+    ja: "公開の MOU 型フィクスチャを選ぶか欠陥リストを貼り付け、Lookback を設定して、引受スクリーニングメモをこの場で作れます。",
   },
   daily_dock_rate: { en: "Dock daily rate (JPY/day)", ja: "入渠日額（円/日）" },
   dock_days: { en: "Dock days", ja: "滞渠日数" },
@@ -102,6 +107,10 @@ const MESSAGES: Record<string, Record<Lang, string>> = {
     en: "What COLREGS fault evidence is for",
     ja: "COLREGS 航法・過失根拠とは何か",
   },
+  briefing_title_psc: {
+    en: "What PSC seaworthiness screening is for",
+    ja: "PSC 耐航性スクリーニングとは何か",
+  },
   uc2_briefing_p1: {
     en: "When a ship goes into drydock after a casualty and owners’ work shares that same docking, the cost of entering and leaving—and the dock dues for the stay—become common dues. London AAA Rule D5 is the market practice that says whether underwriters take those dues in full or split them fifty-fifty with the owner. It does not invent a new indemnity theory; it settles who pays for the shared dock when two agendas meet in one yard.",
     ja: "事故のあとに船が入渠し、その同じドック滞在で船主工事も並行するとき、入出渠や滞渠料は「共通入渠費」になります。ロンドンの平均精算人協会が定める Rule D5 は、その共通費を保険者が全額見るのか、船主と折半するのかを決める業界慣行です。新しい填補理論を作るのではなく、二つの工事が一つのヤードで重なったときに、誰がドック代を持つかを落ち着かせるための規則です。",
@@ -125,6 +134,18 @@ const MESSAGES: Record<string, Record<Lang, string>> = {
   uc3_briefing_p3: {
     en: "Why it matters: without a clear encounter label, fault talk drifts into narrative. What you should expect here is a situation and role call, a working fault-ratio estimate grounded in public patterns, a simple radar sketch, and an exportable memo—not a binding liability award.",
     ja: "なぜ必要かといえば、局面ラベルが曖昧なままでは過失の話が物語に流れるからです。ここで期待するのは拘束力のある責任認定ではなく、局面と役割の判定、公開先例に寄せた作業用の過失割合、簡単なレーダー概略、そして反論・採択できるメモです。",
+  },
+  psc_briefing_p1: {
+    en: "Before renewing cover—or when screening a vessel after a casualty—underwriters ask whether recent Port State Control findings show a repeat safety risk. Tokyo and Paris MOU deficiency codes, together with action codes such as 17 (rectify) and 30 (detention), map onto public convention families (SOLAS, MARPOL, ISM). The point is not to rewrite warranty doctrine; it is to turn a public deficiency list into an explainable Defect Score.",
+    ja: "更改の前や事故後のスクリーニングで、引受側は「最近の PSC 欠陥が繰返しの安全リスクを示すか」を見ます。東京・パリ MOU の欠陥コードと、是正（17）や拘留（30）などのアクションコードは、SOLAS・MARPOL・ISM といった公開の条約族に対応します。ここでやるのは保証約款の書き換えではなく、公開の欠陥リストを説明可能な Defect Score にすることです。",
+  },
+  psc_briefing_p2: {
+    en: "Claims and underwriting desks do this when they read an anonymized inspection log or portal export—on shore, offline after assets are cached. They normalize codes, weight severity, apply a lookback window for critical-system repeats, and draft a short memo. Final warranty conclusions stay with counsel and the appointed surveyor; this screen is a public-data screening draft.",
+    ja: "クレームと引受の机上で、匿名化された検査ログやポータル出力を読みます。コードを正規化し、重大度を重み付けし、重大システムの繰返しに Lookback を当て、短いメモを作ります。最終の保証判断はリーガルと任命サーベイヤーに残り、この画面は公開データだけのスクリーニング下書きです。",
+  },
+  psc_briefing_p3: {
+    en: "Why it matters: without a shared score and code list, “is this ship risky?” stays anecdotal. What you should expect here is a Defect Score with a low / elevated / critical band, top deficiencies with action and repeat flags, and an exportable underwriter memo—not a binding seaworthiness warranty opinion.",
+    ja: "なぜ必要かといえば、共有のスコアとコード一覧が無いと「この船は危ないか」が逸話に留まるからです。ここで期待するのは拘束力のある堪航性保証意見ではなく、low / elevated / critical の帯付き Defect Score、アクションと繰返しフラグ付きの主要欠陥、そして反論・採択できる引受メモです。",
   },
   uc2_explain_usecase: {
     en: "Draft AAA Rule D5 common-dues apportionment and a screening-time off-hire estimate from a drydock repair PDF.",
@@ -158,11 +179,69 @@ const MESSAGES: Record<string, Record<Lang, string>> = {
     en: "Situation, give-way / stand-on roles, fault ratio, radar sketch, memo export.",
     ja: "局面、避航／保持の役割、過失割合、レーダー概略、メモ出力。",
   },
+  psc_explain_usecase: {
+    en: "Score public MOU-style PSC deficiencies into a seaworthiness Defect Score for underwriting refresh.",
+    ja: "公開の MOU 型 PSC 欠陥を Defect Score に採点し、更改・引受スクリーニングに使う。",
+  },
+  psc_explain_input: {
+    en: "Bundled anonymized fixture, or pasted JSON / simple CSV deficiency list, plus lookback months.",
+    ja: "同梱の匿名フィクスチャ、または貼り付けた JSON／簡易 CSV の欠陥リストと Lookback（月）。",
+  },
+  psc_explain_process: {
+    en: "Normalize deficiency and action codes, weight severity, apply repeat multiplier inside the lookback window.",
+    ja: "欠陥・アクションコードを正規化し、重大度を重み付けし、Lookback 内の繰返しに倍率を掛ける。",
+  },
+  psc_explain_output: {
+    en: "Defect Score and band, top deficiencies with Code 17/30 and repeat flags, underwriter memo export.",
+    ja: "Defect Score と帯、Code 17/30 と繰返しフラグ付きの主要欠陥、引受メモ出力。",
+  },
   drop_pdf: { en: "Drop a PDF here or click to open", ja: "PDF をドロップ、またはクリックして開く" },
   analyze: { en: "Analyze", ja: "査定する" },
   use_synthetic: { en: "Use synthetic demo lines", ja: "合成デモ明細を使う" },
   export_colregs_md: { en: "Download memo (Markdown)", ja: "メモ（Markdown）" },
   export_colregs_html: { en: "Download memo (HTML)", ja: "メモ（HTML）" },
+  export_psc_md: { en: "Download PSC memo (Markdown)", ja: "PSCメモ（Markdown）" },
+  export_psc_html: { en: "Download PSC memo (HTML)", ja: "PSCメモ（HTML）" },
+  select_psc_fixture: { en: "Inspection fixture", ja: "検査フィクスチャ" },
+  psc_lookback: { en: "Lookback window (months)", ja: "Lookback（月）" },
+  psc_paste: {
+    en: "Paste deficiency JSON or CSV (optional)",
+    ja: "欠陥 JSON / CSV を貼付け（任意）",
+  },
+  psc_paste_hint: {
+    en: "JSON fixture/inspection, or CSV with deficiency_code,action_taken,nature[,inspection_date]",
+    ja: "JSON のフィクスチャ／検査、または deficiency_code,action_taken,nature[,inspection_date] の CSV",
+  },
+  psc_apply_paste: { en: "Score pasted list", ja: "貼付けを採点" },
+  psc_clear_paste: { en: "Back to fixtures", ja: "フィクスチャに戻る" },
+  psc_defect_score: { en: "Defect Score", ja: "Defect Score" },
+  psc_risk_band: { en: "Risk band", ja: "リスク帯" },
+  psc_detention: { en: "Detention (Code 30)", ja: "拘留（Code 30）" },
+  psc_repeat_flags: { en: "Repeat critical systems", ja: "繰返し重大システム" },
+  psc_col_code: { en: "Code", ja: "コード" },
+  psc_col_action: { en: "Action", ja: "アクション" },
+  psc_col_nature: { en: "Nature", ja: "内容" },
+  psc_col_repeat: { en: "Repeat?", ja: "繰返し？" },
+  psc_col_contrib: { en: "Contrib", ja: "寄与" },
+  psc_yes: { en: "yes", ja: "はい" },
+  psc_no: { en: "no", ja: "いいえ" },
+  psc_present: { en: "present", ja: "あり" },
+  psc_absent: { en: "absent", ja: "なし" },
+  psc_band_low: { en: "low", ja: "low（低）" },
+  psc_band_elevated: { en: "elevated", ja: "elevated（注意）" },
+  psc_band_critical: { en: "critical", ja: "critical（重大）" },
+  psc_disclaimer: {
+    en: "Public-taxonomy screening only — not a legal warranty-of-seaworthiness opinion.",
+    ja: "公開タクソノミに基づくスクリーニングであり、堪航性保証の法的意見ではありません。",
+  },
+  psc_err_paste: {
+    en: "Could not parse the pasted JSON or CSV.",
+    ja: "貼り付けた JSON / CSV を解析できませんでした。",
+  },
+  psc_err_empty: {
+    en: "No deficiencies found in the pasted input.",
+    ja: "貼り付け内容から欠陥を取り出せませんでした。",
+  },
   err_pdf_empty_text: {
     en: "No text could be extracted from this PDF (it may be image-only).",
     ja: "この PDF から文字を取り出せませんでした（画像のみの可能性）。",

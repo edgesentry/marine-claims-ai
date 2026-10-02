@@ -1,6 +1,6 @@
 # MarineClaims AI — Client-Side WASM PWA
 
-Static Progressive Web App for Rule D5 / COLREGS executive demos (Issue #76).
+Static Progressive Web App for Rule D5 / COLREGS / PSC executive demos (Issues #76 / #83).
 
 ## Stack
 
@@ -20,4 +20,4 @@ npm run build
 npm run preview
 ```
 
-Open the preview URL in Edge/Chrome. After the first load, airplane mode should still allow UC2/UC3 recalculation and report download (same-origin assets only).
+Open the preview URL in Edge/Chrome. After the first load, airplane mode should still allow Rule D5 / COLREGS / PSC recalculation and report download (same-origin assets only).

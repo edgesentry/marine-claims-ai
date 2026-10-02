@@ -111,9 +111,12 @@ The report also exposes: `detention_present`, `repeat_critical_flags`, conventio
 | :--- | :--- |
 | Taxonomy / severity constants | `src/marine_claims_ai/ontology/psc.py` |
 | Parser + Defect Score | `src/marine_claims_ai/ingest/psc_deficiencies.py` |
-| Anonymized fixtures | `config/psc_inspection_fixtures.json` |
-| Unit tests | `tests/test_psc_deficiencies.py` |
+| **PWA TypeScript SoT (Issue #83)** | `web/src/engines/psc.ts` (+ Vitest `web/tests/psc.test.ts`) |
+| Anonymized fixtures | `config/psc_inspection_fixtures.json` (bundled to PWA via `web/scripts/build-data.mjs`) |
+| Unit tests (Python) | `tests/test_psc_deficiencies.py` |
 | Warranty adapter (unchanged doctrine) | `adapters/japan_reference.py` ← consumes `PSCDeficiency` |
+
+**Demo risk bands (PWA only).** The WASM tab maps scores to `low` / `elevated` / `critical` for pitch clarity (Code 30 or score ≥ 1.0 → critical; critical system present or score ≥ 0.4 → elevated). These bands are **not** statutory warranty thresholds and are not part of the Python core API.
 
 ### 5.1 Public API
 
