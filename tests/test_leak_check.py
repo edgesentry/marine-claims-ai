@@ -17,6 +17,8 @@ def test_json_allowlist_only_config():
     assert is_json_allowed("web/package-lock.json") is True
     assert is_json_allowed("web/tsconfig.json") is True
     assert is_json_allowed("web/tests/fixtures/rule_d5_golden.json") is True
+    assert is_json_allowed("docs/schemas/rule_d5.v1.json") is True
+    assert is_json_allowed("docs/schemas/index.json") is True
     assert is_json_allowed("datasets/benchmark.json") is False
     assert is_json_allowed("src/marine_claims_ai/foo.py") is False
 

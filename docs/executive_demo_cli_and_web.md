@@ -5,6 +5,9 @@
 | Area | Path |
 | :--- | :--- |
 | Engines | `web/src/engines/` (Rule D5, COLREGS, fault, BFS, **PSC**) |
+| Shared core runners | `web/src/core/` (Stage A → Stage B; used by PWA + CLI) |
+| Node CLI | `cli/main.ts` (`cd web && npm run cli -- …`) |
+| Stage A schemas | `web/src/schemas/` (Zod `ExtractionResult`; JSON Schema in `docs/schemas/`) |
 | Appraisal + NPL | `web/src/appraisal/` |
 | Exact Span A4 | `web/src/pipeline/` |
 | Civil A7 | `web/src/ingest/civilJudgmentExtractor.ts` |
@@ -16,6 +19,18 @@ Demo tabs: **1. Rule D5** · **2. COLREGS** · **3. PSC** (public MOU fixtures �
 
 **Legal / rule basis (one line each):** London AAA **Rule D5** · **COLREGS 1972** Rules 13–17 / **海上衝突予防法** 第13–17条 · Tokyo/Paris **MOU** deficiency + action codes (IMO A.1155(32) procedures context). Full table: [demo_use_cases.md](demo_use_cases.md#legal--rule-basis-summary).
 
+## Stage A → Stage B contract (Issue #87)
+
+Tier 1 heuristics (and later Tier 2 SLM / Tier 3 LLM) must emit a validated **`ExtractionResult`** envelope before any Stage B scorer runs:
+
+| `schema_id` | Payload (summary) | Stage B consumer |
+| :--- | :--- | :--- |
+| `rule_d5.v1` | `docking_context` + repair `lines[]` | `apportionRuleD` |
+| `colregs.v1` | `geometry` + facts/ruling excerpts + optional situation candidates | `classifyEncounter` / `predictFaultRatio` |
+| `psc.v1` | normalized-ready `deficiencies[]` (+ optional priors) | `scoreSeaworthiness` |
+
+Envelope fields: `{ schema_id, payload, confidence, grounding[], abstain? }`. Invalid JSON is rejected (`ExtractionValidationError`) and does **not** reach Rule D5 / COLREGS / PSC scorers. Public JSON Schema exports live under [`docs/schemas/`](schemas/); regenerate with `cd web && npm run build:schemas`. Guided-decode helpers (`guidedDecodeSpec`) prepare SLM/LLM paths (#77 / #5) without invoking models here.
+
 ```bash
 cd web
 npm install
@@ -24,7 +39,7 @@ npm run gate-a
 npm run build && npm run preview
 ```
 
-Python demo CLI / Gate A shims were removed; use the commands above.
+Python demo CLI / Gate A shims were removed; use the WASM PWA and the TypeScript CLI (`cli/`, via `npm run cli`) which share `web/src/core/`.
 
 **Python kept intentionally (build-time / corpus ops):**
 

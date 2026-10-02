@@ -1,0 +1,176 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "schema_id": {
+      "type": "string",
+      "const": "colregs.v1"
+    },
+    "payload": {
+      "type": "object",
+      "properties": {
+        "geometry": {
+          "type": "object",
+          "properties": {
+            "heading_a_deg": {
+              "type": "number"
+            },
+            "heading_b_deg": {
+              "type": "number"
+            },
+            "true_bearing_a_to_b_deg": {
+              "type": "number"
+            },
+            "power_driven_a": {
+              "type": "boolean"
+            },
+            "power_driven_b": {
+              "type": "boolean"
+            },
+            "range_nm": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "speed_a_kn": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "speed_b_kn": {
+              "type": [
+                "number",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "heading_a_deg",
+            "heading_b_deg",
+            "true_bearing_a_to_b_deg"
+          ],
+          "additionalProperties": false
+        },
+        "facts_excerpt": {
+          "type": "string"
+        },
+        "ruling_excerpt": {
+          "type": "string"
+        },
+        "situation_candidates": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "situation": {
+                "type": "string",
+                "enum": [
+                  "head_on",
+                  "overtaking",
+                  "crossing",
+                  "safe_passing"
+                ]
+              },
+              "confidence": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              }
+            },
+            "required": [
+              "situation",
+              "confidence"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "fault_ratio_hint": {
+          "type": "string"
+        },
+        "document_kind": {
+          "type": "string",
+          "enum": [
+            "judgment",
+            "jtsb"
+          ]
+        }
+      },
+      "required": [
+        "geometry"
+      ],
+      "additionalProperties": false
+    },
+    "confidence": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "grounding": {
+      "default": [],
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "field": {
+            "type": "string"
+          },
+          "source_quote": {
+            "type": "string",
+            "minLength": 1
+          },
+          "page_number": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "pdf_coordinates": {
+            "anyOf": [
+              {},
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "source_quote"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "abstain": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "string",
+          "const": "HUMAN_REVIEW_REQUIRED"
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "code",
+        "reason"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "schema_id",
+    "payload",
+    "confidence",
+    "grounding"
+  ],
+  "additionalProperties": false
+}

@@ -1,0 +1,150 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "schema_id": {
+      "type": "string",
+      "const": "rule_d5.v1"
+    },
+    "payload": {
+      "type": "object",
+      "properties": {
+        "docking_context": {
+          "type": "string",
+          "enum": [
+            "casualty_immediate",
+            "deferred_to_routine"
+          ]
+        },
+        "lines": {
+          "minItems": 1,
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "cost": {
+                "type": "number"
+              },
+              "trade_code": {
+                "type": "string"
+              },
+              "work_party": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "enum": [
+                      "casualty",
+                      "owner",
+                      "common"
+                    ]
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "necessity": {
+                "type": "string",
+                "enum": [
+                  "statutory_seaworthiness",
+                  "deferred",
+                  "unspecified"
+                ]
+              },
+              "title": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "cost"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "assume_statutory_owner_work": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "docking_context",
+        "lines"
+      ],
+      "additionalProperties": false
+    },
+    "confidence": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "grounding": {
+      "default": [],
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "field": {
+            "type": "string"
+          },
+          "source_quote": {
+            "type": "string",
+            "minLength": 1
+          },
+          "page_number": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "pdf_coordinates": {
+            "anyOf": [
+              {},
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "source_quote"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "abstain": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "string",
+          "const": "HUMAN_REVIEW_REQUIRED"
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "code",
+        "reason"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "schema_id",
+    "payload",
+    "confidence",
+    "grounding"
+  ],
+  "additionalProperties": false
+}

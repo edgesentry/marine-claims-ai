@@ -6,28 +6,22 @@ import {
   OVERTAKING_RELATIVE_BEARING_MIN_DEG,
   type EncounterGeometry,
 } from "./engines/colregs";
-import { apportionRuleD, type DockingContext, type RepairLineItem } from "./engines/ruleD5";
+import { type DockingContext, type RepairLineItem } from "./engines/ruleD5";
 import {
-  predictFaultRatio,
   type CatalogSeed,
   type FaultRules,
 } from "./engines/fault";
 import { validateCausality } from "./engines/bfs";
 import {
   DEFAULT_LOOKBACK_MONTHS,
-  scoreFixtureCase,
   scoreSeaworthiness,
   tryParsePscPaste,
   type NormalizedDeficiency,
   type PscFixtureCase,
   type SeaworthinessRiskReport,
 } from "./engines/psc";
-import {
-  extractPdfText,
-  extractRepairItemsFromText,
-  repairItemsToRuleDLines,
-  syntheticUc2Lines,
-} from "./pdf/parseTender";
+import { extractPdfText } from "./pdf/parseTender";
+import { extractRepairItemsFromText, syntheticUc2Lines } from "./pdf/repairLines";
 import {
   extractFactsExcerpt,
   extractFromJudgment,
@@ -53,6 +47,13 @@ import {
   type Uc2View,
   type Uc3View,
 } from "./ui/export";
+import {
+  buildColregsExtraction,
+  buildPscExtraction,
+  ExtractionValidationError,
+  ruleD5LinesFromExtraction,
+} from "./schemas";
+import { runColregs, runPsc, runPscFixture, runRuleD5, runRuleD5FromRepairText } from "./core";
 import { getDuckDb } from "./db/duckdb";
 
 type Tab = "uc2" | "uc3" | "psc";
@@ -153,10 +154,22 @@ function buildUc2(): Uc2View {
   const synced = lines.map((ln) =>
     (ln.trade_code || "").startsWith("DOCK") ? { ...ln, cost: dockTotal } : ln,
   );
-  const result = apportionRuleD(synced, state.dockingContext);
-  const aiDays = state.aiLeadMinutes / (60 * 24);
-  const daysSaved = Math.max(0, state.legacyLeadDays - aiDays);
-  const offhire = Math.round(daysSaved * state.hireRate);
+  const { apportionment: result, days_saved, offhire_jpy } = runRuleD5({
+    dockingContext: state.dockingContext,
+    lines: synced,
+    assumeStatutoryOwnerWork: state.includeStatutory,
+    confidence: state.uc2FromPdf ? 0.65 : 0.85,
+    grounding: synced
+      .filter((ln) => ln.title)
+      .slice(0, 8)
+      .map((ln) => ({
+        field: `lines.${ln.id}`,
+        source_quote: String(ln.title),
+      })),
+    hireRate: state.hireRate,
+    legacyLeadDays: state.legacyLeadDays,
+    aiLeadMinutes: state.aiLeadMinutes,
+  });
 
   void validateCausality("船首", "機関室");
 
@@ -167,8 +180,8 @@ function buildUc2(): Uc2View {
     owner_common: result.owner_common_share,
     insurer_total: result.insurer_total,
     owner_total: result.owner_total,
-    days_saved: Math.round(daysSaved * 100) / 100,
-    offhire_jpy: offhire,
+    days_saved,
+    offhire_jpy,
     line_rows: result.lines.map((ln) => ({
       id: ln.id,
       title: ln.title || ln.id,
@@ -232,18 +245,29 @@ function buildUc3(): Uc3View {
 
   const geometry = geometryForCase();
   if (state.overrideGeom) catalogFault = null;
-  const verdict = classifyEncounter(geometry);
-  const prediction =
-    state.rules != null
-      ? predictFaultRatio(facts || ruling || title, state.rules, state.seeds, geometry)
-      : null;
-  const faultRatio = catalogFault || prediction?.fault_ratio || "70:30";
-  const rel = verdict.relative_bearing_a_to_b_deg;
 
-  const documentKind =
+  const docKind =
     state.caseId === "civil_7" && state.civil7?.document_kind
       ? state.civil7.document_kind
       : undefined;
+
+  const {
+    extraction,
+    verdict,
+    fault_ratio: faultRatio,
+  } = runColregs({
+    geometry,
+    factsExcerpt: facts || undefined,
+    rulingExcerpt: ruling || undefined,
+    title,
+    faultRatioHint: catalogFault || undefined,
+    documentKind: docKind,
+    confidence: state.civil7?.case_id === "upload" ? 0.55 : 0.7,
+    rules: state.rules,
+    seeds: state.seeds,
+  });
+  const rel = verdict.relative_bearing_a_to_b_deg;
+  const documentKind = extraction.payload.document_kind ?? docKind;
 
   return {
     title,
@@ -254,8 +278,8 @@ function buildUc3(): Uc3View {
     fault_ratio: faultRatio,
     relative_bearing: Math.round(rel * 10) / 10,
     rule_citations: verdict.rule_citations,
-    facts,
-    ruling,
+    facts: extraction.payload.facts_excerpt || facts,
+    ruling: extraction.payload.ruling_excerpt || ruling,
     document_kind: documentKind,
   };
 }
@@ -430,12 +454,29 @@ async function handlePdf(file: File): Promise<void> {
     alert(t("err_no_line_items", state.lang));
     return;
   }
-  state.uc2Lines = repairItemsToRuleDLines(items, {
-    dailyDockRate: state.dailyDockRate,
-    dockDays: state.dockDays,
-    includeStatutory: state.includeStatutory,
-    lang: state.lang,
-  });
+  try {
+    const run = runRuleD5FromRepairText(text, {
+      dockingContext: state.dockingContext,
+      dailyDockRate: state.dailyDockRate,
+      dockDays: state.dockDays,
+      includeStatutory: state.includeStatutory,
+      lang: state.lang,
+      hireRate: state.hireRate,
+      legacyLeadDays: state.legacyLeadDays,
+      aiLeadMinutes: state.aiLeadMinutes,
+    });
+    state.uc2Lines = ruleD5LinesFromExtraction(run.extraction);
+  } catch (err) {
+    if (err instanceof ExtractionValidationError) {
+      alert(t("err_schema_invalid", state.lang));
+      return;
+    }
+    if (err instanceof Error && /No repair line items/.test(err.message)) {
+      alert(t("err_no_line_items", state.lang));
+      return;
+    }
+    throw err;
+  }
   state.uc2FromPdf = true;
   const dockTotal = state.dailyDockRate * state.dockDays;
   const synced = state.uc2Lines.map((ln) =>
@@ -580,14 +621,43 @@ function renderUc3(root: HTMLElement): void {
     if (!holding) {
       holding = extractJtsbCauseExcerpt(text) || "";
     }
+    const facts = extractFactsExcerpt(text);
+    const documentKind = jtsbReport ? "jtsb" : "judgment";
+    try {
+      buildColregsExtraction({
+        geometry: {
+          heading_a_deg: state.headingA,
+          heading_b_deg: state.headingB,
+          true_bearing_a_to_b_deg: state.bearingAb,
+          speed_a_kn: 12,
+          speed_b_kn: 10,
+          range_nm: 0.8,
+        },
+        factsExcerpt: facts || undefined,
+        rulingExcerpt: holding || undefined,
+        faultRatioHint: extracted.fault_ratio || undefined,
+        documentKind,
+        confidence: 0.55,
+        grounding: [
+          facts ? { field: "facts_excerpt", source_quote: facts.slice(0, 240) } : null,
+          holding ? { field: "ruling_excerpt", source_quote: holding.slice(0, 240) } : null,
+        ].filter((g): g is { field: string; source_quote: string } => g != null),
+      });
+    } catch (err) {
+      if (err instanceof ExtractionValidationError) {
+        alert(t("err_schema_invalid", state.lang));
+        return;
+      }
+      throw err;
+    }
     state.caseId = "civil_7";
     state.civil7 = {
       case_id: "upload",
       title: f.name,
-      input_facts: extractFactsExcerpt(text),
+      input_facts: facts,
       holding,
       fault_ratio: extracted.fault_ratio || "",
-      document_kind: jtsbReport ? "jtsb" : "judgment",
+      document_kind: documentKind,
     };
     state.overrideGeom = true;
     render();
@@ -603,11 +673,13 @@ function renderUc3(root: HTMLElement): void {
 
 function buildPscReport(): { report: SeaworthinessRiskReport; title: string } {
   if (state.pscUsePaste && state.pscPasteCurrent.length) {
-    const report = scoreSeaworthiness(state.pscPasteCurrent, {
+    const { report } = runPsc({
+      deficiencies: state.pscPasteCurrent,
       prior: state.pscPastePrior,
       mouId: state.pscPasteMou,
       cicWeights: state.pscPasteCic,
       lookbackMonths: state.pscLookbackMonths,
+      confidence: 0.75,
     });
     return { report, title: state.pscPasteLabel || "pasted" };
   }
@@ -621,10 +693,10 @@ function buildPscReport(): { report: SeaworthinessRiskReport; title: string } {
       title: state.pscCaseId || "—",
     };
   }
-  return {
-    report: scoreFixtureCase(fixture, { lookbackMonths: state.pscLookbackMonths }),
-    title: fixture.id,
-  };
+  const { report } = runPscFixture(fixture, {
+    lookbackMonths: state.pscLookbackMonths,
+  });
+  return { report, title: fixture.id };
 }
 
 function buildPscView(): PscView {
@@ -772,6 +844,14 @@ function renderPsc(root: HTMLElement): void {
         alert(t("psc_err_empty", state.lang));
         return;
       }
+      buildPscExtraction({
+        deficiencies: parsed.current,
+        prior: parsed.prior,
+        mouId: parsed.mouId,
+        cicWeights: parsed.cicWeights,
+        lookbackMonths: state.pscLookbackMonths,
+        confidence: 0.75,
+      });
       state.pscPasteCurrent = parsed.current;
       state.pscPastePrior = parsed.prior;
       state.pscPasteCic = parsed.cicWeights;
@@ -779,7 +859,11 @@ function renderPsc(root: HTMLElement): void {
       state.pscPasteLabel = parsed.label;
       state.pscUsePaste = true;
       render();
-    } catch {
+    } catch (err) {
+      if (err instanceof ExtractionValidationError) {
+        alert(t("err_schema_invalid", state.lang));
+        return;
+      }
       alert(t("psc_err_paste", state.lang));
     }
   });

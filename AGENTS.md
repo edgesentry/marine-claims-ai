@@ -33,6 +33,7 @@ Any autonomous or semi-autonomous AI agent operating in this codebase MUST stric
 ## 3. Executive demo (WASM PWA)
 When changing or extending the Issue #54 / #76 executive demo, follow **[docs/executive_demo_cli_and_web.md](docs/executive_demo_cli_and_web.md)** and the per-tab I/O write-up **[docs/demo_use_cases.md](docs/demo_use_cases.md)**:
 - Runtime SoT is `web/` (TypeScript + DuckDB-WASM). Do not reintroduce a Python demo CLI or FastAPI demo server.
+- Node CLI at repo-root `cli/` may call the same `web/src/core/` runners as the PWA (for demos and component checks).
 - Prefer local caches under `_data/`; never commit demo datasets.
 - Keep EN/JA copy in the PWA; do not embed confidential pitch narratives or hard-coded commercial metrics.
 - Vendor offline front-end assets; do not introduce CDN runtime dependencies for the demo.
