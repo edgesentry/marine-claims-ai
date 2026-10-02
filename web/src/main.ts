@@ -95,6 +95,16 @@ function fmtYen(n: number): string {
   return `¥${n.toLocaleString()}`;
 }
 
+/** Escape text before interpolating into innerHTML (CodeQL js/xss-through-dom). */
+function escapeHtml(value: unknown): string {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 function buildUc2(): Uc2View {
   const lines =
     state.uc2Lines.length > 0
@@ -207,10 +217,10 @@ function buildUc3(): Uc3View {
 
 function explainBox(prefix: "uc2" | "uc3"): string {
   return `<aside class="explain">
-    <div><strong>${t("explain_usecase", state.lang)}</strong> ${t(`${prefix}_explain_usecase`, state.lang)}</div>
-    <div><strong>${t("explain_input", state.lang)}</strong> ${t(`${prefix}_explain_input`, state.lang)}</div>
-    <div><strong>${t("explain_process", state.lang)}</strong> ${t(`${prefix}_explain_process`, state.lang)}</div>
-    <div><strong>${t("explain_output", state.lang)}</strong> ${t(`${prefix}_explain_output`, state.lang)}</div>
+    <div><strong>${escapeHtml(t("explain_usecase", state.lang))}</strong> ${escapeHtml(t(`${prefix}_explain_usecase`, state.lang))}</div>
+    <div><strong>${escapeHtml(t("explain_input", state.lang))}</strong> ${escapeHtml(t(`${prefix}_explain_input`, state.lang))}</div>
+    <div><strong>${escapeHtml(t("explain_process", state.lang))}</strong> ${escapeHtml(t(`${prefix}_explain_process`, state.lang))}</div>
+    <div><strong>${escapeHtml(t("explain_output", state.lang))}</strong> ${escapeHtml(t(`${prefix}_explain_output`, state.lang))}</div>
   </aside>`;
 }
 
@@ -218,75 +228,78 @@ function renderUc2(root: HTMLElement): void {
   const view = buildUc2();
   const causality = validateCausality("船首", "機関室");
   root.innerHTML = `
-    <p class="lead">${t("uc2_lead", state.lang)}</p>
+    <p class="lead">${escapeHtml(t("uc2_lead", state.lang))}</p>
     ${explainBox("uc2")}
     <div class="grid-2">
       <section class="panel">
-        <label>${t("daily_dock_rate", state.lang)}
+        <label>${escapeHtml(t("daily_dock_rate", state.lang))}
           <input type="range" id="dockRate" min="100000" max="5000000" step="10000" value="${state.dailyDockRate}">
-          <span id="dockRateVal">${fmtYen(state.dailyDockRate)}</span>
+          <span id="dockRateVal">${escapeHtml(fmtYen(state.dailyDockRate))}</span>
         </label>
-        <label>${t("dock_days", state.lang)}
+        <label>${escapeHtml(t("dock_days", state.lang))}
           <input type="range" id="dockDays" min="1" max="30" value="${state.dockDays}">
           <span id="dockDaysVal">${state.dockDays}</span>
         </label>
-        <label>${t("hire_rate", state.lang)}
+        <label>${escapeHtml(t("hire_rate", state.lang))}
           <input type="range" id="hireRate" min="100000" max="20000000" step="100000" value="${state.hireRate}">
-          <span id="hireRateVal">${fmtYen(state.hireRate)}</span>
+          <span id="hireRateVal">${escapeHtml(fmtYen(state.hireRate))}</span>
         </label>
-        <label>${t("legacy_lead_days", state.lang)}
+        <label>${escapeHtml(t("legacy_lead_days", state.lang))}
           <input type="range" id="legacyLead" min="1" max="60" value="${state.legacyLeadDays}">
           <span id="legacyLeadVal">${state.legacyLeadDays}</span>
         </label>
-        <label>${t("ai_lead_minutes", state.lang)}
+        <label>${escapeHtml(t("ai_lead_minutes", state.lang))}
           <input type="range" id="aiLead" min="1" max="1440" value="${state.aiLeadMinutes}">
           <span id="aiLeadVal">${state.aiLeadMinutes}</span>
         </label>
-        <label>${t("docking_context", state.lang)}
+        <label>${escapeHtml(t("docking_context", state.lang))}
           <select id="dockCtx">
-            <option value="casualty_immediate" ${state.dockingContext === "casualty_immediate" ? "selected" : ""}>${t("ctx_immediate", state.lang)}</option>
-            <option value="deferred_to_routine" ${state.dockingContext === "deferred_to_routine" ? "selected" : ""}>${t("ctx_deferred", state.lang)}</option>
+            <option value="casualty_immediate" ${state.dockingContext === "casualty_immediate" ? "selected" : ""}>${escapeHtml(t("ctx_immediate", state.lang))}</option>
+            <option value="deferred_to_routine" ${state.dockingContext === "deferred_to_routine" ? "selected" : ""}>${escapeHtml(t("ctx_deferred", state.lang))}</option>
           </select>
         </label>
-        <label class="check"><input type="checkbox" id="inclStat" ${state.includeStatutory ? "checked" : ""}> ${t("include_statutory", state.lang)}</label>
-        <div class="dropzone" id="pdfDrop">${t("drop_pdf", state.lang)}<input type="file" id="pdfFile" accept="application/pdf" hidden></div>
+        <label class="check"><input type="checkbox" id="inclStat" ${state.includeStatutory ? "checked" : ""}> ${escapeHtml(t("include_statutory", state.lang))}</label>
+        <div class="dropzone" id="pdfDrop">${escapeHtml(t("drop_pdf", state.lang))}<input type="file" id="pdfFile" accept="application/pdf" hidden></div>
         <div class="actions">
-          <button type="button" class="btn" id="useSynthetic">${t("use_synthetic", state.lang)}</button>
+          <button type="button" class="btn" id="useSynthetic">${escapeHtml(t("use_synthetic", state.lang))}</button>
         </div>
-        ${state.uc2FromPdf ? `<p class="ok">${t("analyzed_ok", state.lang)}</p>` : ""}
+        ${state.uc2FromPdf ? `<p class="ok">${escapeHtml(t("analyzed_ok", state.lang))}</p>` : ""}
         ${
           state.uc2Analyzed.length
             ? `<p class="muted">Pipeline statuses: ${state.uc2Analyzed
-                .map((a) => `${a.description.slice(0, 24)}… → <code>${a.status}</code>`)
+                .map(
+                  (a) =>
+                    `${escapeHtml(a.description.slice(0, 24))}… → <code>${escapeHtml(a.status)}</code>`,
+                )
                 .join("<br>")}</p>`
             : ""
         }
-        <p class="muted">Causality check (bow→machinery): <code>${causality.reason}</code> valid=${causality.valid}</p>
+        <p class="muted">Causality check (bow→machinery): <code>${escapeHtml(causality.reason)}</code> valid=${causality.valid}</p>
       </section>
       <section class="panel">
-        <h2>${t("rule_label", state.lang)}</h2>
-        <p><code>${view.rule}</code></p>
+        <h2>${escapeHtml(t("rule_label", state.lang))}</h2>
+        <p><code>${escapeHtml(view.rule)}</code></p>
         <dl class="metrics">
-          <div><dt>${t("common_dues", state.lang)}</dt><dd>${fmtYen(view.dock_total)}</dd></div>
-          <div><dt>${t("insurer_share", state.lang)}</dt><dd>${fmtYen(view.insurer_common)}</dd></div>
-          <div><dt>${t("owner_share", state.lang)}</dt><dd>${fmtYen(view.owner_common)}</dd></div>
+          <div><dt>${escapeHtml(t("common_dues", state.lang))}</dt><dd>${escapeHtml(fmtYen(view.dock_total))}</dd></div>
+          <div><dt>${escapeHtml(t("insurer_share", state.lang))}</dt><dd>${escapeHtml(fmtYen(view.insurer_common))}</dd></div>
+          <div><dt>${escapeHtml(t("owner_share", state.lang))}</dt><dd>${escapeHtml(fmtYen(view.owner_common))}</dd></div>
         </dl>
-        <h3>${t("offhire_title", state.lang)}</h3>
-        <p>${t("days_saved", state.lang)}: ${view.days_saved} · ${t("offhire_saved", state.lang)}: ${fmtYen(view.offhire_jpy)}</p>
+        <h3>${escapeHtml(t("offhire_title", state.lang))}</h3>
+        <p>${escapeHtml(t("days_saved", state.lang))}: ${view.days_saved} · ${escapeHtml(t("offhire_saved", state.lang))}: ${escapeHtml(fmtYen(view.offhire_jpy))}</p>
         <table class="lines">
           <thead><tr><th>ID</th><th>Title</th><th>Cost</th><th>Insurer</th><th>Owner</th><th>Rule</th></tr></thead>
           <tbody>
             ${view.line_rows
               .map(
                 (r) =>
-                  `<tr><td>${r.id}</td><td>${r.title}</td><td>${fmtYen(r.cost)}</td><td>${fmtYen(r.insurer)}</td><td>${fmtYen(r.owner)}</td><td><code>${r.rule}</code></td></tr>`,
+                  `<tr><td>${escapeHtml(r.id)}</td><td>${escapeHtml(r.title)}</td><td>${escapeHtml(fmtYen(r.cost))}</td><td>${escapeHtml(fmtYen(r.insurer))}</td><td>${escapeHtml(fmtYen(r.owner))}</td><td><code>${escapeHtml(r.rule)}</code></td></tr>`,
               )
               .join("")}
           </tbody>
         </table>
         <div class="actions">
-          <button type="button" class="btn" id="expMd">${t("export_apportion_md", state.lang)}</button>
-          <button type="button" class="btn" id="expHtml">${t("export_apportion_html", state.lang)}</button>
+          <button type="button" class="btn" id="expMd">${escapeHtml(t("export_apportion_md", state.lang))}</button>
+          <button type="button" class="btn" id="expHtml">${escapeHtml(t("export_apportion_html", state.lang))}</button>
         </div>
       </section>
     </div>
@@ -406,36 +419,41 @@ function renderUc3(root: HTMLElement): void {
   ];
 
   root.innerHTML = `
-    <p class="lead">${t("uc3_lead", state.lang)}</p>
+    <p class="lead">${escapeHtml(t("uc3_lead", state.lang))}</p>
     ${explainBox("uc3")}
     <div class="grid-2">
       <section class="panel">
-        <label>${t("select_case", state.lang)}
+        <label>${escapeHtml(t("select_case", state.lang))}
           <select id="caseSel">
-            ${options.map((o) => `<option value="${o.id}" ${o.id === state.caseId ? "selected" : ""}>${o.title}</option>`).join("")}
+            ${options
+              .map(
+                (o) =>
+                  `<option value="${escapeHtml(o.id)}" ${o.id === state.caseId ? "selected" : ""}>${escapeHtml(o.title)}</option>`,
+              )
+              .join("")}
           </select>
         </label>
-        <label class="check"><input type="checkbox" id="ovrGeom" ${state.overrideGeom ? "checked" : ""}> ${t("geometry_override", state.lang)}</label>
-        <label>${t("heading_a", state.lang)}
+        <label class="check"><input type="checkbox" id="ovrGeom" ${state.overrideGeom ? "checked" : ""}> ${escapeHtml(t("geometry_override", state.lang))}</label>
+        <label>${escapeHtml(t("heading_a", state.lang))}
           <input type="number" id="hdgA" value="${state.headingA}" ${state.overrideGeom || state.caseId === "civil_7" ? "" : "disabled"}>
         </label>
-        <label>${t("heading_b", state.lang)}
+        <label>${escapeHtml(t("heading_b", state.lang))}
           <input type="number" id="hdgB" value="${state.headingB}" ${state.overrideGeom || state.caseId === "civil_7" ? "" : "disabled"}>
         </label>
-        <label>${t("bearing_ab", state.lang)}
+        <label>${escapeHtml(t("bearing_ab", state.lang))}
           <input type="number" id="brg" value="${state.bearingAb}" ${state.overrideGeom || state.caseId === "civil_7" ? "" : "disabled"}>
         </label>
-        <div class="dropzone" id="pdfDrop3">${t("drop_pdf", state.lang)}<input type="file" id="pdfFile3" accept="application/pdf" hidden></div>
+        <div class="dropzone" id="pdfDrop3">${escapeHtml(t("drop_pdf", state.lang))}<input type="file" id="pdfFile3" accept="application/pdf" hidden></div>
       </section>
       <section class="panel">
-        <h2>${view.title}</h2>
+        <h2>${escapeHtml(view.title)}</h2>
         <dl class="metrics">
-          <div><dt>${t("situation", state.lang)}</dt><dd>${view.situation_label}</dd></div>
-          <div><dt>${t("role_a", state.lang)}</dt><dd>${view.role_a_label}</dd></div>
-          <div><dt>${t("role_b", state.lang)}</dt><dd>${view.role_b_label}</dd></div>
-          <div><dt>${t("fault_ratio", state.lang)}</dt><dd><strong>${view.fault_ratio}</strong></dd></div>
+          <div><dt>${escapeHtml(t("situation", state.lang))}</dt><dd>${escapeHtml(view.situation_label)}</dd></div>
+          <div><dt>${escapeHtml(t("role_a", state.lang))}</dt><dd>${escapeHtml(view.role_a_label)}</dd></div>
+          <div><dt>${escapeHtml(t("role_b", state.lang))}</dt><dd>${escapeHtml(view.role_b_label)}</dd></div>
+          <div><dt>${escapeHtml(t("fault_ratio", state.lang))}</dt><dd><strong>${escapeHtml(view.fault_ratio)}</strong></dd></div>
         </dl>
-        <h3>${t("radar_title", state.lang)}</h3>
+        <h3>${escapeHtml(t("radar_title", state.lang))}</h3>
         <svg class="radar" viewBox="-1.2 -1.2 2.4 2.4">
           <circle cx="0" cy="0" r="1" fill="none" stroke="currentColor" opacity="0.3"/>
           <circle cx="0" cy="0" r="0.5" fill="none" stroke="currentColor" opacity="0.2"/>
@@ -447,14 +465,14 @@ function renderUc3(root: HTMLElement): void {
           <circle cx="0" cy="0" r="0.06" fill="var(--accent)"/>
           <circle cx="${tx}" cy="${-ty}" r="0.08" fill="var(--warn)"/>
         </svg>
-        <p class="muted">${t("article", state.lang)}: ${(view.rule_citations || []).join(" · ") || "—"}</p>
-        <h3>${t("facts", state.lang)}</h3>
-        <pre class="facts">${view.facts || "—"}</pre>
-        <h3>${t("ruling", state.lang)}</h3>
-        <pre class="facts">${view.ruling || "—"}</pre>
+        <p class="muted">${escapeHtml(t("article", state.lang))}: ${escapeHtml((view.rule_citations || []).join(" · ") || "—")}</p>
+        <h3>${escapeHtml(t("facts", state.lang))}</h3>
+        <pre class="facts">${escapeHtml(view.facts || "—")}</pre>
+        <h3>${escapeHtml(t("ruling", state.lang))}</h3>
+        <pre class="facts">${escapeHtml(view.ruling || "—")}</pre>
         <div class="actions">
-          <button type="button" class="btn" id="exp3Md">${t("export_colregs_md", state.lang)}</button>
-          <button type="button" class="btn" id="exp3Html">${t("export_colregs_html", state.lang)}</button>
+          <button type="button" class="btn" id="exp3Md">${escapeHtml(t("export_colregs_md", state.lang))}</button>
+          <button type="button" class="btn" id="exp3Html">${escapeHtml(t("export_colregs_html", state.lang))}</button>
         </div>
       </section>
     </div>
@@ -521,14 +539,14 @@ function render(): void {
   app.innerHTML = `
     <header class="topbar">
       <div class="brand-group">
-        <div class="brand"><img class="brand-logo" src="./icons/icon.svg" width="28" height="28" alt=""/> ${t("app_title", state.lang)}</div>
+        <div class="brand"><img class="brand-logo" src="./icons/icon.svg" width="28" height="28" alt=""/> ${escapeHtml(t("app_title", state.lang))}</div>
       </div>
       <nav class="nav">
-        <button type="button" class="btn ${state.tab === "uc2" ? "active" : ""}" data-tab="uc2">${t("nav_uc2", state.lang)}</button>
-        <button type="button" class="btn ${state.tab === "uc3" ? "active" : ""}" data-tab="uc3">${t("nav_uc3", state.lang)}</button>
-        <button type="button" class="btn" data-lang="en">${t("lang_en", state.lang)}</button>
-        <button type="button" class="btn" data-lang="ja">${t("lang_ja", state.lang)}</button>
-        <button type="button" class="btn pwa-install" id="pwaInstall" hidden>${t("pwa_install_btn", state.lang)}</button>
+        <button type="button" class="btn ${state.tab === "uc2" ? "active" : ""}" data-tab="uc2">${escapeHtml(t("nav_uc2", state.lang))}</button>
+        <button type="button" class="btn ${state.tab === "uc3" ? "active" : ""}" data-tab="uc3">${escapeHtml(t("nav_uc3", state.lang))}</button>
+        <button type="button" class="btn" data-lang="en">${escapeHtml(t("lang_en", state.lang))}</button>
+        <button type="button" class="btn" data-lang="ja">${escapeHtml(t("lang_ja", state.lang))}</button>
+        <button type="button" class="btn pwa-install" id="pwaInstall" hidden>${escapeHtml(t("pwa_install_btn", state.lang))}</button>
       </nav>
     </header>
     <main id="main" class="main"></main>
