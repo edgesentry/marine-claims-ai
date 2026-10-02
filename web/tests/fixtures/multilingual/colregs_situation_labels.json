@@ -1,0 +1,9 @@
+{
+  "description": "Issue #90 — situation label strings normalize to the same EncounterSituation enum.",
+  "pairs": [
+    { "id": "crossing", "ja": "横切", "en": "crossing", "expect": "crossing" },
+    { "id": "head-on", "ja": "行き会い", "en": "head-on", "expect": "head_on" },
+    { "id": "overtaking", "ja": "追越し", "en": "overtaking", "expect": "overtaking" },
+    { "id": "safe-passing", "ja": "安全航行", "en": "safe passing", "expect": "safe_passing" }
+  ]
+}

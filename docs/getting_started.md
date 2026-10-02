@@ -51,6 +51,8 @@ Full design: [executive_demo_cli_and_web.md](executive_demo_cli_and_web.md). Use
 
 **PSC document Stage A (Issue #92):** Drop a Tokyo/Paris MOU–style PDF, HTML, or image on the PSC tab (or **Load sample MOU HTML**). The extractor maps table rows → `psc.v1` deficiencies under Exact Span (`require_span`), then `scoreSeaworthiness`. JSON/CSV paste remains available. Memo export still states it is not a warranty opinion. Tests: `cd web && npm test -- tests/issue92DoD.test.ts`.
 
+**Multilingual → schema enums (Issue #90):** UI i18n does not drive extraction. JA/EN repair / situation / PSC phrases normalize to the same UC codes so Stage B scores match. Tests: `cd web && npm test -- tests/issue90DoD.test.ts`.
+
 ---
 
 ## 1. Ingest public datasets

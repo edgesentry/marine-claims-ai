@@ -1,0 +1,33 @@
+{
+  "description": "Issue #90 — JA/EN repair line pairs must yield identical trade_code / Rule D5 Stage B shares.",
+  "docking_context": "casualty_immediate",
+  "daily_dock_rate": 850000,
+  "dock_days": 4,
+  "include_statutory": true,
+  "pairs": [
+    {
+      "id": "hull-scaling",
+      "ja": { "description": "外板ケレン及び塗装工事", "estimated_cost": 850000 },
+      "en": { "description": "Shell plating scaling and painting", "estimated_cost": 850000 },
+      "expect_trade_code": "HULL-01"
+    },
+    {
+      "id": "piston-draw",
+      "ja": { "description": "主機関ピストン抜出開放点検", "estimated_cost": 1800000 },
+      "en": { "description": "Main engine piston draw overhaul", "estimated_cost": 1800000 },
+      "expect_trade_code": "ENG-02"
+    },
+    {
+      "id": "dock-dues",
+      "ja": { "description": "入出渠及び滞渠料", "estimated_cost": 3400000 },
+      "en": { "description": "Drydock dues entering and leaving", "estimated_cost": 3400000 },
+      "expect_trade_code": "DOCK-01"
+    },
+    {
+      "id": "statutory",
+      "ja": { "description": "法定検査証書更新工事", "estimated_cost": 550000 },
+      "en": { "description": "Statutory survey certificate renewal", "estimated_cost": 550000 },
+      "expect_trade_code": "SAFE-01"
+    }
+  ]
+}

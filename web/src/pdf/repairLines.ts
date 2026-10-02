@@ -1,8 +1,10 @@
 /**
  * Tier-1 repair-line heuristics (PDF-independent — safe for Node CLI).
+ * Trade / necessity labels come from multilingual lexicon (#90), not JA-only regex.
  */
 import type { OwnerNecessity, RepairLineItem, WorkParty } from "../engines/ruleD5";
 import { lineTitle, type Lang } from "../i18n";
+import { normalizeRepairPhrase } from "../pipeline/normalizeLabels";
 
 const YEN_RE = /(?:¥|￥|JPY)?\s*([0-9]{1,3}(?:,[0-9]{3})+|[0-9]{4,})/g;
 
@@ -66,40 +68,51 @@ export function repairItemsToRuleDLines(
     n += 1;
     const id = `pdf-${n}`;
 
-    if (/入出渠|滞渠|入渠/.test(desc)) {
+    const norm = normalizeRepairPhrase(desc);
+    if (norm?.trade_code === "DOCK-01") {
       sawDock = true;
       lines.push({ id, trade_code: "DOCK-01", cost: dockTotal, title: desc.slice(0, 80) });
       continue;
     }
-    if (/法定|検査証書|SOLAS|船級|年次検査|中間検査/.test(desc)) {
+    if (norm?.trade_code === "SAFE-01") {
       sawStatutory = true;
       if (opts.includeStatutory) {
         lines.push({
           id,
           trade_code: "SAFE-01",
           cost,
-          necessity: "statutory_seaworthiness" as OwnerNecessity,
+          necessity: (norm.necessity ?? "statutory_seaworthiness") as OwnerNecessity,
           title: desc.slice(0, 80),
         });
       }
       continue;
     }
-    if (/主機関|ピストン|プロペラ軸|減速機|発電機関|カロリー/.test(desc)) {
+    if (norm?.trade_code === "ENG-02") {
       lines.push({
         id,
         trade_code: "ENG-02",
         cost,
-        necessity: "deferred" as OwnerNecessity,
+        necessity: (norm.necessity ?? "deferred") as OwnerNecessity,
         title: desc.slice(0, 80),
       });
       continue;
     }
-    if (/外板|球状船首|船首|バウスラスター|塗装|洗浄/.test(desc)) {
+    if (norm?.trade_code === "HULL-01") {
       lines.push({
         id,
         trade_code: "HULL-01",
         cost,
-        work_party: "casualty" as WorkParty,
+        work_party: (norm.work_party ?? "casualty") as WorkParty,
+        title: desc.slice(0, 80),
+      });
+      continue;
+    }
+    if (norm?.trade_code === "OWN-01") {
+      lines.push({
+        id,
+        trade_code: "OWN-01",
+        cost: Math.min(cost, 2_000_000),
+        necessity: (norm.necessity ?? "deferred") as OwnerNecessity,
         title: desc.slice(0, 80),
       });
       continue;

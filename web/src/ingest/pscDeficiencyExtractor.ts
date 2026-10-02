@@ -8,6 +8,7 @@ import {
   parseDeficiencyItem,
   type NormalizedDeficiency,
 } from "../engines/psc";
+import { normalizePscActionPhrase } from "../pipeline/normalizeLabels";
 import type { GroundingRef } from "../schemas";
 
 export interface PscDocumentExtract {
@@ -123,7 +124,9 @@ function extractAction(line: string): string | null {
   if (DETENTION_WORD_RE.test(line)) return "30";
   const inline = ACTION_INLINE_RE.exec(line);
   if (inline?.[1]) return normalizeActionCode(inline[1]);
-  return null;
+  // Phrase lexicon (JA/EN) when numeric action is absent — Issue #90
+  const fromLexicon = normalizePscActionPhrase(line);
+  return fromLexicon ? normalizeActionCode(fromLexicon) : null;
 }
 
 function extractNature(line: string, code: string): string {
