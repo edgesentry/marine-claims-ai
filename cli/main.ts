@@ -9,6 +9,7 @@
  *   npm run cli -- psc --fixture repeat_ism_major
  *   npm run cli -- validate path/to/envelope.json
  *   npm run cli -- classify-encounter --heading-a 0 --heading-b 180 --bearing 0
+ *   npm run cli -- route --text path.txt [--tab uc2|uc3|psc]
  *   npm run cli -- apportion --lines path.json
  */
 import { readFileSync, existsSync } from "node:fs";
@@ -36,6 +37,13 @@ import {
   runRuleD5FromRepairText,
   runRuleD5Synthetic,
 } from "../web/src/core/index.ts";
+import {
+  classifyDocument,
+  resolveDocumentRoute,
+  shouldAbstainFromStageB,
+  type DemoTab,
+  type DocumentType,
+} from "../web/src/pipeline/documentRouter.ts";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(__dirname, "..");
@@ -77,6 +85,7 @@ Component commands (test individual pieces):
   validate FILE.json
   apportion --lines FILE.json [--docking ...]
   classify-encounter --heading-a N --heading-b N --bearing N
+  route --text FILE [--tab uc2|uc3|psc] [--override TYPE] [--filename NAME]
   schema-ids | schema-dump SCHEMA_ID | schema-json SCHEMA_ID
   help
 `;
@@ -332,6 +341,52 @@ function cmdClassify(flags: Record<string, string | boolean>): void {
   );
 }
 
+function cmdRoute(flags: Record<string, string | boolean>): void {
+  const textPath = flagStr(flags, "text");
+  if (!textPath) fail("route requires --text FILE");
+  const text = readText(textPath);
+  const filename = flagStr(flags, "filename") ?? textPath.split(/[/\\]/).pop();
+  const classification = classifyDocument(text, { filename });
+  const tabRaw = flagStr(flags, "tab");
+  const overrideRaw = flagStr(flags, "override") as DocumentType | undefined;
+  const result: Record<string, unknown> = {
+    classification: {
+      type: classification.type,
+      confidence: classification.confidence,
+      signals: classification.signals,
+      scores: classification.scores,
+      backend: classification.backend,
+    },
+  };
+  if (tabRaw) {
+    if (tabRaw !== "uc2" && tabRaw !== "uc3" && tabRaw !== "psc") {
+      fail(`Invalid --tab: ${tabRaw} (use uc2|uc3|psc)`);
+    }
+    const decision = resolveDocumentRoute(
+      tabRaw as DemoTab,
+      classification,
+      overrideRaw ?? null,
+    );
+    result.route = {
+      tab: tabRaw,
+      override: overrideRaw ?? null,
+      allowed: decision.allowed,
+      reason: decision.reason,
+      detected: decision.detected,
+      effective: decision.effective,
+      abstain: shouldAbstainFromStageB(decision),
+    };
+    if (!decision.allowed) {
+      print(result);
+      process.stderr.write(
+        `ROUTE_ABSTAIN: ${decision.reason} — Stage B would not run without a valid --override.\n`,
+      );
+      process.exit(3);
+    }
+  }
+  print(result);
+}
+
 function main(): void {
   const { cmd, flags, positionals } = parseArgs(process.argv.slice(2));
   try {
@@ -358,6 +413,9 @@ function main(): void {
         break;
       case "classify-encounter":
         cmdClassify(flags);
+        break;
+      case "route":
+        cmdRoute(flags);
         break;
       case "schema-ids":
         print([...allSchemaIds()]);

@@ -629,6 +629,15 @@ th { color: var(--muted); font-weight: 550; font-size: 0.78rem; }
 }
 .muted { color: var(--muted); font-size: 0.85rem; }
 .ok { color: var(--ok); }
+.warn { color: #c47a1a; }
+.router-panel {
+  margin-top: 0.75rem;
+  padding: 0.75rem;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: #0a1520;
+}
+.router-panel label { display: block; margin: 0.5rem 0; }
 .nav { display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: center; }
 .panel textarea {
   display: block;

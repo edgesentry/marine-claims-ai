@@ -59,12 +59,30 @@ import {
 } from "./schemas";
 import { runColregs, runPsc, runPscFixture, runRuleD5, runRuleD5FromRepairText } from "./core";
 import { getDuckDb } from "./db/duckdb";
+import {
+  classifyDocument,
+  resolveDocumentRoute,
+  TAB_ALLOWED_TYPES,
+  type DemoTab,
+  type DocumentClassification,
+  type DocumentType,
+  type KnownDocumentType,
+} from "./pipeline/documentRouter";
 
-type Tab = "uc2" | "uc3" | "psc";
+type Tab = DemoTab;
 
 interface PendingReview {
   extraction: ExtractionResult;
   reasons: string[];
+}
+
+/** Uploaded / pasted text awaiting Analyze after document-type routing (#86). */
+interface PendingUpload {
+  text: string;
+  filename: string;
+  classification: DocumentClassification;
+  /** null = use detected type */
+  override: DocumentType | null;
 }
 
 interface AppState {
@@ -83,6 +101,7 @@ interface AppState {
   uc2Confirmed: boolean;
   uc2Analyzed: AnalyzedItem[];
   uc2Pending: PendingReview | null;
+  uc2Upload: PendingUpload | null;
   // UC3
   caseId: string;
   headingA: number;
@@ -95,6 +114,7 @@ interface AppState {
   civil7: CatalogSeed | null;
   uc3Pending: PendingReview | null;
   uc3Confirmed: boolean;
+  uc3Upload: PendingUpload | null;
   nplScorer: NplScorer;
   // PSC
   pscFixtures: PscFixtureCase[];
@@ -109,6 +129,7 @@ interface AppState {
   pscPasteLabel: string;
   pscPending: PendingReview | null;
   pscConfirmed: boolean;
+  pscUpload: PendingUpload | null;
 }
 
 const state: AppState = {
@@ -126,6 +147,7 @@ const state: AppState = {
   uc2Confirmed: false,
   uc2Analyzed: [],
   uc2Pending: null,
+  uc2Upload: null,
   caseId: "civil_7",
   headingA: 30,
   headingB: 300,
@@ -137,6 +159,7 @@ const state: AppState = {
   civil7: null,
   uc3Pending: null,
   uc3Confirmed: false,
+  uc3Upload: null,
   nplScorer: noOpNplScorer,
   pscFixtures: [],
   pscCaseId: "repeat_ism_major",
@@ -150,10 +173,53 @@ const state: AppState = {
   pscPasteLabel: "",
   pscPending: null,
   pscConfirmed: false,
+  pscUpload: null,
 };
 
 function fmtYen(n: number): string {
   return `¥${n.toLocaleString()}`;
+}
+
+function routerTypeI18nKey(type: DocumentType): string {
+  return `router_type_${type}`;
+}
+
+function routerPanelHtml(tab: Tab, upload: PendingUpload | null, analyzeId: string): string {
+  if (!upload) return "";
+  const decision = resolveDocumentRoute(tab, upload.classification, upload.override);
+  const detectedLabel = t(routerTypeI18nKey(upload.classification.type), state.lang);
+  const confPct = Math.round(upload.classification.confidence * 100);
+  const allowed = [...TAB_ALLOWED_TYPES[tab]];
+  const statusMsg =
+    decision.reason === "unknown"
+      ? t("router_blocked_unknown", state.lang)
+      : decision.reason === "tab_mismatch"
+        ? t("router_blocked_mismatch", state.lang)
+        : t("router_ready", state.lang);
+  const statusClass = decision.allowed ? "ok" : "warn";
+  return `
+    <div class="router-panel" data-router-tab="${escapeHtml(tab)}">
+      <p><strong>${escapeHtml(t("router_detected", state.lang))}:</strong>
+        <code>${escapeHtml(detectedLabel)}</code>
+        · ${escapeHtml(t("router_confidence", state.lang))}: <code>${escapeHtml(confPct)}%</code>
+      </p>
+      <label>${escapeHtml(t("router_override", state.lang))}
+        <select id="routerOverride_${escapeHtml(tab)}">
+          <option value="" ${upload.override == null ? "selected" : ""}>${escapeHtml(t("router_override_none", state.lang))}</option>
+          ${allowed
+            .map(
+              (ty: KnownDocumentType) =>
+                `<option value="${escapeHtml(ty)}" ${upload.override === ty ? "selected" : ""}>${escapeHtml(t(routerTypeI18nKey(ty), state.lang))}</option>`,
+            )
+            .join("")}
+        </select>
+      </label>
+      <p class="${statusClass}">${escapeHtml(statusMsg)}</p>
+      <div class="actions">
+        <button type="button" class="btn" id="${escapeHtml(analyzeId)}" ${decision.allowed ? "" : "disabled"}>${escapeHtml(t("router_analyze", state.lang))}</button>
+      </div>
+    </div>
+  `;
 }
 
 /** Escape text before interpolating into innerHTML (CodeQL js/xss-through-dom). */
@@ -501,6 +567,7 @@ function renderUc2(root: HTMLElement): void {
         </label>
         <label class="check"><input type="checkbox" id="inclStat" ${state.includeStatutory ? "checked" : ""}> ${escapeHtml(t("include_statutory", state.lang))}</label>
         <div class="dropzone" id="pdfDrop">${escapeHtml(t("drop_pdf", state.lang))}<input type="file" id="pdfFile" accept="application/pdf" hidden></div>
+        ${routerPanelHtml("uc2", state.uc2Upload, "analyzeUc2")}
         <div class="actions">
           <button type="button" class="btn" id="useSynthetic">${escapeHtml(t("use_synthetic", state.lang))}</button>
         </div>
@@ -559,6 +626,7 @@ function renderUc2(root: HTMLElement): void {
     state.uc2Confirmed = false;
     state.uc2Pending = null;
     state.uc2Analyzed = [];
+    state.uc2Upload = null;
     render();
   });
   root.querySelector("#confirmScoreUc2")?.addEventListener("click", () => {
@@ -575,6 +643,18 @@ function renderUc2(root: HTMLElement): void {
     state.uc2Confirmed = true;
     state.uc2Pending = null;
     render();
+  });
+  root.querySelector("#routerOverride_uc2")?.addEventListener("change", (e) => {
+    if (!state.uc2Upload) return;
+    const v = (e.target as HTMLSelectElement).value;
+    state.uc2Upload = {
+      ...state.uc2Upload,
+      override: v ? (v as DocumentType) : null,
+    };
+    render();
+  });
+  root.querySelector("#analyzeUc2")?.addEventListener("click", () => {
+    void analyzeUc2Upload();
   });
   const drop = root.querySelector("#pdfDrop") as HTMLElement;
   const fileInput = root.querySelector("#pdfFile") as HTMLInputElement;
@@ -609,6 +689,36 @@ async function handlePdf(file: File): Promise<void> {
     alert(t("err_pdf_empty_text", state.lang));
     return;
   }
+  const classification = classifyDocument(text, { filename: file.name });
+  state.uc2Upload = {
+    text,
+    filename: file.name,
+    classification,
+    override: null,
+  };
+  // Reset prior Stage B until Analyze (Issue #86).
+  state.uc2Lines = [];
+  state.uc2FromPdf = false;
+  state.uc2Confirmed = false;
+  state.uc2Pending = null;
+  state.uc2Analyzed = [];
+  render();
+}
+
+async function analyzeUc2Upload(): Promise<void> {
+  const upload = state.uc2Upload;
+  if (!upload) return;
+  const decision = resolveDocumentRoute("uc2", upload.classification, upload.override);
+  if (!decision.allowed) {
+    alert(
+      decision.reason === "unknown"
+        ? t("router_blocked_unknown", state.lang)
+        : t("router_blocked_mismatch", state.lang),
+    );
+    return;
+  }
+  const text = upload.text;
+  const fileName = upload.filename;
   const items = extractRepairItemsFromText(text);
   if (!items.length) {
     alert(t("err_no_line_items", state.lang));
@@ -663,7 +773,7 @@ async function handlePdf(file: File): Promise<void> {
     {
       damaged_components: ["球状船首", "外板"],
       vessel_name: "PWA demo",
-      source_pdf: file.name,
+      source_pdf: fileName,
     },
     state.nplScorer,
     {
@@ -772,6 +882,7 @@ function renderUc3(root: HTMLElement): void {
           <input type="number" id="brg" value="${state.bearingAb}" ${state.overrideGeom || state.caseId === "civil_7" ? "" : "disabled"}>
         </label>
         <div class="dropzone" id="pdfDrop3">${escapeHtml(t("drop_pdf", state.lang))}<input type="file" id="pdfFile3" accept="application/pdf" hidden></div>
+        ${routerPanelHtml("uc3", state.uc3Upload, "analyzeUc3")}
       </section>
       ${resultsPanel}
     </div>
@@ -781,6 +892,7 @@ function renderUc3(root: HTMLElement): void {
     state.caseId = (e.target as HTMLSelectElement).value;
     state.uc3Pending = null;
     state.uc3Confirmed = false;
+    state.uc3Upload = null;
     if (state.caseId === "civil_7") {
       state.headingA = 30;
       state.headingB = 300;
@@ -826,6 +938,19 @@ function renderUc3(root: HTMLElement): void {
     render();
   });
 
+  root.querySelector("#routerOverride_uc3")?.addEventListener("change", (e) => {
+    if (!state.uc3Upload) return;
+    const v = (e.target as HTMLSelectElement).value;
+    state.uc3Upload = {
+      ...state.uc3Upload,
+      override: v ? (v as DocumentType) : null,
+    };
+    render();
+  });
+  root.querySelector("#analyzeUc3")?.addEventListener("click", () => {
+    void analyzeUc3Upload();
+  });
+
   const drop = root.querySelector("#pdfDrop3") as HTMLElement;
   const fileInput = root.querySelector("#pdfFile3") as HTMLInputElement;
   drop?.addEventListener("click", () => fileInput?.click());
@@ -837,68 +962,16 @@ function renderUc3(root: HTMLElement): void {
       alert(t("err_pdf_empty_text", state.lang));
       return;
     }
-    const extracted = extractFromJudgment(text);
-    const jtsbReport = isLikelyJtsbReport(text);
-    let holding = extracted.holding_excerpt || "";
-    if (!holding) {
-      holding = extractJtsbCauseExcerpt(text) || "";
-    }
-    const facts = extractFactsExcerpt(text);
-    const documentKind = jtsbReport ? "jtsb" : "judgment";
-    try {
-      const extraction = buildColregsExtraction({
-        geometry: {
-          heading_a_deg: state.headingA,
-          heading_b_deg: state.headingB,
-          true_bearing_a_to_b_deg: state.bearingAb,
-          speed_a_kn: 12,
-          speed_b_kn: 10,
-          range_nm: 0.8,
-        },
-        factsExcerpt: facts || undefined,
-        rulingExcerpt: holding || undefined,
-        faultRatioHint: extracted.fault_ratio || undefined,
-        documentKind,
-        confidence: 0.55,
-        grounding: [
-          facts ? { field: "facts_excerpt", source_quote: facts.slice(0, 240) } : null,
-          holding ? { field: "ruling_excerpt", source_quote: holding.slice(0, 240) } : null,
-        ].filter((g): g is { field: string; source_quote: string } => g != null),
-        groundingMode: "require_span",
-        confidenceMode: "enforce",
-        sourceText: text,
-      });
-      state.caseId = "civil_7";
-      state.civil7 = {
-        case_id: "upload",
-        title: f.name,
-        input_facts: facts,
-        holding,
-        fault_ratio: extracted.fault_ratio || "",
-        document_kind: documentKind,
-      };
-      state.overrideGeom = true;
-      state.uc3Confirmed = false;
-      if (extraction.abstain) {
-        state.uc3Pending = {
-          extraction,
-          reasons: extraction.abstain.reason.split("; ").slice(1),
-        };
-      } else {
-        state.uc3Pending = null;
-        state.uc3Confirmed = true;
-      }
-      render();
-    } catch (err) {
-      if (
-        err instanceof ExtractionValidationError ||
-        err instanceof GroundingValidationError
-      ) {
-        alert(t("err_schema_invalid", state.lang));
-        return;
-      }
-      throw err;
-    }
+    const classification = classifyDocument(text, { filename: f.name });
+    state.uc3Upload = {
+      text,
+      filename: f.name,
+      classification,
+      override: null,
+    };
+    state.uc3Pending = null;
+    state.uc3Confirmed = false;
+    render();
   });
 
   root.querySelector("#exp3Md")?.addEventListener("click", () => {
@@ -907,6 +980,85 @@ function renderUc3(root: HTMLElement): void {
   root.querySelector("#exp3Html")?.addEventListener("click", () => {
     downloadText("colregs.html", colregsHtml(view, state.lang), "text/html");
   });
+}
+
+async function analyzeUc3Upload(): Promise<void> {
+  const upload = state.uc3Upload;
+  if (!upload) return;
+  const decision = resolveDocumentRoute("uc3", upload.classification, upload.override);
+  if (!decision.allowed) {
+    alert(
+      decision.reason === "unknown"
+        ? t("router_blocked_unknown", state.lang)
+        : t("router_blocked_mismatch", state.lang),
+    );
+    return;
+  }
+  const text = upload.text;
+  const fName = upload.filename;
+  const extracted = extractFromJudgment(text);
+  const jtsbReport =
+    decision.effective === "jtsb_report" || isLikelyJtsbReport(text);
+  let holding = extracted.holding_excerpt || "";
+  if (!holding) {
+    holding = extractJtsbCauseExcerpt(text) || "";
+  }
+  const facts = extractFactsExcerpt(text);
+  const documentKind = jtsbReport ? "jtsb" : "judgment";
+  try {
+    const extraction = buildColregsExtraction({
+      geometry: {
+        heading_a_deg: state.headingA,
+        heading_b_deg: state.headingB,
+        true_bearing_a_to_b_deg: state.bearingAb,
+        speed_a_kn: 12,
+        speed_b_kn: 10,
+        range_nm: 0.8,
+      },
+      factsExcerpt: facts || undefined,
+      rulingExcerpt: holding || undefined,
+      faultRatioHint: extracted.fault_ratio || undefined,
+      documentKind,
+      confidence: 0.55,
+      grounding: [
+        facts ? { field: "facts_excerpt", source_quote: facts.slice(0, 240) } : null,
+        holding ? { field: "ruling_excerpt", source_quote: holding.slice(0, 240) } : null,
+      ].filter((g): g is { field: string; source_quote: string } => g != null),
+      groundingMode: "require_span",
+      confidenceMode: "enforce",
+      sourceText: text,
+    });
+    state.caseId = "civil_7";
+    state.civil7 = {
+      case_id: "upload",
+      title: fName,
+      input_facts: facts,
+      holding,
+      fault_ratio: extracted.fault_ratio || "",
+      document_kind: documentKind,
+    };
+    state.overrideGeom = true;
+    state.uc3Confirmed = false;
+    if (extraction.abstain) {
+      state.uc3Pending = {
+        extraction,
+        reasons: extraction.abstain.reason.split("; ").slice(1),
+      };
+    } else {
+      state.uc3Pending = null;
+      state.uc3Confirmed = true;
+    }
+    render();
+  } catch (err) {
+    if (
+      err instanceof ExtractionValidationError ||
+      err instanceof GroundingValidationError
+    ) {
+      alert(t("err_schema_invalid", state.lang));
+      return;
+    }
+    throw err;
+  }
 }
 
 function buildPscReport(): { report: SeaworthinessRiskReport; title: string } {
@@ -1023,6 +1175,7 @@ function renderPsc(root: HTMLElement): void {
         <label>${escapeHtml(t("psc_paste", state.lang))}
           <textarea id="pscPaste" rows="8" placeholder="${escapeHtml(t("psc_paste_hint", state.lang))}">${escapeHtml(state.pscPasteText)}</textarea>
         </label>
+        ${routerPanelHtml("psc", state.pscUpload, "analyzePsc")}
         <div class="actions">
           <button type="button" class="btn" id="pscApplyPaste">${escapeHtml(t("psc_apply_paste", state.lang))}</button>
           <button type="button" class="btn" id="pscClearPaste">${escapeHtml(t("psc_clear_paste", state.lang))}</button>
@@ -1081,6 +1234,7 @@ function renderPsc(root: HTMLElement): void {
   root.querySelector("#pscCaseSel")?.addEventListener("change", (e) => {
     state.pscCaseId = (e.target as HTMLSelectElement).value;
     state.pscUsePaste = false;
+    state.pscUpload = null;
     render();
   });
   root.querySelector("#pscLookback")?.addEventListener("input", (e) => {
@@ -1095,42 +1249,41 @@ function renderPsc(root: HTMLElement): void {
   root.querySelector("#pscPaste")?.addEventListener("change", (e) => {
     state.pscPasteText = (e.target as HTMLTextAreaElement).value;
   });
+  root.querySelector("#routerOverride_psc")?.addEventListener("change", (e) => {
+    if (!state.pscUpload) return;
+    const v = (e.target as HTMLSelectElement).value;
+    state.pscUpload = {
+      ...state.pscUpload,
+      override: v ? (v as DocumentType) : null,
+    };
+    render();
+  });
+  root.querySelector("#analyzePsc")?.addEventListener("click", () => {
+    void analyzePscUpload();
+  });
   root.querySelector("#pscApplyPaste")?.addEventListener("click", () => {
     const ta = root.querySelector("#pscPaste") as HTMLTextAreaElement | null;
     const text = ta?.value ?? state.pscPasteText;
     state.pscPasteText = text;
-    try {
-      const parsed = tryParsePscPaste(text);
-      if (!parsed.current.length) {
-        alert(t("psc_err_empty", state.lang));
-        return;
-      }
-      buildPscExtraction({
-        deficiencies: parsed.current,
-        prior: parsed.prior,
-        mouId: parsed.mouId,
-        cicWeights: parsed.cicWeights,
-        lookbackMonths: state.pscLookbackMonths,
-        confidence: 0.75,
-        groundingMode: "paste_bypass",
-      });
-      state.pscPasteCurrent = parsed.current;
-      state.pscPastePrior = parsed.prior;
-      state.pscPasteCic = parsed.cicWeights;
-      state.pscPasteMou = parsed.mouId;
-      state.pscPasteLabel = parsed.label;
-      state.pscUsePaste = true;
-      render();
-    } catch (err) {
-      if (
-        err instanceof ExtractionValidationError ||
-        err instanceof GroundingValidationError
-      ) {
-        alert(t("err_schema_invalid", state.lang));
-        return;
-      }
-      alert(t("psc_err_paste", state.lang));
+    if (!text.trim()) {
+      alert(t("psc_err_empty", state.lang));
+      return;
     }
+    const classification = classifyDocument(text, { filename: "paste.txt" });
+    state.pscUpload = {
+      text,
+      filename: "paste.txt",
+      classification,
+      override: null,
+    };
+    const decision = resolveDocumentRoute("psc", classification, null);
+    if (!decision.allowed) {
+      state.pscUsePaste = false;
+      state.pscPasteCurrent = [];
+      render();
+      return;
+    }
+    void analyzePscUpload();
   });
   root.querySelector("#pscClearPaste")?.addEventListener("click", () => {
     state.pscUsePaste = false;
@@ -1139,6 +1292,10 @@ function renderPsc(root: HTMLElement): void {
     state.pscPasteCic = null;
     state.pscPasteMou = null;
     state.pscPasteLabel = "";
+    state.pscPasteText = "";
+    state.pscPending = null;
+    state.pscConfirmed = false;
+    state.pscUpload = null;
     render();
   });
   root.querySelector("#expPscMd")?.addEventListener("click", () => {
@@ -1147,6 +1304,55 @@ function renderPsc(root: HTMLElement): void {
   root.querySelector("#expPscHtml")?.addEventListener("click", () => {
     downloadText("psc_memo.html", pscHtml(view, state.lang), "text/html");
   });
+}
+
+async function analyzePscUpload(): Promise<void> {
+  const upload = state.pscUpload;
+  if (!upload) return;
+  const decision = resolveDocumentRoute("psc", upload.classification, upload.override);
+  if (!decision.allowed) {
+    alert(
+      decision.reason === "unknown"
+        ? t("router_blocked_unknown", state.lang)
+        : t("router_blocked_mismatch", state.lang),
+    );
+    return;
+  }
+  const text = upload.text;
+  try {
+    const parsed = tryParsePscPaste(text);
+    if (!parsed.current.length) {
+      alert(t("psc_err_empty", state.lang));
+      return;
+    }
+    buildPscExtraction({
+      deficiencies: parsed.current,
+      prior: parsed.prior,
+      mouId: parsed.mouId,
+      cicWeights: parsed.cicWeights,
+      lookbackMonths: state.pscLookbackMonths,
+      confidence: 0.75,
+      groundingMode: "paste_bypass",
+    });
+    state.pscPasteCurrent = parsed.current;
+    state.pscPastePrior = parsed.prior;
+    state.pscPasteCic = parsed.cicWeights;
+    state.pscPasteMou = parsed.mouId;
+    state.pscPasteLabel = parsed.label;
+    state.pscUsePaste = true;
+    state.pscPending = null;
+    state.pscConfirmed = true;
+    render();
+  } catch (err) {
+    if (
+      err instanceof ExtractionValidationError ||
+      err instanceof GroundingValidationError
+    ) {
+      alert(t("err_schema_invalid", state.lang));
+      return;
+    }
+    alert(t("psc_err_paste", state.lang));
+  }
 }
 
 function render(): void {

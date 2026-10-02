@@ -286,6 +286,44 @@ const MESSAGES: Record<string, Record<Lang, string>> = {
     en: "Extraction ready — human review required before scoring.",
     ja: "抽出完了 — 採点前に人間確認が必要です。",
   },
+  router_detected: {
+    en: "Detected document type",
+    ja: "検出した文書種別",
+  },
+  router_override: {
+    en: "Override type (before Analyze)",
+    ja: "種別を上書き（解析前）",
+  },
+  router_override_none: {
+    en: "Use detected type",
+    ja: "検出結果を使う",
+  },
+  router_analyze: {
+    en: "Analyze",
+    ja: "解析する",
+  },
+  router_confidence: {
+    en: "Router confidence",
+    ja: "ルーター信頼度",
+  },
+  router_blocked_unknown: {
+    en: "Document type is unknown — Stage B will not run. Choose an override type, or upload a clearer sample.",
+    ja: "文書種別が不明なため Stage B は実行しません。種別を上書きするか、より明確なサンプルをアップロードしてください。",
+  },
+  router_blocked_mismatch: {
+    en: "Detected type does not match this tab — Stage B will not run until you override to an allowed type.",
+    ja: "検出種別がこのタブと一致しないため、許容種別に上書きするまで Stage B は実行しません。",
+  },
+  router_ready: {
+    en: "Type matches this tab. Click Analyze to run Stage A → Stage B.",
+    ja: "種別はこのタブと一致しています。解析する を押すと Stage A → Stage B を実行します。",
+  },
+  router_type_repair_spec: { en: "Repair specification", ja: "修繕仕様書" },
+  router_type_civil_judgment: { en: "Civil judgment", ja: "民事判決" },
+  router_type_jmat_ruling: { en: "JMAT ruling", ja: "海難審判裁決" },
+  router_type_jtsb_report: { en: "JTSB investigation report", ja: "運輸安全委員会報告書" },
+  router_type_psc_inspection: { en: "PSC inspection", ja: "PSC 検査" },
+  router_type_unknown: { en: "Unknown", ja: "不明" },
   col_id: { en: "ID", ja: "ID" },
   col_title: { en: "Title", ja: "摘要" },
   col_cost: { en: "Cost", ja: "費用" },
