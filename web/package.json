@@ -4,21 +4,23 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "predev": "npm run build:data",
+    "predev": "npm run fetch:tessdata && npm run build:data",
     "dev": "vite",
-    "prebuild": "npm run build:data",
+    "prebuild": "npm run fetch:tessdata && npm run build:data",
     "build": "tsc --noEmit && vite build",
+    "fetch:tessdata": "node scripts/fetch-tessdata.mjs",
     "build:data": "node scripts/build-data.mjs",
     "build:schemas": "node scripts/build-schemas.mjs",
     "cli": "node --import tsx ../cli/main.ts",
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "gate-a": "vitest run tests/gateA.test.ts tests/gateAPriority2.test.ts tests/spanA4A8.test.ts tests/groundingGate.test.ts tests/issue88DoD.test.ts tests/confidenceGate.test.ts tests/issue89DoD.test.ts tests/documentRouter.test.ts tests/civilJudgmentExtractor.test.ts tests/negativePatterns.test.ts tests/pipeline.test.ts tests/ruleD5.test.ts tests/schemas.test.ts tests/coreRunners.test.ts"
+    "gate-a": "vitest run tests/gateA.test.ts tests/gateAPriority2.test.ts tests/spanA4A8.test.ts tests/groundingGate.test.ts tests/issue88DoD.test.ts tests/confidenceGate.test.ts tests/issue89DoD.test.ts tests/documentRouter.test.ts tests/civilJudgmentExtractor.test.ts tests/negativePatterns.test.ts tests/pipeline.test.ts tests/ruleD5.test.ts tests/schemas.test.ts tests/coreRunners.test.ts tests/ocrUploadPath.test.ts"
   },
   "dependencies": {
     "@duckdb/duckdb-wasm": "^1.29.0",
     "pdfjs-dist": "^4.10.38",
+    "tesseract.js": "^7.0.0",
     "zod": "^4.6.5"
   },
   "devDependencies": {

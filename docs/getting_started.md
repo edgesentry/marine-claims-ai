@@ -4,7 +4,7 @@ Install, ingest, index, evaluate, and run the claims pipeline. Local caches defa
 
 This guide is the canonical how-to formerly kept in the repository README.
 
-Related: [Executive demo](executive_demo_cli_and_web.md) · [Demo use cases](demo_use_cases.md) · [Exact Span grounding](exact_span_grounding.md) · [Confidence / HUMAN_REVIEW abstention](confidence_abstention.md) · [Public benchmarks](public_benchmarks_and_accuracy_evaluation.md) · [Technical stack](technical_stack.md) · [Database lifecycle](database_architecture_and_lifecycle.md).
+Related: [Executive demo](executive_demo_cli_and_web.md) · [Demo use cases](demo_use_cases.md) · [Exact Span grounding](exact_span_grounding.md) · [Confidence / HUMAN_REVIEW abstention](confidence_abstention.md) · [PWA OCR / airplane mode](pwa_ocr_offline.md) · [Public benchmarks](public_benchmarks_and_accuracy_evaluation.md) · [Technical stack](technical_stack.md) · [Database lifecycle](database_architecture_and_lifecycle.md).
 
 ---
 
@@ -24,9 +24,13 @@ Browser UI is the static WASM PWA under `web/` (no Python demo server). Tabs: **
 Shared Stage A → Stage B logic lives in `web/src/core/` (UI-independent). The Node CLI at repo-root `cli/` calls the same runners for demos and component checks.
 
 ```bash
-cd web && npm install && npm test && npm run gate-a
+cd web && npm install && npm run fetch:tessdata && npm test && npm run gate-a
 cd web && npm run build && npm run preview
+```
 
+Image-only PDF OCR (Issue #94): [pwa_ocr_offline.md](pwa_ocr_offline.md) (~52 MB same-origin weights, airplane after first SW cache).
+
+```bash
 # CLI (same core as PWA)
 cd web && npm run cli -- help
 cd web && npm run cli -- rule-d5

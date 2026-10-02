@@ -114,6 +114,8 @@ _data/
 └── cache/                        # Transient intermediate files & UI previews
     ├── pdf_pages/                # Rendered PNG/JPEG pages for demo visual verification UI
     └── ocr/                      # Raw OCR JSON / character bounding box geometry
+                                  # (Zero-Dataset: never commit; regenerate locally.
+                                  #  Browser PWA OCR keeps results in-memory only — see docs/pwa_ocr_offline.md)
 ```
 
 ### 2.3 `_logs/` (Operational Logs & Audit Trail)

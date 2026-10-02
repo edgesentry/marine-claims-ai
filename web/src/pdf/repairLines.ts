@@ -11,9 +11,20 @@ export interface ExtractedItem {
   estimated_cost: number;
 }
 
+/**
+ * Light OCR cleanup for yen amounts (Issue #94).
+ * Tesseract often emits `850.000` for `850,000` and `F9` for `円`.
+ */
+export function normalizeOcrYenText(text: string): string {
+  return text
+    .replace(/(\d)F9/gi, "$1円")
+    .replace(/(\d)\.(?=\d{3}(?:\D|$))/g, "$1,");
+}
+
 export function extractRepairItemsFromText(text: string): ExtractedItem[] {
   const items: ExtractedItem[] = [];
-  for (const raw of text.split(/\n+/)) {
+  const normalized = normalizeOcrYenText(text);
+  for (const raw of normalized.split(/\n+/)) {
     const line = raw.trim();
     if (line.length < 4) continue;
     YEN_RE.lastIndex = 0;
