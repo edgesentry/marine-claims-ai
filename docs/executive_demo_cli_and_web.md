@@ -19,7 +19,7 @@ Demo tabs: **1. Rule D5** · **2. COLREGS** · **3. PSC** (public MOU fixtures �
 
 **Legal / rule basis (one line each):** London AAA **Rule D5** · **COLREGS 1972** Rules 13–17 / **海上衝突予防法** 第13–17条 · Tokyo/Paris **MOU** deficiency + action codes (IMO A.1155(32) procedures context). Full table: [demo_use_cases.md](demo_use_cases.md#legal--rule-basis-summary).
 
-### Stage A → Stage B contract (Issue #87)
+## Stage A → Stage B contract (Issue #87)
 
 Tier 1 heuristics (and later Tier 2 SLM / Tier 3 LLM) must emit a validated **`ExtractionResult`** envelope before any Stage B scorer runs:
 

@@ -22,6 +22,7 @@ BANNED_EXTENSIONS = {".pdf", ".csv", ".tsv", ".html", ".htm"}
 # Configuration schemas under config/, plus WASM PWA package/fixtures (not corpora).
 JSON_ALLOWLIST_PREFIXES = (
     "config/",
+    "docs/schemas/",
     "web/package.json",
     "web/package-lock.json",
     "web/tsconfig.json",
