@@ -19,11 +19,20 @@ uv run pytest -q
 
 ## 0b. Executive demo (Issues #54 / #76 / #83)
 
-Browser UI is the static WASM PWA under `web/` (no Python demo server/CLI). Tabs: **Rule D5**, **COLREGS**, **PSC**.
+Browser UI is the static WASM PWA under `web/` (no Python demo server). Tabs: **Rule D5**, **COLREGS**, **PSC**.
+
+Shared Stage A → Stage B logic lives in `web/src/core/` (UI-independent). The Node CLI at repo-root `cli/` calls the same runners for demos and component checks.
 
 ```bash
 cd web && npm install && npm test && npm run gate-a
 cd web && npm run build && npm run preview
+
+# CLI (same core as PWA)
+cd web && npm run cli -- help
+cd web && npm run cli -- rule-d5
+cd web && npm run cli -- colregs --heading-a 30 --heading-b 300 --bearing 70
+cd web && npm run cli -- psc --fixture repeat_ism_major
+cd web && npm run cli -- classify-encounter --heading-a 0 --heading-b 180 --bearing 0
 ```
 
 Full design: [executive_demo_cli_and_web.md](executive_demo_cli_and_web.md). Use-case I/O and **legal / rule basis** (AAA Rule D5 · COLREGS / 海上衝突予防法 · Tokyo/Paris MOU + IMO A.1155(32)): [demo_use_cases.md](demo_use_cases.md).

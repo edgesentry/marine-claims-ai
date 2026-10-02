@@ -6,29 +6,22 @@ import {
   OVERTAKING_RELATIVE_BEARING_MIN_DEG,
   type EncounterGeometry,
 } from "./engines/colregs";
-import { apportionRuleD, type DockingContext, type RepairLineItem } from "./engines/ruleD5";
+import { type DockingContext, type RepairLineItem } from "./engines/ruleD5";
 import {
-  predictFaultRatio,
   type CatalogSeed,
   type FaultRules,
 } from "./engines/fault";
 import { validateCausality } from "./engines/bfs";
 import {
   DEFAULT_LOOKBACK_MONTHS,
-  parseInspectionRecord,
-  scoreFixtureCase,
   scoreSeaworthiness,
   tryParsePscPaste,
   type NormalizedDeficiency,
   type PscFixtureCase,
   type SeaworthinessRiskReport,
 } from "./engines/psc";
-import {
-  extractPdfText,
-  extractRepairItemsFromText,
-  repairItemsToRuleDLines,
-  syntheticUc2Lines,
-} from "./pdf/parseTender";
+import { extractPdfText } from "./pdf/parseTender";
+import { extractRepairItemsFromText, syntheticUc2Lines } from "./pdf/repairLines";
 import {
   extractFactsExcerpt,
   extractFromJudgment,
@@ -57,11 +50,10 @@ import {
 import {
   buildColregsExtraction,
   buildPscExtraction,
-  buildRuleD5Extraction,
   ExtractionValidationError,
-  geometryFromExtraction,
   ruleD5LinesFromExtraction,
 } from "./schemas";
+import { runColregs, runPsc, runPscFixture, runRuleD5, runRuleD5FromRepairText } from "./core";
 import { getDuckDb } from "./db/duckdb";
 
 type Tab = "uc2" | "uc3" | "psc";
@@ -162,7 +154,7 @@ function buildUc2(): Uc2View {
   const synced = lines.map((ln) =>
     (ln.trade_code || "").startsWith("DOCK") ? { ...ln, cost: dockTotal } : ln,
   );
-  const extraction = buildRuleD5Extraction({
+  const { apportionment: result, days_saved, offhire_jpy } = runRuleD5({
     dockingContext: state.dockingContext,
     lines: synced,
     assumeStatutoryOwnerWork: state.includeStatutory,
@@ -174,12 +166,10 @@ function buildUc2(): Uc2View {
         field: `lines.${ln.id}`,
         source_quote: String(ln.title),
       })),
+    hireRate: state.hireRate,
+    legacyLeadDays: state.legacyLeadDays,
+    aiLeadMinutes: state.aiLeadMinutes,
   });
-  const gated = ruleD5LinesFromExtraction(extraction);
-  const result = apportionRuleD(gated, extraction.payload.docking_context);
-  const aiDays = state.aiLeadMinutes / (60 * 24);
-  const daysSaved = Math.max(0, state.legacyLeadDays - aiDays);
-  const offhire = Math.round(daysSaved * state.hireRate);
 
   void validateCausality("船首", "機関室");
 
@@ -190,8 +180,8 @@ function buildUc2(): Uc2View {
     owner_common: result.owner_common_share,
     insurer_total: result.insurer_total,
     owner_total: result.owner_total,
-    days_saved: Math.round(daysSaved * 100) / 100,
-    offhire_jpy: offhire,
+    days_saved,
+    offhire_jpy,
     line_rows: result.lines.map((ln) => ({
       id: ln.id,
       title: ln.title || ln.id,
@@ -261,40 +251,22 @@ function buildUc3(): Uc3View {
       ? state.civil7.document_kind
       : undefined;
 
-  const grounding = [
-    facts ? { field: "facts_excerpt", source_quote: facts.slice(0, 240) } : null,
-    ruling ? { field: "ruling_excerpt", source_quote: ruling.slice(0, 240) } : null,
-  ].filter((g): g is { field: string; source_quote: string } => g != null);
-
-  const extraction = buildColregsExtraction({
+  const {
+    extraction,
+    verdict,
+    fault_ratio: faultRatio,
+  } = runColregs({
     geometry,
     factsExcerpt: facts || undefined,
     rulingExcerpt: ruling || undefined,
+    title,
     faultRatioHint: catalogFault || undefined,
     documentKind: docKind,
     confidence: state.civil7?.case_id === "upload" ? 0.55 : 0.7,
-    grounding,
+    rules: state.rules,
+    seeds: state.seeds,
   });
-  const gatedGeom = geometryFromExtraction(extraction);
-  const verdict = classifyEncounter(gatedGeom);
-  const prediction =
-    state.rules != null
-      ? predictFaultRatio(
-          extraction.payload.facts_excerpt ||
-            extraction.payload.ruling_excerpt ||
-            title,
-          state.rules,
-          state.seeds,
-          gatedGeom,
-        )
-      : null;
-  const faultRatio =
-    catalogFault ||
-    extraction.payload.fault_ratio_hint ||
-    prediction?.fault_ratio ||
-    "70:30";
   const rel = verdict.relative_bearing_a_to_b_deg;
-
   const documentKind = extraction.payload.document_kind ?? docKind;
 
   return {
@@ -482,27 +454,25 @@ async function handlePdf(file: File): Promise<void> {
     alert(t("err_no_line_items", state.lang));
     return;
   }
-  const rawLines = repairItemsToRuleDLines(items, {
-    dailyDockRate: state.dailyDockRate,
-    dockDays: state.dockDays,
-    includeStatutory: state.includeStatutory,
-    lang: state.lang,
-  });
   try {
-    const extraction = buildRuleD5Extraction({
+    const run = runRuleD5FromRepairText(text, {
       dockingContext: state.dockingContext,
-      lines: rawLines,
-      assumeStatutoryOwnerWork: state.includeStatutory,
-      confidence: 0.65,
-      grounding: items.slice(0, 12).map((it, i) => ({
-        field: `lines.pdf-${i + 1}`,
-        source_quote: it.description.slice(0, 200),
-      })),
+      dailyDockRate: state.dailyDockRate,
+      dockDays: state.dockDays,
+      includeStatutory: state.includeStatutory,
+      lang: state.lang,
+      hireRate: state.hireRate,
+      legacyLeadDays: state.legacyLeadDays,
+      aiLeadMinutes: state.aiLeadMinutes,
     });
-    state.uc2Lines = ruleD5LinesFromExtraction(extraction);
+    state.uc2Lines = ruleD5LinesFromExtraction(run.extraction);
   } catch (err) {
     if (err instanceof ExtractionValidationError) {
       alert(t("err_schema_invalid", state.lang));
+      return;
+    }
+    if (err instanceof Error && /No repair line items/.test(err.message)) {
+      alert(t("err_no_line_items", state.lang));
       return;
     }
     throw err;
@@ -703,20 +673,13 @@ function renderUc3(root: HTMLElement): void {
 
 function buildPscReport(): { report: SeaworthinessRiskReport; title: string } {
   if (state.pscUsePaste && state.pscPasteCurrent.length) {
-    const extraction = buildPscExtraction({
+    const { report } = runPsc({
       deficiencies: state.pscPasteCurrent,
       prior: state.pscPastePrior,
       mouId: state.pscPasteMou,
       cicWeights: state.pscPasteCic,
       lookbackMonths: state.pscLookbackMonths,
       confidence: 0.75,
-    });
-    const report = scoreSeaworthiness(state.pscPasteCurrent, {
-      prior: state.pscPastePrior,
-      mouId: extraction.payload.mou_id ?? state.pscPasteMou,
-      cicWeights: extraction.payload.cic_weights ?? state.pscPasteCic,
-      lookbackMonths:
-        extraction.payload.lookback_months ?? state.pscLookbackMonths,
     });
     return { report, title: state.pscPasteLabel || "pasted" };
   }
@@ -730,38 +693,10 @@ function buildPscReport(): { report: SeaworthinessRiskReport; title: string } {
       title: state.pscCaseId || "—",
     };
   }
-  // Gate fixture deficiencies through Stage A contract before scoring.
-  const inspection =
-    (fixture.inspection as Record<string, unknown> | undefined) ||
-    (fixture as Record<string, unknown>);
-  const current = parseInspectionRecord(inspection);
-  const priorRaw = fixture.prior_inspection;
-  const prior =
-    priorRaw && typeof priorRaw === "object"
-      ? parseInspectionRecord(priorRaw as Record<string, unknown>)
-      : null;
-  if (current.length) {
-    buildPscExtraction({
-      deficiencies: current,
-      prior,
-      mouId: typeof fixture.mou_id === "string" ? fixture.mou_id : null,
-      cicWeights:
-        fixture.cic_weights && typeof fixture.cic_weights === "object"
-          ? Object.fromEntries(
-              Object.entries(fixture.cic_weights).map(([k, v]) => [
-                String(k),
-                Number(v),
-              ]),
-            )
-          : null,
-      lookbackMonths: state.pscLookbackMonths,
-      confidence: 0.9,
-    });
-  }
-  return {
-    report: scoreFixtureCase(fixture, { lookbackMonths: state.pscLookbackMonths }),
-    title: fixture.id,
-  };
+  const { report } = runPscFixture(fixture, {
+    lookbackMonths: state.pscLookbackMonths,
+  });
+  return { report, title: fixture.id };
 }
 
 function buildPscView(): PscView {

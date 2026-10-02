@@ -5,6 +5,8 @@
 | Area | Path |
 | :--- | :--- |
 | Engines | `web/src/engines/` (Rule D5, COLREGS, fault, BFS, **PSC**) |
+| Shared core runners | `web/src/core/` (Stage A → Stage B; used by PWA + CLI) |
+| Node CLI | `cli/main.ts` (`cd web && npm run cli -- …`) |
 | Stage A schemas | `web/src/schemas/` (Zod `ExtractionResult`; JSON Schema in `docs/schemas/`) |
 | Appraisal + NPL | `web/src/appraisal/` |
 | Exact Span A4 | `web/src/pipeline/` |
@@ -37,7 +39,7 @@ npm run gate-a
 npm run build && npm run preview
 ```
 
-Python demo CLI / Gate A shims were removed; use the commands above.
+Python demo CLI / Gate A shims were removed; use the WASM PWA and the TypeScript CLI (`cli/`, via `npm run cli`) which share `web/src/core/`.
 
 **Python kept intentionally (build-time / corpus ops):**
 
