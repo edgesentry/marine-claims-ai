@@ -1,0 +1,42 @@
+# Dependabot: weekly security/maintenance updates (Wednesdays).
+# Ecosystems present in this repo: uv (root), npm (web/), github-actions.
+version: 2
+updates:
+  # Python (pyproject.toml + uv.lock)
+  - package-ecosystem: "uv"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "wednesday"
+    open-pull-requests-limit: 10
+    groups:
+      uv-minor-patch:
+        update-types:
+          - "minor"
+          - "patch"
+
+  # Web PWA / Node CLI shared deps (web/package-lock.json)
+  - package-ecosystem: "npm"
+    directory: "/web"
+    schedule:
+      interval: "weekly"
+      day: "wednesday"
+    open-pull-requests-limit: 10
+    groups:
+      npm-minor-patch:
+        update-types:
+          - "minor"
+          - "patch"
+
+  # GitHub Actions used in .github/workflows
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "wednesday"
+    open-pull-requests-limit: 10
+    groups:
+      actions-minor-patch:
+        update-types:
+          - "minor"
+          - "patch"
