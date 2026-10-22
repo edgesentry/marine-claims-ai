@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from marine_claims_ai.ci.leak_check import (
+    BANNED_EXTENSIONS,
+    TEXT_EXTENSIONS,
     check_banned_tracked_files,
     is_json_allowed,
     is_scannable_text,
@@ -41,14 +43,36 @@ def test_banned_tracked_files():
         "notes.csv",
         "web/index.html",
         "scraped/case.html",
+        "cache/eval.duckdb",
+        "cache/local.sqlite3",
+        "exports/rows.parquet",
+        "logs/events.jsonl",
     ]
     violations = check_banned_tracked_files(tracked)
     assert any("secret.pdf" in v for v in violations)
     assert any("leak.json" in v for v in violations)
     assert any("notes.csv" in v for v in violations)
     assert any("scraped/case.html" in v for v in violations)
+    assert any("eval.duckdb" in v for v in violations)
+    assert any("local.sqlite3" in v for v in violations)
+    assert any("rows.parquet" in v for v in violations)
+    assert any("events.jsonl" in v for v in violations)
     assert not any("benchmark_rules.json" in v for v in violations)
     assert not any("web/index.html" in v for v in violations)
+
+
+def test_banned_extensions_include_dataset_formats():
+    for ext in (".duckdb", ".sqlite3", ".parquet", ".jsonl"):
+        assert ext in BANNED_EXTENSIONS
+
+
+def test_text_extensions_include_frontend_sources():
+    for ext in (".ts", ".tsx", ".js"):
+        assert ext in TEXT_EXTENSIONS
+    assert is_scannable_text("web/src/main.ts") is True
+    assert is_scannable_text("web/src/ui/App.tsx") is True
+    assert is_scannable_text("cli/main.ts") is True
+    assert is_scannable_text("web/vite.config.js") is True
 
 
 def test_scan_line_detects_private_paths_and_secrets():
