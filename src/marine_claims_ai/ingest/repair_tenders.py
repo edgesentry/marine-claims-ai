@@ -107,9 +107,11 @@ def fetch_repair_tenders(
 
     for entry in entries:
         kind = str(entry.get("kind") or "spec")
-        filename = _safe_manifest_filename(
-            str(entry.get("filename") or entry.get("id") or "unknown.pdf")
-        )
+        if "filename" in entry:
+            raw_filename = "" if entry["filename"] is None else str(entry["filename"])
+        else:
+            raw_filename = str(entry.get("id") or "unknown.pdf")
+        filename = _safe_manifest_filename(raw_filename)
         dest_dir = _kind_dir(kind, root)
         dest = _dest_under_repairs(dest_dir, filename, root)
         url = entry.get("url")
