@@ -20,7 +20,7 @@
   },
   "dependencies": {
     "@duckdb/duckdb-wasm": "^1.29.0",
-    "pdfjs-dist": "^4.10.38",
+    "pdfjs-dist": "^6.4.299",
     "tesseract.js": "^7.0.0",
     "zod": "^4.6.5"
   },
