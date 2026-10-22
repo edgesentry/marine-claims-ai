@@ -38,6 +38,27 @@ def _kind_dir(kind: str, repairs_root: Path) -> Path:
     return repairs_root / "specs"
 
 
+def _safe_manifest_filename(filename: str) -> str:
+    """Return a basename-only filename; reject empty / '.' / '..'."""
+    name = Path(filename).name
+    if not name or name in {".", ".."}:
+        raise ValueError(f"Invalid repair tender filename: {filename!r}")
+    return name
+
+
+def _dest_under_repairs(dest_dir: Path, filename: str, repairs_root: Path) -> Path:
+    """Join basename onto dest_dir and require the result stay under repairs_root."""
+    safe_name = _safe_manifest_filename(filename)
+    dest = dest_dir / safe_name
+    root_resolved = repairs_root.resolve()
+    dest_resolved = dest.resolve()
+    if not dest_resolved.is_relative_to(root_resolved):
+        raise ValueError(
+            f"Repair tender dest escapes repairs root: {dest} (root={repairs_root})"
+        )
+    return dest
+
+
 def _resolve_seed(local_seed: str) -> Path | None:
     name = Path(local_seed).name
     for base in (DEFAULT_DATASET_DIR, LEGACY_DATASET_DIR, DEFAULT_INPUT_REPAIRS_DIR / "specs"):
@@ -86,9 +107,11 @@ def fetch_repair_tenders(
 
     for entry in entries:
         kind = str(entry.get("kind") or "spec")
-        filename = str(entry.get("filename") or entry.get("id") or "unknown.pdf")
+        filename = _safe_manifest_filename(
+            str(entry.get("filename") or entry.get("id") or "unknown.pdf")
+        )
         dest_dir = _kind_dir(kind, root)
-        dest = dest_dir / filename
+        dest = _dest_under_repairs(dest_dir, filename, root)
         url = entry.get("url")
         local_seed = entry.get("local_seed")
         row: dict[str, Any] = {

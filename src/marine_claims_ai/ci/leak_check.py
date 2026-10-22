@@ -17,7 +17,17 @@ from pathlib import Path
 
 from marine_claims_ai.paths import REPO_ROOT
 
-BANNED_EXTENSIONS = {".pdf", ".csv", ".tsv", ".html", ".htm"}
+BANNED_EXTENSIONS = {
+    ".pdf",
+    ".csv",
+    ".tsv",
+    ".html",
+    ".htm",
+    ".duckdb",
+    ".sqlite3",
+    ".parquet",
+    ".jsonl",
+}
 
 # Configuration schemas under config/, plus WASM PWA package/fixtures (not corpora).
 JSON_ALLOWLIST_PREFIXES = (
@@ -92,6 +102,9 @@ TEXT_EXTENSIONS = {
     ".cfg",
     ".ini",
     ".gitignore",
+    ".ts",
+    ".tsx",
+    ".js",
 }
 
 
